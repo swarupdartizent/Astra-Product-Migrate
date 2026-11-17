@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Astra Migrate</title>
+    <script>
+      // Apply the stored theme before first paint so there is no flash of the wrong theme.
+      // Mirrors src/theme/theme.ts. Storage can be unavailable (private mode, blocked site data).
+      (function () {
+        try {
+          var t = window.localStorage.getItem('astra.theme');
+          if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {
+          /* fall back to prefers-color-scheme */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+.timestamp {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.relative {
+  border-radius: var(--radius-xs);
+  text-decoration: underline dotted var(--color-border-strong);
+  text-underline-offset: 3px;
+  cursor: default;
+}

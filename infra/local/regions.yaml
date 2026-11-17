@@ -1,0 +1,21 @@
+# Hosting regions offered by this deployment. Each region has its own tenant database server.
+# Azure deployments replace this file with real Azure regions (for example westeurope, eastus2).
+# model_endpoints: where model calls for tenants in this region are sent. "region_pinned: false"
+# means the provider does not offer a regional endpoint; residency controls can then block the project.
+regions:
+  - code: local-a
+    name: Local region A
+    jurisdiction: local
+    tenant_db:
+      host: 127.0.0.1
+      port: 15432
+    model_endpoints:
+      anthropic: {base_url: "https://api.anthropic.com", region_pinned: false}
+  - code: local-b
+    name: Local region B
+    jurisdiction: local
+    tenant_db:
+      host: 127.0.0.1
+      port: 15433
+    model_endpoints:
+      anthropic: {base_url: "https://api.anthropic.com", region_pinned: false}

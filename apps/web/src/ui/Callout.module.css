@@ -1,0 +1,60 @@
+.callout {
+  --tone-text: var(--color-info-text);
+  --tone-bg: var(--color-info-bg);
+  --tone-border: var(--color-info-border);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--tone-border);
+  border-radius: var(--radius-md);
+  background: var(--tone-bg);
+  font-size: var(--text-md);
+}
+
+.success {
+  --tone-text: var(--color-success-text);
+  --tone-bg: var(--color-success-bg);
+  --tone-border: var(--color-success-border);
+}
+
+.warning {
+  --tone-text: var(--color-warning-text);
+  --tone-bg: var(--color-warning-bg);
+  --tone-border: var(--color-warning-border);
+}
+
+.danger {
+  --tone-text: var(--color-danger-text);
+  --tone-bg: var(--color-danger-bg);
+  --tone-border: var(--color-danger-border);
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.1875rem;
+  color: var(--tone-text);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  min-width: 0;
+  flex: 1;
+}
+
+.title {
+  font-weight: var(--weight-semibold);
+  color: var(--tone-text);
+}
+
+.body {
+  color: var(--color-text-secondary);
+}
+
+.action {
+  flex-shrink: 0;
+}

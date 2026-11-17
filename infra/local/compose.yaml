@@ -1,0 +1,82 @@
+# Local stack for Astra Migrate. Each service maps to a managed Azure service later (see docs/PLAN.md).
+# Ports are offset to avoid clashing with tools already installed on a developer machine.
+name: astra-migrate
+
+services:
+  # Control plane + region "local-a" tenant storage
+  pg-a:
+    image: pgvector/pgvector:0.8.0-pg17
+    environment:
+      POSTGRES_USER: astra_root
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_root_password
+    secrets: [pg_root_password]
+    ports: ["15432:5432"]
+    volumes:
+      - pg-a-data:/var/lib/postgresql/data
+      - ./postgres/init-a.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U astra_root -d postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  # Region "local-b" tenant storage: a physically separate database server
+  pg-b:
+    image: pgvector/pgvector:0.8.0-pg17
+    environment:
+      POSTGRES_USER: astra_root
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_root_password
+    secrets: [pg_root_password]
+    ports: ["15433:5432"]
+    volumes:
+      - pg-b-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U astra_root -d postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  # Secrets and per-tenant encryption keys (Vault-compatible). Azure: Key Vault.
+  openbao:
+    image: openbao/openbao:2.1.0
+    command: ["server", "-config=/openbao/astra/bao.hcl"]
+    cap_add: [IPC_LOCK]
+    ports: ["18200:8200"]
+    volumes:
+      - ./openbao/bao.hcl:/openbao/astra/bao.hcl:ro
+      - openbao-data:/openbao/file
+
+  # Identity provider (OIDC). Azure: Microsoft Entra ID; Okta also supported.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    command: ["start-dev", "--import-realm", "--http-port=8080", "--features=step-up-authentication"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://pg-a:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?run tools/dev.py up}
+      KC_BOOTSTRAP_ADMIN_USERNAME: kcadmin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?run tools/dev.py up}
+      KC_HEALTH_ENABLED: "true"
+    ports: ["18080:8080"]
+    volumes:
+      - ./keycloak/realm-astra.json:/opt/keycloak/data/import/realm-astra.json:ro
+    depends_on:
+      pg-a: {condition: service_healthy}
+
+  # Tracing backend (OpenTelemetry). Azure: Azure Monitor / Application Insights.
+  jaeger:
+    image: jaegertracing/jaeger:2.1.0
+    ports:
+      - "16686:16686"   # UI
+      - "14317:4317"    # OTLP gRPC
+      - "14318:4318"    # OTLP HTTP
+
+secrets:
+  pg_root_password:
+    file: ../../.local/secrets/pg_root_password
+
+volumes:
+  pg-a-data:
+  pg-b-data:
+  openbao-data:

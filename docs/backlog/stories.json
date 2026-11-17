@@ -1,0 +1,2062 @@
+{
+  "source": "Astra Migrate Product Backlog v1.0 (17 Nov 2026), spec v1.1",
+  "status_values": [
+    "todo",
+    "in_progress",
+    "done",
+    "blocked"
+  ],
+  "stories": [
+    {
+      "id": "E01.F1.S1",
+      "epic": "E01",
+      "epic_name": "Platform foundation",
+      "feature": "E01.F1",
+      "feature_name": "Tenancy and environments",
+      "story": "As a platform administrator, I want to create a separate tenant for each customer estate with its own storage, compute and encryption keys, so that customer data can never mix between customers or partners.",
+      "acceptance": [
+        "Each tenant has its own storage and its own encryption keys.",
+        "An automated test proves that a query from one tenant cannot read another tenant's data.",
+        "Tenant creation and deletion are written to the audit log."
+      ],
+      "release": "R1",
+      "spec": "NFR Tenancy",
+      "status": "done",
+      "increment": "I1",
+      "note": "DB per tenant + role + non-exportable key; isolation proven in tests/test_tenancy.py"
+    },
+    {
+      "id": "E01.F1.S2",
+      "epic": "E01",
+      "epic_name": "Platform foundation",
+      "feature": "E01.F1",
+      "feature_name": "Tenancy and environments",
+      "story": "As a platform administrator, I want to choose the hosting region when I create a tenant, so that data residency rules in the blueprint are met.",
+      "acceptance": [
+        "The region is fixed at creation and can only change through a recorded migration task.",
+        "Model calls use endpoints in the same region where the provider offers them.",
+        "A blueprint residency control blocks a project in a non-compliant region."
+      ],
+      "release": "R1",
+      "spec": "NFR Residency",
+      "status": "in_progress",
+      "increment": "I1",
+      "note": "Region fixed at creation, DB-enforced, recorded region moves done. Remaining: blueprint residency control blocking a project (I2); per-region model endpoints wired in I3."
+    },
+    {
+      "id": "E01.F1.S3",
+      "epic": "E01",
+      "epic_name": "Platform foundation",
+      "feature": "E01.F1",
+      "feature_name": "Tenancy and environments",
+      "story": "As a platform administrator, I want to deploy the platform into a customer's own Azure or AWS account, so that regulated customers can keep all data inside their own cloud.",
+      "acceptance": [
+        "Infrastructure-as-code templates exist for Azure and AWS.",
+        "A deployment guide and automated smoke tests are provided.",
+        "A customer-account deployment passes the same security tests as the shared service."
+      ],
+      "release": "R2",
+      "spec": "NFR Deployment",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E01.F2.S1",
+      "epic": "E01",
+      "epic_name": "Platform foundation",
+      "feature": "E01.F2",
+      "feature_name": "Identity and access",
+      "story": "As a platform user, I want to sign in with my company's single sign-on and multi-factor authentication, so that I do not need a separate password for the platform.",
+      "acceptance": [
+        "Microsoft Entra ID and Okta work through SAML or OpenID Connect.",
+        "Multi-factor authentication is enforced by tenant policy.",
+        "Session timeout can be set per tenant."
+      ],
+      "release": "R1",
+      "spec": "NFR Security",
+      "status": "in_progress",
+      "increment": "I1",
+      "note": "Generic multi-issuer OIDC, tenant MFA policy (amr) and per-tenant session timeout done and tested with Keycloak. Remaining: verify against a real Microsoft Entra ID and Okta tenant."
+    },
+    {
+      "id": "E01.F2.S2",
+      "epic": "E01",
+      "epic_name": "Platform foundation",
+      "feature": "E01.F2",
+      "feature_name": "Identity and access",
+      "story": "As a platform administrator, I want to assign roles to users per programme, partner and project, so that each person sees and does only what their role allows.",
+      "acceptance": [
+        "Roles include all roles listed in this backlog.",
+        "A partner user can see only the customers assigned to that partner.",
+        "Every role change is written to the audit log."
+      ],
+      "release": "R1",
+      "spec": "IB-04",
+      "status": "done",
+      "increment": "I1",
+      "note": "All backlog roles; programme/partner/tenant scopes; partner isolation and audited grants tested"
+    },
+    {
+      "id": "E01.F2.S3",
+      "epic": "E01",
+      "epic_name": "Platform foundation",
+      "feature": "E01.F2",
+      "feature_name": "Identity and access",
+      "story": "As a platform administrator, I want to store connector credentials as secrets in a vault, so that passwords never appear in blueprints, logs or screens.",
+      "acceptance": [
+        "Secrets are read only at run time by the connector that needs them.",
+        "Secrets can be rotated without changing the blueprint.",
+        "A log scan in the test suite finds no secret values."
+      ],
+      "release": "R1",
+      "spec": "NFR Security",
+      "status": "done",
+      "increment": "I1",
+      "note": "Vault-held connector secrets, secret:// references, rotation, audited run-time reads, log scan test"
+    },
+    {
+      "id": "E01.F3.S1",
+      "epic": "E01",
+      "epic_name": "Platform foundation",
+      "feature": "E01.F3",
+      "feature_name": "Audit, logging and observability",
+      "story": "As an auditor, I want to have every user action and agent action written to a write-once audit log, so that I can prove who did what and when.",
+      "acceptance": [
+        "Log entries cannot be changed or deleted by any user, including administrators.",
+        "Entries are hash-chained so tampering can be detected.",
+        "The log can be filtered by project, person, agent and time and exported."
+      ],
+      "release": "R1",
+      "spec": "RG-03",
+      "status": "done",
+      "increment": "I1",
+      "note": "Privileges + triggers + hash chain + vault-signed anchors; filter and CSV/JSONL export"
+    },
+    {
+      "id": "E01.F3.S2",
+      "epic": "E01",
+      "epic_name": "Platform foundation",
+      "feature": "E01.F3",
+      "feature_name": "Audit, logging and observability",
+      "story": "As a platform engineer, I want to trace every agent call, tool call and load step with its duration and cost, so that I can find slow or expensive steps and report cost per stage.",
+      "acceptance": [
+        "Traces use OpenTelemetry.",
+        "A dashboard shows time and model cost per project, stage and agent.",
+        "A trace can be opened from any review item."
+      ],
+      "release": "R1",
+      "spec": "NFR Observability",
+      "status": "in_progress",
+      "increment": "I1",
+      "note": "OpenTelemetry to Jaeger + span store + dashboard with waterfall. Remaining: model cost per agent once agents exist (I3); open trace from review items (I8)."
+    },
+    {
+      "id": "E01.F3.S3",
+      "epic": "E01",
+      "epic_name": "Platform foundation",
+      "feature": "E01.F3",
+      "feature_name": "Audit, logging and observability",
+      "story": "As a customer IT security lead, I want to stream the audit log to my own security monitoring tool, so that the migration is covered by our normal security monitoring.",
+      "acceptance": [
+        "Export works to at least Microsoft Sentinel and Splunk.",
+        "Export delay is under five minutes.",
+        "Failed exports raise an alert."
+      ],
+      "release": "R2",
+      "spec": "NFR Observability",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E02.F1.S1",
+      "epic": "E02",
+      "epic_name": "Agent runtime and AI governance",
+      "feature": "E02.F1",
+      "feature_name": "Agent runtime",
+      "story": "As a platform engineer, I want to register each agent with its role, allowed tools, guardrails and test suite on the Astra Data Factory runtime, so that agents behave in a controlled and repeatable way.",
+      "acceptance": [
+        "An agent cannot call a tool outside its registered list.",
+        "Each project is pinned to agent versions.",
+        "An agent release is blocked if its test suite fails."
+      ],
+      "release": "R1",
+      "spec": "Agents",
+      "status": "todo",
+      "increment": "I3"
+    },
+    {
+      "id": "E02.F1.S2",
+      "epic": "E02",
+      "epic_name": "Agent runtime and AI governance",
+      "feature": "E02.F1",
+      "feature_name": "Agent runtime",
+      "story": "As a platform engineer, I want to call models through one model-neutral gateway with Claude as the default, so that we can change models without changing agents.",
+      "acceptance": [
+        "The gateway supports at least two model providers.",
+        "Models are called through enterprise endpoints with no training on customer data.",
+        "Each call records the model name and version."
+      ],
+      "release": "R1",
+      "spec": "NFR Models",
+      "status": "todo",
+      "increment": "I3"
+    },
+    {
+      "id": "E02.F1.S3",
+      "epic": "E02",
+      "epic_name": "Agent runtime and AI governance",
+      "feature": "E02.F1",
+      "feature_name": "Agent runtime",
+      "story": "As a migration lead, I want to have an Orchestrator agent plan stages, assign tasks to agents and ask people for decisions, so that work moves forward without manual hand-offs.",
+      "acceptance": [
+        "The Orchestrator can read status and metadata but not business data values.",
+        "Every decision it requests appears in the review queue with an owner.",
+        "Stage status is visible on the project dashboard."
+      ],
+      "release": "R1",
+      "spec": "Agents",
+      "status": "todo",
+      "increment": "I3"
+    },
+    {
+      "id": "E02.F2.S1",
+      "epic": "E02",
+      "epic_name": "Agent runtime and AI governance",
+      "feature": "E02.F2",
+      "feature_name": "Guardrails",
+      "story": "As a platform engineer, I want to pass all text found in legacy data to agents as data, never as instructions, so that text such as a policy note cannot change agent behaviour.",
+      "acceptance": [
+        "Free-text fields are wrapped and labelled as data in every agent call.",
+        "A screening step flags instruction-like content for review.",
+        "The guardrail test suite includes at least 20 manipulation cases, and all pass."
+      ],
+      "release": "R1",
+      "spec": "Agents",
+      "status": "todo",
+      "increment": "I3"
+    },
+    {
+      "id": "E02.F2.S2",
+      "epic": "E02",
+      "epic_name": "Agent runtime and AI governance",
+      "feature": "E02.F2",
+      "feature_name": "Guardrails",
+      "story": "As a platform engineer, I want to enforce hard rules outside the model, so that no agent can write to a target database, approve its own proposal or skip a gate.",
+      "acceptance": [
+        "Tool permissions make direct target database writes impossible.",
+        "An agent identity can never be the approver of any item.",
+        "Gate checks run in deterministic code."
+      ],
+      "release": "R1",
+      "spec": "Agents",
+      "status": "todo",
+      "increment": "I3"
+    },
+    {
+      "id": "E02.F3.S1",
+      "epic": "E02",
+      "epic_name": "Agent runtime and AI governance",
+      "feature": "E02.F3",
+      "feature_name": "AI governance records",
+      "story": "As an auditor, I want to see a governance record for every agent with its purpose, risk rating, oversight rules and test history, so that I can explain to regulators how migration decisions were made.",
+      "acceptance": [
+        "A record exists for every registered agent version.",
+        "The record links to the latest test results.",
+        "Records are included in the proof pack."
+      ],
+      "release": "R1",
+      "spec": "Compliance for agents",
+      "status": "todo",
+      "increment": "I3"
+    },
+    {
+      "id": "E03.F1.S1",
+      "epic": "E03",
+      "epic_name": "Migration Blueprint",
+      "feature": "E03.F1",
+      "feature_name": "Blueprint authoring",
+      "story": "As a migration lead, I want to create a Migration Blueprint in a form or as a YAML file, so that I can set up a migration without writing code.",
+      "acceptance": [
+        "The form and the file stay in sync.",
+        "Blueprints are stored in Git with full history.",
+        "A new blueprint can be copied from a template."
+      ],
+      "release": "R1",
+      "spec": "CF-01",
+      "status": "todo",
+      "increment": "I2"
+    },
+    {
+      "id": "E03.F1.S2",
+      "epic": "E03",
+      "epic_name": "Migration Blueprint",
+      "feature": "E03.F1",
+      "feature_name": "Blueprint authoring",
+      "story": "As a migration lead, I want to compare two versions of a blueprint, so that I can see exactly what changed between plans.",
+      "acceptance": [
+        "The comparison shows added, removed and changed fields.",
+        "Each version shows who changed it and why."
+      ],
+      "release": "R1",
+      "spec": "CF-01",
+      "status": "todo",
+      "increment": "I2"
+    },
+    {
+      "id": "E03.F1.S3",
+      "epic": "E03",
+      "epic_name": "Migration Blueprint",
+      "feature": "E03.F1",
+      "feature_name": "Blueprint authoring",
+      "story": "As a migration lead, I want to get help from a Blueprint Assistant that asks questions and suggests packs, so that a new migration lead can set up a blueprint correctly.",
+      "acceptance": [
+        "The assistant suggests source, target, domain and compliance packs from my answers.",
+        "Every suggestion shows its reason.",
+        "Nothing is saved until I accept it."
+      ],
+      "release": "R2",
+      "spec": "Blueprint Assistant",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E03.F2.S1",
+      "epic": "E03",
+      "epic_name": "Migration Blueprint",
+      "feature": "E03.F2",
+      "feature_name": "Blueprint validation and approval",
+      "story": "As a migration lead, I want to check a blueprint for missing fields and incompatible packs, so that problems are found before planning starts.",
+      "acceptance": [
+        "Every problem is explained in plain language with a fix.",
+        "Planning cannot start while blocking problems remain."
+      ],
+      "release": "R1",
+      "spec": "CF-03",
+      "status": "todo",
+      "increment": "I2"
+    },
+    {
+      "id": "E03.F2.S2",
+      "epic": "E03",
+      "epic_name": "Migration Blueprint",
+      "feature": "E03.F2",
+      "feature_name": "Blueprint validation and approval",
+      "story": "As a compliance curator, I want to see every rule conflict between packs, so that a person decides each conflict and no default is applied silently.",
+      "acceptance": [
+        "Conflicts list both rules and their sources.",
+        "A decision records the person, time and reason."
+      ],
+      "release": "R1",
+      "spec": "CF-04",
+      "status": "todo",
+      "increment": "I2"
+    },
+    {
+      "id": "E03.F2.S3",
+      "epic": "E03",
+      "epic_name": "Migration Blueprint",
+      "feature": "E03.F2",
+      "feature_name": "Blueprint validation and approval",
+      "story": "As a compliance curator, I want to require a named approver and a reason before any compliance rule is loosened, so that weaker controls are always deliberate.",
+      "acceptance": [
+        "Loosening is blocked without approval.",
+        "The approval appears in the proof pack."
+      ],
+      "release": "R1",
+      "spec": "CF-05",
+      "status": "todo",
+      "increment": "I2"
+    },
+    {
+      "id": "E03.F2.S4",
+      "epic": "E03",
+      "epic_name": "Migration Blueprint",
+      "feature": "E03.F2",
+      "feature_name": "Blueprint validation and approval",
+      "story": "As a customer data owner, I want to approve a blueprint version together with the migration lead, so that planning starts from a configuration both sides agree on.",
+      "acceptance": [
+        "An approved version is locked.",
+        "Changes after approval create a new version that needs approval again."
+      ],
+      "release": "R1",
+      "spec": "Lifecycle stage 1",
+      "status": "todo",
+      "increment": "I2"
+    },
+    {
+      "id": "E04.F1.S1",
+      "epic": "E04",
+      "epic_name": "Pack registry and SDK",
+      "feature": "E04.F1",
+      "feature_name": "Pack registry",
+      "story": "As an ontology and pack curator, I want to publish a pack with a version, its contents, its tests and a status, so that projects use only tested packs.",
+      "acceptance": [
+        "A pack cannot be published if its tests fail.",
+        "Published versions are immutable.",
+        "Each project records the exact pack versions it uses."
+      ],
+      "release": "R1",
+      "spec": "CF-02",
+      "status": "todo",
+      "increment": "I2"
+    },
+    {
+      "id": "E04.F1.S2",
+      "epic": "E04",
+      "epic_name": "Pack registry and SDK",
+      "feature": "E04.F1",
+      "feature_name": "Pack registry",
+      "story": "As a migration lead, I want to upgrade a project to a newer pack version on purpose, so that projects never change behaviour without a decision.",
+      "acceptance": [
+        "Upgrades show what changes in the plan before they are applied.",
+        "An upgrade needs migration lead approval."
+      ],
+      "release": "R1",
+      "spec": "Configuration model",
+      "status": "todo",
+      "increment": "I2"
+    },
+    {
+      "id": "E04.F2.S1",
+      "epic": "E04",
+      "epic_name": "Pack registry and SDK",
+      "feature": "E04.F2",
+      "feature_name": "Pack composition",
+      "story": "As a compliance curator, I want to have packs declare what they need and what they add, so that the platform can combine packs safely.",
+      "acceptance": [
+        "A pack can add controls but never remove controls added by another pack.",
+        "When two packs set different values, the stricter one is shown and a person confirms it."
+      ],
+      "release": "R1",
+      "spec": "Configuration model",
+      "status": "todo",
+      "increment": "I2"
+    },
+    {
+      "id": "E04.F3.S1",
+      "epic": "E04",
+      "epic_name": "Pack registry and SDK",
+      "feature": "E04.F3",
+      "feature_name": "Pack SDK",
+      "story": "As a pack developer, I want to build a new adapter or pack with templates, a local test kit and documentation, so that partners can extend the platform without Artizent engineers.",
+      "acceptance": [
+        "The SDK includes templates for each pack type.",
+        "The local test kit runs the same checks as the registry.",
+        "Published partner packs need curator approval."
+      ],
+      "release": "R3",
+      "spec": "CF-06",
+      "status": "todo",
+      "increment": "later-R3"
+    },
+    {
+      "id": "E05.F1.S1",
+      "epic": "E05",
+      "epic_name": "Product adapters",
+      "feature": "E05.F1",
+      "feature_name": "Adapter framework",
+      "story": "As a platform engineer, I want to define one adapter contract for connect, read metadata, extract data, read code, list known traps, load data and report limits, so that every product plugs into the platform in the same way.",
+      "acceptance": [
+        "The contract is documented and versioned.",
+        "A contract test suite checks any adapter.",
+        "Adapters run with read-only access to sources."
+      ],
+      "release": "R1",
+      "spec": "Pack types",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E05.F2.S1",
+      "epic": "E05",
+      "epic_name": "Product adapters",
+      "feature": "E05.F2",
+      "feature_name": "ConceptOne source adapter",
+      "story": "As a data subject expert, I want to connect to a ConceptOne database on SAP SQL Anywhere or Microsoft SQL Server with read-only access, so that discovery can start without risk to the live system.",
+      "acceptance": [
+        "Both database engines are supported.",
+        "The connection uses a read-only account.",
+        "Connection checks report the engine and version."
+      ],
+      "release": "R1",
+      "spec": "Reference case",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E05.F2.S2",
+      "epic": "E05",
+      "epic_name": "Product adapters",
+      "feature": "E05.F2",
+      "feature_name": "ConceptOne source adapter",
+      "story": "As a data subject expert, I want to read ConceptOne metadata, including user-defined tables, procedures, triggers, validation, workflows, security profiles and External Programs settings, so that the knowledge graph covers the whole estate.",
+      "acceptance": [
+        "Every object type in the list is read.",
+        "Each object records its owner, last change date where available, and dependencies.",
+        "A coverage report shows any object that could not be read."
+      ],
+      "release": "R1",
+      "spec": "Reference case",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E05.F2.S3",
+      "epic": "E05",
+      "epic_name": "Product adapters",
+      "feature": "E05.F2",
+      "feature_name": "ConceptOne source adapter",
+      "story": "As a data subject expert, I want to extract ConceptOne data and File Cabinet documents with their entity links, so that data and documents can be moved together.",
+      "acceptance": [
+        "Extraction can run in full and as deltas.",
+        "Document metadata keeps the link to its policy, claim or party.",
+        "Extract counts are recorded for reconciliation."
+      ],
+      "release": "R1",
+      "spec": "Reference case",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E05.F2.S4",
+      "epic": "E05",
+      "epic_name": "Product adapters",
+      "feature": "E05.F2",
+      "feature_name": "ConceptOne source adapter",
+      "story": "As a solution architect, I want to keep a list of known ConceptOne traps in the adapter, so that each project avoids problems found in earlier projects.",
+      "acceptance": [
+        "Traps can be added by curators.",
+        "Discovery flags any trap that applies to an estate."
+      ],
+      "release": "R1",
+      "spec": "Pack types",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E05.F3.S1",
+      "epic": "E05",
+      "epic_name": "Product adapters",
+      "feature": "E05.F3",
+      "feature_name": "Pro Suite Base target adapter",
+      "story": "As a solution architect, I want to load the Pro Suite Base baseline metadata provided by Insurity, so that the version delta engine has a target to compare against.",
+      "acceptance": [
+        "Baseline versions are stored and named.",
+        "A project is pinned to one baseline version."
+      ],
+      "release": "R1",
+      "spec": "Reference case",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E05.F3.S2",
+      "epic": "E05",
+      "epic_name": "Product adapters",
+      "feature": "E05.F3",
+      "feature_name": "Pro Suite Base target adapter",
+      "story": "As a solution architect, I want to load data only through Insurity-approved tools and the Pro Suite REST APIs with OAuth2, so that the platform respects the vendor's rules for a hosted tenant.",
+      "acceptance": [
+        "No direct database writes are possible.",
+        "API rate limits are respected and recorded.",
+        "Each load call is logged with its result."
+      ],
+      "release": "R1",
+      "spec": "DB-03",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E05.F3.S3",
+      "epic": "E05",
+      "epic_name": "Product adapters",
+      "feature": "E05.F3",
+      "feature_name": "Pro Suite Base target adapter",
+      "story": "As a solution architect, I want to record Pro Suite constraints in the adapter, such as PDF-only forms, retired workflow objects, tenant provisioning lead time and change windows, so that the planner and designers work within real limits.",
+      "acceptance": [
+        "Each constraint has a source and a date.",
+        "Constraints appear as rules in planning and design."
+      ],
+      "release": "R1",
+      "spec": "Target vendor gaps",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E05.F4.S1",
+      "epic": "E05",
+      "epic_name": "Product adapters",
+      "feature": "E05.F4",
+      "feature_name": "Further adapters",
+      "story": "As a platform engineer, I want to build adapters for further products such as IBM Maximo, SAP PM, IFS Cloud and other policy systems, so that the platform can take on cross-product migrations.",
+      "acceptance": [
+        "Each adapter passes the contract test suite.",
+        "Each adapter passes its own golden dataset."
+      ],
+      "release": "R4",
+      "spec": "Release phase 4",
+      "status": "todo",
+      "increment": "later-R4"
+    },
+    {
+      "id": "E06.F1.S1",
+      "epic": "E06",
+      "epic_name": "Ontology and domain packs",
+      "feature": "E06.F1",
+      "feature_name": "Ontology service",
+      "story": "As a platform engineer, I want to offer an ontology service with five operations: find concept, get concept, get constraints, get vendor binding and get precedents, so that agents use the ontology without loading it whole.",
+      "acceptance": [
+        "The service uses a graph store and a vector index.",
+        "Each answer records the ontology version.",
+        "Response time stays under one second for 95 percent of calls."
+      ],
+      "release": "R1",
+      "spec": "Ontology service",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E06.F2.S1",
+      "epic": "E06",
+      "epic_name": "Ontology and domain packs",
+      "feature": "E06.F2",
+      "feature_name": "Core and insurance packs",
+      "story": "As an ontology and pack curator, I want to maintain a core ontology of shared business concepts such as party, product, contract, transaction, document and obligation, so that industry packs build on one shared base.",
+      "acceptance": [
+        "Concepts have definitions, synonyms and relations.",
+        "The core is versioned and tested."
+      ],
+      "release": "R1",
+      "spec": "Domain packs",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E06.F2.S2",
+      "epic": "E06",
+      "epic_name": "Ontology and domain packs",
+      "feature": "E06.F2",
+      "feature_name": "Core and insurance packs",
+      "story": "As an ontology and pack curator, I want to publish a property and casualty pack with the MGA and delegated authority extension, so that agents understand policies, billing, bordereaux, multi-carrier splits, premium finance, surplus lines taxes and commissions.",
+      "acceptance": [
+        "Each concept in the extension table of the spec exists with rules.",
+        "Rules state that premium, taxes, fees and commissions must reconcile to the cent.",
+        "The pack passes the ConceptOne golden dataset."
+      ],
+      "release": "R1",
+      "spec": "MGA extension",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E06.F3.S1",
+      "epic": "E06",
+      "epic_name": "Ontology and domain packs",
+      "feature": "E06.F3",
+      "feature_name": "Curation",
+      "story": "As an ontology and pack curator, I want to review proposals for ontology changes from projects, so that the ontology improves without losing quality.",
+      "acceptance": [
+        "Proposals arrive anonymised with their evidence.",
+        "Only a curator can accept a change.",
+        "A new version must pass the golden datasets before release."
+      ],
+      "release": "R2",
+      "spec": "Learning",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E06.F4.S1",
+      "epic": "E06",
+      "epic_name": "Ontology and domain packs",
+      "feature": "E06.F4",
+      "feature_name": "Further domain packs",
+      "story": "As an ontology and pack curator, I want to build further domain packs such as banking, wealth, industrial assets and healthcare, so that the platform can serve more industries.",
+      "acceptance": [
+        "Each pack lists the standards it uses.",
+        "Each pack has its own golden dataset."
+      ],
+      "release": "R3",
+      "spec": "Domain packs",
+      "status": "todo",
+      "increment": "later-R3"
+    },
+    {
+      "id": "E07.F1.S1",
+      "epic": "E07",
+      "epic_name": "Compliance packs and controls",
+      "feature": "E07.F1",
+      "feature_name": "Control engine",
+      "story": "As a compliance curator, I want to define controls as one of six types: data handling, approval, gate, evidence, residency and retention, so that the planner knows where each control belongs.",
+      "acceptance": [
+        "Each type has a placement rule in the planner.",
+        "Every placed control appears in the control matrix."
+      ],
+      "release": "R1",
+      "spec": "Control types",
+      "status": "todo",
+      "increment": "I2"
+    },
+    {
+      "id": "E07.F2.S1",
+      "epic": "E07",
+      "epic_name": "Compliance packs and controls",
+      "feature": "E07.F2",
+      "feature_name": "First compliance packs",
+      "story": "As a compliance curator, I want to publish packs for SOX and IT general controls, SOC 1, the NAIC Insurance Data Security Model Law, state insurance record retention and state surplus lines filing, so that the ConceptOne reference case carries its obligations into the plan.",
+      "acceptance": [
+        "Each pack lists its controls with sources.",
+        "Each control states the evidence that proves it.",
+        "Packs are reviewed by a named compliance specialist before release."
+      ],
+      "release": "R1",
+      "spec": "Compliance additions",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E07.F2.S2",
+      "epic": "E07",
+      "epic_name": "Compliance packs and controls",
+      "feature": "E07.F2",
+      "feature_name": "First compliance packs",
+      "story": "As a compliance curator, I want to publish a Lloyd's delegated authority pack, so that coverholder customers can show their obligations are met.",
+      "acceptance": [
+        "Coverholder reporting and binding authority records are covered."
+      ],
+      "release": "R2",
+      "spec": "Compliance additions",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E07.F3.S1",
+      "epic": "E07",
+      "epic_name": "Compliance packs and controls",
+      "feature": "E07.F3",
+      "feature_name": "Further compliance packs",
+      "story": "As a compliance curator, I want to publish further packs such as GDPR, HIPAA, PCI DSS, DORA, 21 CFR Part 11 and the EU AI Act, so that the platform can serve other regulated industries.",
+      "acceptance": [
+        "Each pack follows the same control types.",
+        "Each pack states clearly that it supports but does not certify compliance."
+      ],
+      "release": "R3",
+      "spec": "Compliance packs",
+      "status": "todo",
+      "increment": "later-R3"
+    },
+    {
+      "id": "E08.F1.S1",
+      "epic": "E08",
+      "epic_name": "Discovery and Migration Knowledge Graph",
+      "feature": "E08.F1",
+      "feature_name": "Metadata and profiling",
+      "story": "As a data subject expert, I want to harvest source and target data dictionaries, so that every element is known before design starts.",
+      "acceptance": [
+        "Tables, fields, types, relations and code lists are read.",
+        "Harvest results are stored in the knowledge graph."
+      ],
+      "release": "R1",
+      "spec": "DS-01",
+      "status": "todo",
+      "increment": "I5"
+    },
+    {
+      "id": "E08.F1.S2",
+      "epic": "E08",
+      "epic_name": "Discovery and Migration Knowledge Graph",
+      "feature": "E08.F1",
+      "feature_name": "Metadata and profiling",
+      "story": "As a data subject expert, I want to profile every in-scope table, so that data quality problems are known early.",
+      "acceptance": [
+        "The profile shows null rates, distinct counts, patterns and broken references.",
+        "A data quality score is calculated per table and per estate."
+      ],
+      "release": "R1",
+      "spec": "DS-01",
+      "status": "todo",
+      "increment": "I5"
+    },
+    {
+      "id": "E08.F1.S3",
+      "epic": "E08",
+      "epic_name": "Discovery and Migration Knowledge Graph",
+      "feature": "E08.F1",
+      "feature_name": "Metadata and profiling",
+      "story": "As a solution architect, I want to measure how often each element is used, so that unused items can be retired instead of migrated.",
+      "acceptance": [
+        "Usage covers at least the last 90 days where logs allow.",
+        "Elements with no use are flagged for retirement review."
+      ],
+      "release": "R1",
+      "spec": "DS-03",
+      "status": "todo",
+      "increment": "I5"
+    },
+    {
+      "id": "E08.F2.S1",
+      "epic": "E08",
+      "epic_name": "Discovery and Migration Knowledge Graph",
+      "feature": "E08.F2",
+      "feature_name": "Code and interface discovery",
+      "story": "As a solution architect, I want to read stored procedures, triggers, scripts and External Programs with the Astra RE Harness, so that business rules hidden in code are found.",
+      "acceptance": [
+        "Each rule found is linked to the fields and screens it affects.",
+        "Rules are listed with a confidence score and the code excerpt."
+      ],
+      "release": "R1",
+      "spec": "DS-02",
+      "status": "todo",
+      "increment": "I5"
+    },
+    {
+      "id": "E08.F2.S2",
+      "epic": "E08",
+      "epic_name": "Discovery and Migration Knowledge Graph",
+      "feature": "E08.F2",
+      "feature_name": "Code and interface discovery",
+      "story": "As a solution architect, I want to find every interface and program that connects to the legacy database, so that no hidden integration breaks at cutover.",
+      "acceptance": [
+        "Connections are found from database login records and query logs.",
+        "Each interface records its source, frequency and the objects it touches."
+      ],
+      "release": "R1",
+      "spec": "Interface finder",
+      "status": "todo",
+      "increment": "I5"
+    },
+    {
+      "id": "E08.F2.S3",
+      "epic": "E08",
+      "epic_name": "Discovery and Migration Knowledge Graph",
+      "feature": "E08.F2",
+      "feature_name": "Code and interface discovery",
+      "story": "As a data subject expert, I want to read configuration such as books, products, rating, forms, rules and workflows, so that configuration can be carried over and compared.",
+      "acceptance": [
+        "Each configuration item is stored with its dependencies.",
+        "Configuration differences between books are shown."
+      ],
+      "release": "R1",
+      "spec": "Configuration Reader",
+      "status": "todo",
+      "increment": "I5"
+    },
+    {
+      "id": "E08.F2.S4",
+      "epic": "E08",
+      "epic_name": "Discovery and Migration Knowledge Graph",
+      "feature": "E08.F2",
+      "feature_name": "Code and interface discovery",
+      "story": "As a solution architect, I want to rebuild real workflows from audit logs and workflow history, so that agentification candidates are based on how work is really done.",
+      "acceptance": [
+        "Workflows are shown as steps with volumes and times."
+      ],
+      "release": "R2",
+      "spec": "DS-04",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E08.F3.S1",
+      "epic": "E08",
+      "epic_name": "Discovery and Migration Knowledge Graph",
+      "feature": "E08.F3",
+      "feature_name": "Knowledge graph",
+      "story": "As a migration lead, I want to see a discovery coverage report for the knowledge graph, so that I know discovery is complete before planning.",
+      "acceptance": [
+        "The report shows coverage per stream and lists gaps.",
+        "Gate approval for discovery needs this report."
+      ],
+      "release": "R1",
+      "spec": "Lifecycle stage 2",
+      "status": "todo",
+      "increment": "I5"
+    },
+    {
+      "id": "E09.F1.S1",
+      "epic": "E09",
+      "epic_name": "Version delta and migration patterns",
+      "feature": "E09.F1",
+      "feature_name": "Version delta engine",
+      "story": "As a solution architect, I want to compare a customer's database and configuration with the target baseline, object by object, so that only real differences need design work.",
+      "acceptance": [
+        "Differences are sorted into unchanged, renamed or moved, changed behaviour, and removed in target.",
+        "The same inputs always give the same result.",
+        "Results can be exported for review."
+      ],
+      "release": "R1",
+      "spec": "CO-01",
+      "status": "todo",
+      "increment": "I6"
+    },
+    {
+      "id": "E09.F1.S2",
+      "epic": "E09",
+      "epic_name": "Version delta and migration patterns",
+      "feature": "E09.F1",
+      "feature_name": "Version delta engine",
+      "story": "As a solution architect, I want to see which differences are customer-specific and which come from the product version, so that effort is spent where it is needed.",
+      "acceptance": [
+        "Each difference shows whether it matches the standard version or is a customization."
+      ],
+      "release": "R1",
+      "spec": "CO-01",
+      "status": "todo",
+      "increment": "I6"
+    },
+    {
+      "id": "E09.F2.S1",
+      "epic": "E09",
+      "epic_name": "Version delta and migration patterns",
+      "feature": "E09.F2",
+      "feature_name": "Pattern selection",
+      "story": "As a migration lead, I want to set the migration pattern in the blueprint and see the planner's view on it, so that the fastest safe approach is chosen.",
+      "acceptance": [
+        "Patterns are cross-product, same-family upgrade and consolidation.",
+        "The planner can propose another pattern with reasons."
+      ],
+      "release": "R1",
+      "spec": "Migration patterns",
+      "status": "todo",
+      "increment": "I6"
+    },
+    {
+      "id": "E09.F2.S2",
+      "epic": "E09",
+      "epic_name": "Version delta and migration patterns",
+      "feature": "E09.F2",
+      "feature_name": "Pattern selection",
+      "story": "As a solution architect, I want to map cross-product migrations through the domain ontology, so that the platform can move data between unrelated products.",
+      "acceptance": [
+        "Mappings link source element, concept and target element."
+      ],
+      "release": "R2",
+      "spec": "Migration patterns",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E10.F1.S1",
+      "epic": "E10",
+      "epic_name": "Platform conversion",
+      "feature": "E10.F1",
+      "feature_name": "Database dialect conversion",
+      "story": "As a solution architect, I want to convert procedures, triggers, views, data types, identity columns and date functions from SAP SQL Anywhere to Microsoft SQL Server, so that ConceptOne customizations run on the target database.",
+      "acceptance": [
+        "Each converted object compiles on SQL Server.",
+        "Objects that cannot be converted automatically go to the review queue with a reason."
+      ],
+      "release": "R1",
+      "spec": "PF-01",
+      "status": "todo",
+      "increment": "I6"
+    },
+    {
+      "id": "E10.F1.S2",
+      "epic": "E10",
+      "epic_name": "Platform conversion",
+      "feature": "E10.F1",
+      "feature_name": "Database dialect conversion",
+      "story": "As a test engineer, I want to test converted objects with recorded inputs and outputs from the source, so that I can prove they behave the same.",
+      "acceptance": [
+        "Each object has at least one recorded test case.",
+        "Differences are listed with their inputs."
+      ],
+      "release": "R1",
+      "spec": "PF-02",
+      "status": "todo",
+      "increment": "I6"
+    },
+    {
+      "id": "E10.F1.S3",
+      "epic": "E10",
+      "epic_name": "Platform conversion",
+      "feature": "E10.F1",
+      "feature_name": "Database dialect conversion",
+      "story": "As a solution architect, I want to convert further engine pairs, such as Sybase ASE or Oracle to SQL Server or PostgreSQL, so that other legacy products can be moved.",
+      "acceptance": [
+        "Each pair has its own test suite."
+      ],
+      "release": "R3",
+      "spec": "PF-03",
+      "status": "todo",
+      "increment": "later-R3"
+    },
+    {
+      "id": "E10.F2.S1",
+      "epic": "E10",
+      "epic_name": "Platform conversion",
+      "feature": "E10.F2",
+      "feature_name": "Hosting and client move",
+      "story": "As a customer IT security lead, I want to get a checklist for network, identity and security set-up for the move to a hosted tenant, so that users can reach the new system on day one.",
+      "acceptance": [
+        "The checklist covers single sign-on, MFA, network access and printing.",
+        "Each item has an owner and status in the plan."
+      ],
+      "release": "R1",
+      "spec": "Stream 9",
+      "status": "todo",
+      "increment": "I6"
+    },
+    {
+      "id": "E11.F1.S1",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F1",
+      "feature_name": "Scope and dependencies",
+      "story": "As a migration lead, I want to have the Scope Analyst decide what happens to each legacy element, with evidence, so that scope is complete and explainable.",
+      "acceptance": [
+        "Every element ends as migrate, rebuild, replace with standard, agentify, archive or retire.",
+        "Each decision shows its evidence and needs approval."
+      ],
+      "release": "R1",
+      "spec": "PL-01",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E11.F1.S2",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F1",
+      "feature_name": "Scope and dependencies",
+      "story": "As a migration lead, I want to see a dependency graph across all nine streams, so that work happens in the right order.",
+      "acceptance": [
+        "Dependencies can be viewed and edited.",
+        "Cycles are reported as errors."
+      ],
+      "release": "R1",
+      "spec": "PL-01",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E11.F2.S1",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F2",
+      "feature_name": "Work breakdown and estimates",
+      "story": "As a migration lead, I want to get a work breakdown in which no task is longer than 40 hours, so that every task can be tracked.",
+      "acceptance": [
+        "Tasks over 40 hours are split automatically.",
+        "Each task has an owner role and dependencies."
+      ],
+      "release": "R1",
+      "spec": "PL-02",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E11.F2.S2",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F2",
+      "feature_name": "Work breakdown and estimates",
+      "story": "As a migration lead, I want to see estimates as ranges with the evidence behind them, so that I understand how confident each estimate is.",
+      "acceptance": [
+        "Each range shows the pack rules and past tasks used.",
+        "Totals roll up by stream, segment and wave."
+      ],
+      "release": "R1",
+      "spec": "PL-03",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E11.F3.S1",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F3",
+      "feature_name": "Controls, waves and risks",
+      "story": "As a compliance curator, I want to see a control matrix built from the selected compliance packs, so that every control has a task and evidence.",
+      "acceptance": [
+        "Each control links to the tasks and gates where it applies."
+      ],
+      "release": "R1",
+      "spec": "PL-01",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E11.F3.S2",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F3",
+      "feature_name": "Controls, waves and risks",
+      "story": "As a migration lead, I want to group work into waves and have the constraint solver check them, so that the plan fits capacity, windows and freeze periods.",
+      "acceptance": [
+        "The solver reports every broken constraint.",
+        "When the plan does not fit, options are offered and no work is dropped silently."
+      ],
+      "release": "R1",
+      "spec": "PL-04",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E11.F3.S3",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F3",
+      "feature_name": "Controls, waves and risks",
+      "story": "As a migration lead, I want to keep a risk register with likelihood, impact, owner and a mitigation task, so that risks are managed inside the plan.",
+      "acceptance": [
+        "New risks found by agents need a person to accept them."
+      ],
+      "release": "R1",
+      "spec": "PL-01",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E11.F4.S1",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F4",
+      "feature_name": "Cutover planning",
+      "story": "As a migration lead, I want to compare whole-estate, phased and parallel-run cutover for a customer, so that the cutover strategy is chosen on evidence.",
+      "acceptance": [
+        "The comparison shows duration, effort, risk and constraints for each option.",
+        "The chosen option and its reason are recorded."
+      ],
+      "release": "R1",
+      "spec": "CO-02",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E11.F4.S2",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F4",
+      "feature_name": "Cutover planning",
+      "story": "As a migration lead, I want to get a timed cutover runbook with go/no-go checks and a rollback plan, so that cutover runs the same way it was rehearsed.",
+      "acceptance": [
+        "Each step has an owner and a planned duration.",
+        "Rehearsal timings update the runbook."
+      ],
+      "release": "R1",
+      "spec": "Cutover Planner",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E11.F5.S1",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F5",
+      "feature_name": "Baselines, re-planning and exports",
+      "story": "As a migration lead, I want to approve a plan baseline and see every later change with its reason, so that changes are controlled.",
+      "acceptance": [
+        "Each re-plan shows a diff against the baseline.",
+        "Changes to an approved baseline need approval."
+      ],
+      "release": "R1",
+      "spec": "PL-05",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E11.F5.S2",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F5",
+      "feature_name": "Baselines, re-planning and exports",
+      "story": "As a partner delivery lead, I want to export the plan to Jira and Azure DevOps, so that teams work in their usual tools.",
+      "acceptance": [
+        "Export keeps task IDs so updates sync back.",
+        "Actual effort flows back into the platform."
+      ],
+      "release": "R1",
+      "spec": "PL-06",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E11.F5.S3",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F5",
+      "feature_name": "Baselines, re-planning and exports",
+      "story": "As a partner delivery lead, I want to export the plan to Microsoft Project, so that managers who use it can follow the plan.",
+      "acceptance": [
+        "Dependencies and dates are kept."
+      ],
+      "release": "R2",
+      "spec": "PL-06",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E11.F5.S4",
+      "epic": "E11",
+      "epic_name": "Planning engine",
+      "feature": "E11.F5",
+      "feature_name": "Baselines, re-planning and exports",
+      "story": "As a sales engineer, I want to produce a pre-sales estimate from a questionnaire and a sample extract, so that proposals are based on data, not guesses.",
+      "acceptance": [
+        "The output is clearly marked as an estimate.",
+        "It shows a scope outline, waves and an effort range."
+      ],
+      "release": "R1",
+      "spec": "PL-07",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E12.F1.S1",
+      "epic": "E12",
+      "epic_name": "Design and build",
+      "feature": "E12.F1",
+      "feature_name": "Mapping",
+      "story": "As a data subject expert, I want to receive mapping proposals with evidence and a confidence score, so that I can review them quickly.",
+      "acceptance": [
+        "Each proposal lists its evidence and precedents.",
+        "Low-confidence items go to expert review."
+      ],
+      "release": "R1",
+      "spec": "DB-01",
+      "status": "todo",
+      "increment": "I9"
+    },
+    {
+      "id": "E12.F2.S1",
+      "epic": "E12",
+      "epic_name": "Design and build",
+      "feature": "E12.F2",
+      "feature_name": "Configuration and customizations",
+      "story": "As a solution architect, I want to have the Configuration Translator rebuild books, products, rating, rules and workflows in the target, so that configuration moves without manual re-keying.",
+      "acceptance": [
+        "Each item records its source and target.",
+        "Workflow objects retired in the target are flagged with a proposed replacement."
+      ],
+      "release": "R1",
+      "spec": "Configuration Translator",
+      "status": "todo",
+      "increment": "I9"
+    },
+    {
+      "id": "E12.F2.S2",
+      "epic": "E12",
+      "epic_name": "Design and build",
+      "feature": "E12.F2",
+      "feature_name": "Configuration and customizations",
+      "story": "As a solution architect, I want to convert forms to the target's PDF-only format, so that documents still generate correctly.",
+      "acceptance": [
+        "Each converted form is compared with its golden copy in parity testing."
+      ],
+      "release": "R1",
+      "spec": "PT-02",
+      "status": "todo",
+      "increment": "I9"
+    },
+    {
+      "id": "E12.F2.S3",
+      "epic": "E12",
+      "epic_name": "Design and build",
+      "feature": "E12.F2",
+      "feature_name": "Configuration and customizations",
+      "story": "As a solution architect, I want to have the Code Modernizer re-create user-defined tables, procedures and validation to the target's standards, so that customizations are supported after migration.",
+      "acceptance": [
+        "Generated code follows the target naming and ownership rules.",
+        "Each item has tests and passes before it can be deployed."
+      ],
+      "release": "R1",
+      "spec": "DB-02",
+      "status": "todo",
+      "increment": "I9"
+    },
+    {
+      "id": "E12.F3.S1",
+      "epic": "E12",
+      "epic_name": "Design and build",
+      "feature": "E12.F3",
+      "feature_name": "Integrations, reports and views",
+      "story": "As a solution architect, I want to replace direct database calls with REST API, DBQuery or webhook calls, so that integrations work on the hosted tenant.",
+      "acceptance": [
+        "Each interface found in discovery has a target design.",
+        "Each rebuilt interface has an end-to-end test."
+      ],
+      "release": "R1",
+      "spec": "Integration Rebuilder",
+      "status": "todo",
+      "increment": "I9"
+    },
+    {
+      "id": "E12.F3.S2",
+      "epic": "E12",
+      "epic_name": "Design and build",
+      "feature": "E12.F3",
+      "feature_name": "Integrations, reports and views",
+      "story": "As a solution architect, I want to replace External Programs and Outlook COM integrations, so that desktop-only links keep working for browser users.",
+      "acceptance": [
+        "Each one has a target design or an approved retirement."
+      ],
+      "release": "R1",
+      "spec": "Integration Rebuilder",
+      "status": "todo",
+      "increment": "I9"
+    },
+    {
+      "id": "E12.F3.S3",
+      "epic": "E12",
+      "epic_name": "Design and build",
+      "feature": "E12.F3",
+      "feature_name": "Integrations, reports and views",
+      "story": "As a solution architect, I want to rebuild reports and extracts on approved access such as DBQuery procedures, so that reports work without direct database reads.",
+      "acceptance": [
+        "Each rebuilt report passes report parity."
+      ],
+      "release": "R1",
+      "spec": "PT-03",
+      "status": "todo",
+      "increment": "I9"
+    },
+    {
+      "id": "E12.F3.S4",
+      "epic": "E12",
+      "epic_name": "Design and build",
+      "feature": "E12.F3",
+      "feature_name": "Integrations, reports and views",
+      "story": "As a solution architect, I want to draft UX Designer web layouts from ConceptOne screens and extend security profiles, so that business users get usable web screens.",
+      "acceptance": [
+        "Drafts need designer approval.",
+        "Every user role has the new objects in its security profile."
+      ],
+      "release": "R1",
+      "spec": "Target Designer",
+      "status": "todo",
+      "increment": "I9"
+    },
+    {
+      "id": "E12.F4.S1",
+      "epic": "E12",
+      "epic_name": "Design and build",
+      "feature": "E12.F4",
+      "feature_name": "Transformation code",
+      "story": "As a platform engineer, I want to generate data transformation code and unit tests with Astra Data from approved mappings, so that data moves by tested code, not by agents.",
+      "acceptance": [
+        "Code is versioned.",
+        "Code cannot run until its tests pass."
+      ],
+      "release": "R1",
+      "spec": "DB-02",
+      "status": "todo",
+      "increment": "I9"
+    },
+    {
+      "id": "E13.F1.S1",
+      "epic": "E13",
+      "epic_name": "Data, documents and loads",
+      "feature": "E13.F1",
+      "feature_name": "Load runs",
+      "story": "As a data subject expert, I want to run each load as a numbered run with fixed code, pack and input versions, so that any run can be repeated exactly.",
+      "acceptance": [
+        "A rerun with the same versions gives the same result.",
+        "Each run records counts and errors."
+      ],
+      "release": "R1",
+      "spec": "DB-04",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E13.F1.S2",
+      "epic": "E13",
+      "epic_name": "Data, documents and loads",
+      "feature": "E13.F1",
+      "feature_name": "Load runs",
+      "story": "As a data subject expert, I want to see records that failed to load in an error queue with the target's reason, so that failures are fixed and reloaded.",
+      "acceptance": [
+        "Errors can be filtered and assigned.",
+        "Fixed records can be reloaded alone."
+      ],
+      "release": "R1",
+      "spec": "Load runs",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E13.F1.S3",
+      "epic": "E13",
+      "epic_name": "Data, documents and loads",
+      "feature": "E13.F1",
+      "feature_name": "Load runs",
+      "story": "As a migration lead, I want to load by segment, such as line of business or region, and apply delta loads before cutover, so that large estates can move in waves.",
+      "acceptance": [
+        "Delta loads include only changes since the last run."
+      ],
+      "release": "R1",
+      "spec": "Load runs",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E13.F2.S1",
+      "epic": "E13",
+      "epic_name": "Data, documents and loads",
+      "feature": "E13.F2",
+      "feature_name": "Documents",
+      "story": "As a data subject expert, I want to size document volume by type and age, so that load time and storage can be planned.",
+      "acceptance": [
+        "Sizing appears in discovery results and the plan."
+      ],
+      "release": "R1",
+      "spec": "DC-01",
+      "status": "todo",
+      "increment": "I5"
+    },
+    {
+      "id": "E13.F2.S2",
+      "epic": "E13",
+      "epic_name": "Data, documents and loads",
+      "feature": "E13.F2",
+      "feature_name": "Documents",
+      "story": "As a data subject expert, I want to check every document link after migration and test a random sample byte for byte, so that users can open every document.",
+      "acceptance": [
+        "Broken links are listed with their entity.",
+        "The sample size is set in the blueprint."
+      ],
+      "release": "R1",
+      "spec": "DC-01, DC-02",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E14.F1.S1",
+      "epic": "E14",
+      "epic_name": "Validation, reconciliation and parity",
+      "feature": "E14.F1",
+      "feature_name": "Validation and reconciliation",
+      "story": "As a test engineer, I want to run structural, reference, semantic and business rules after each transformation and load, so that errors are found before cutover.",
+      "acceptance": [
+        "Each failure explains the rule, the record and a proposed fix in plain language."
+      ],
+      "release": "R1",
+      "spec": "Validation",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E14.F1.S2",
+      "epic": "E14",
+      "epic_name": "Validation, reconciliation and parity",
+      "feature": "E14.F1",
+      "feature_name": "Validation and reconciliation",
+      "story": "As a customer data owner, I want to reconcile counts, premium, taxes, fees, commissions, open items and ledger balances to the cent, so that I can sign off that nothing was lost.",
+      "acceptance": [
+        "Reconciliation runs after every load.",
+        "Every break has an owner until it is closed."
+      ],
+      "release": "R1",
+      "spec": "Reconciliation",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E14.F1.S3",
+      "epic": "E14",
+      "epic_name": "Validation, reconciliation and parity",
+      "feature": "E14.F1",
+      "feature_name": "Validation and reconciliation",
+      "story": "As a data subject expert, I want to see a data quality score before and after migration, so that improvements are visible.",
+      "acceptance": [
+        "Scores are shown per object and per segment."
+      ],
+      "release": "R1",
+      "spec": "Validation",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E14.F2.S1",
+      "epic": "E14",
+      "epic_name": "Validation, reconciliation and parity",
+      "feature": "E14.F2",
+      "feature_name": "Parity testing",
+      "story": "As a test engineer, I want to re-rate a sample of policies in both systems and explain every premium difference, so that rating behaves the same after migration.",
+      "acceptance": [
+        "Differences show inputs and both outputs.",
+        "Each approved difference records its approver."
+      ],
+      "release": "R1",
+      "spec": "PT-01",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E14.F2.S2",
+      "epic": "E14",
+      "epic_name": "Validation, reconciliation and parity",
+      "feature": "E14.F2",
+      "feature_name": "Parity testing",
+      "story": "As a test engineer, I want to compare generated forms with approved golden copies, so that documents sent to customers are correct.",
+      "acceptance": [
+        "Content differences fail the test.",
+        "Layout-only differences need approval."
+      ],
+      "release": "R1",
+      "spec": "PT-02",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E14.F2.S3",
+      "epic": "E14",
+      "epic_name": "Validation, reconciliation and parity",
+      "feature": "E14.F2",
+      "feature_name": "Parity testing",
+      "story": "As a test engineer, I want to compare key reports and workflow outcomes between source and target, so that operations and finance can trust the new system.",
+      "acceptance": [
+        "Report totals must match to the cent.",
+        "Workflow replays compare tasks, routing and outcomes."
+      ],
+      "release": "R1",
+      "spec": "PT-03",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E14.F2.S4",
+      "epic": "E14",
+      "epic_name": "Validation, reconciliation and parity",
+      "feature": "E14.F2",
+      "feature_name": "Parity testing",
+      "story": "As a customer data owner, I want to close one accounting period in both systems during a parallel run, so that finance signs off the move.",
+      "acceptance": [
+        "Ledger, receivables, payables and commissions are compared."
+      ],
+      "release": "R1",
+      "spec": "Parity testing",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E15.F1.S1",
+      "epic": "E15",
+      "epic_name": "Coexistence and synchronisation",
+      "feature": "E15.F1",
+      "feature_name": "Coexistence rules",
+      "story": "As a migration lead, I want to name a system of record for every shared entity in every phase, so that everyone knows which system owns which data.",
+      "acceptance": [
+        "A phased plan cannot be approved without these rules."
+      ],
+      "release": "R1",
+      "spec": "CO-03",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E15.F1.S2",
+      "epic": "E15",
+      "epic_name": "Coexistence and synchronisation",
+      "feature": "E15.F1",
+      "feature_name": "Coexistence rules",
+      "story": "As a customer data owner, I want to reconcile shared entities and accounting balances across both systems every day, so that breaks are found within a day.",
+      "acceptance": [
+        "Breaks go to a named owner.",
+        "The coexistence dashboard shows open breaks."
+      ],
+      "release": "R1",
+      "spec": "CO-04",
+      "status": "todo",
+      "increment": "I10"
+    },
+    {
+      "id": "E15.F1.S3",
+      "epic": "E15",
+      "epic_name": "Coexistence and synchronisation",
+      "feature": "E15.F1",
+      "feature_name": "Coexistence rules",
+      "story": "As a migration lead, I want to set an end date and exit reconciliation for every coexistence period, so that coexistence does not run on without control.",
+      "acceptance": [
+        "The planner warns when an end date is at risk."
+      ],
+      "release": "R1",
+      "spec": "Coexistence",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E15.F2.S1",
+      "epic": "E15",
+      "epic_name": "Coexistence and synchronisation",
+      "feature": "E15.F2",
+      "feature_name": "Synchronisation engine",
+      "story": "As a platform engineer, I want to synchronise shared entities one way or both ways with named conflict rules, so that users can work in both systems during the phase.",
+      "acceptance": [
+        "Every sync action is logged.",
+        "Conflicts follow the configured rule or go to review."
+      ],
+      "release": "R2",
+      "spec": "Coexistence",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E16.F1.S1",
+      "epic": "E16",
+      "epic_name": "Review and planning workbenches",
+      "feature": "E16.F1",
+      "feature_name": "Review workbench",
+      "story": "As a reviewer, I want to work from a queue sorted by risk, confidence and compliance impact, so that I spend time where it matters.",
+      "acceptance": [
+        "Filters exist for stream, segment and agent."
+      ],
+      "release": "R1",
+      "spec": "RG-01",
+      "status": "todo",
+      "increment": "I8"
+    },
+    {
+      "id": "E16.F1.S2",
+      "epic": "E16",
+      "epic_name": "Review and planning workbenches",
+      "feature": "E16.F1",
+      "feature_name": "Review workbench",
+      "story": "As a reviewer, I want to see the evidence, sample values and precedents for each item, so that I can decide in seconds.",
+      "acceptance": [
+        "Evidence links open the source object."
+      ],
+      "release": "R1",
+      "spec": "Review",
+      "status": "todo",
+      "increment": "I8"
+    },
+    {
+      "id": "E16.F1.S3",
+      "epic": "E16",
+      "epic_name": "Review and planning workbenches",
+      "feature": "E16.F1",
+      "feature_name": "Review workbench",
+      "story": "As a reviewer, I want to approve, reject with a reason or change an item, so that my decision drives the next step.",
+      "acceptance": [
+        "A change goes back to the agent with my note.",
+        "Compliance-critical items need a named reviewer, and two people where a pack requires it."
+      ],
+      "release": "R1",
+      "spec": "RG-02",
+      "status": "todo",
+      "increment": "I8"
+    },
+    {
+      "id": "E16.F1.S4",
+      "epic": "E16",
+      "epic_name": "Review and planning workbenches",
+      "feature": "E16.F1",
+      "feature_name": "Review workbench",
+      "story": "As a reviewer, I want to ask the Review Assistant why an item was proposed, so that I understand it before deciding.",
+      "acceptance": [
+        "The assistant cannot approve anything."
+      ],
+      "release": "R1",
+      "spec": "Review Assistant",
+      "status": "todo",
+      "increment": "I8"
+    },
+    {
+      "id": "E16.F1.S5",
+      "epic": "E16",
+      "epic_name": "Review and planning workbenches",
+      "feature": "E16.F1",
+      "feature_name": "Review workbench",
+      "story": "As a reviewer, I want to approve similar items in bulk when they share the same evidence pattern, so that large reviews take less time.",
+      "acceptance": [
+        "Bulk approval is not allowed for compliance-critical items."
+      ],
+      "release": "R2",
+      "spec": "Review",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E16.F2.S1",
+      "epic": "E16",
+      "epic_name": "Review and planning workbenches",
+      "feature": "E16.F2",
+      "feature_name": "Planning workbench",
+      "story": "As a migration lead, I want to view and edit the plan as a timeline, a task list and a dependency graph, so that I can manage the plan in one place.",
+      "acceptance": [
+        "Edits trigger the constraint solver.",
+        "The screens meet WCAG 2.2 AA."
+      ],
+      "release": "R1",
+      "spec": "Planning workbench",
+      "status": "todo",
+      "increment": "I8"
+    },
+    {
+      "id": "E17.F1.S1",
+      "epic": "E17",
+      "epic_name": "Gates and proof pack",
+      "feature": "E17.F1",
+      "feature_name": "Gates",
+      "story": "As a migration lead, I want to manage gates with checklists, such as G0 to G4 in the reference case, so that no stage closes without its evidence.",
+      "acceptance": [
+        "Each gate lists required evidence and approvers.",
+        "Compliance packs can add gate conditions."
+      ],
+      "release": "R1",
+      "spec": "Lifecycle",
+      "status": "todo",
+      "increment": "I11"
+    },
+    {
+      "id": "E17.F2.S1",
+      "epic": "E17",
+      "epic_name": "Gates and proof pack",
+      "feature": "E17.F2",
+      "feature_name": "Proof pack",
+      "story": "As an auditor, I want to get a proof pack per wave and per project with configuration, scope, lineage, decisions, controls, tests, agent records, cutover and decommission evidence, so that I can audit the migration without asking the team.",
+      "acceptance": [
+        "The pack is produced as a signed PDF and as structured data.",
+        "Every item links back to its source record."
+      ],
+      "release": "R1",
+      "spec": "RG-04",
+      "status": "todo",
+      "increment": "I11"
+    },
+    {
+      "id": "E18.F1.S1",
+      "epic": "E18",
+      "epic_name": "Installed-base programmes",
+      "feature": "E18.F1",
+      "feature_name": "Programme set-up",
+      "story": "As a programme owner at the product company, I want to set up a programme with its source product, target product, partners and customers, so that all migrations share one playbook and one set of packs.",
+      "acceptance": [
+        "Each customer is assigned to one partner.",
+        "Partners see only their own customers."
+      ],
+      "release": "R1",
+      "spec": "Installed-base programmes",
+      "status": "todo",
+      "increment": "I12"
+    },
+    {
+      "id": "E18.F2.S1",
+      "epic": "E18",
+      "epic_name": "Installed-base programmes",
+      "feature": "E18.F2",
+      "feature_name": "Fleet discovery and complexity",
+      "story": "As a sales engineer, I want to run a light scan on each consenting customer's estate that reads only metadata and statistics, so that we can size the whole installed base before contracts.",
+      "acceptance": [
+        "No business data values are read.",
+        "Customer consent is recorded before a scan."
+      ],
+      "release": "R1",
+      "spec": "IB-01",
+      "status": "todo",
+      "increment": "I12"
+    },
+    {
+      "id": "E18.F2.S2",
+      "epic": "E18",
+      "epic_name": "Installed-base programmes",
+      "feature": "E18.F2",
+      "feature_name": "Fleet discovery and complexity",
+      "story": "As a commercial manager, I want to see a Migration Complexity Index and band for each customer and segment, so that prices and plans are based on measured complexity.",
+      "acceptance": [
+        "Each score shows the measures and weights behind it.",
+        "Bands are simple, medium or complex."
+      ],
+      "release": "R1",
+      "spec": "IB-02",
+      "status": "todo",
+      "increment": "I12"
+    },
+    {
+      "id": "E18.F2.S3",
+      "epic": "E18",
+      "epic_name": "Installed-base programmes",
+      "feature": "E18.F2",
+      "feature_name": "Fleet discovery and complexity",
+      "story": "As a commercial manager, I want to recalibrate the index weights from actual effort after each wave, so that bands become more accurate over time.",
+      "acceptance": [
+        "Each weights version is stored and dated.",
+        "Bands already contracted do not change."
+      ],
+      "release": "R2",
+      "spec": "IB-02",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E18.F3.S1",
+      "epic": "E18",
+      "epic_name": "Installed-base programmes",
+      "feature": "E18.F3",
+      "feature_name": "Portfolio planning and programme view",
+      "story": "As a programme owner at the product company, I want to schedule customers across waves within partner and pod capacity, so that the programme finishes on time.",
+      "acceptance": [
+        "Pod rotation between customers is planned.",
+        "Capacity conflicts are reported."
+      ],
+      "release": "R1",
+      "spec": "IB-03",
+      "status": "todo",
+      "increment": "I12"
+    },
+    {
+      "id": "E18.F3.S2",
+      "epic": "E18",
+      "epic_name": "Installed-base programmes",
+      "feature": "E18.F3",
+      "feature_name": "Portfolio planning and programme view",
+      "story": "As a programme owner at the product company, I want to see one dashboard across all customers and partners, so that I know the state of the whole programme.",
+      "acceptance": [
+        "It shows band, gate status, risks, open vendor gaps and reconciliation results.",
+        "Customer data is never shown across partners."
+      ],
+      "release": "R1",
+      "spec": "IB-04",
+      "status": "todo",
+      "increment": "I12"
+    },
+    {
+      "id": "E18.F4.S1",
+      "epic": "E18",
+      "epic_name": "Installed-base programmes",
+      "feature": "E18.F4",
+      "feature_name": "Commercial metering",
+      "story": "As a commercial manager, I want to record bands, gate evidence, effort and elapsed time for each customer and segment, so that milestone billing and the productivity dividend follow evidence.",
+      "acceptance": [
+        "Gate evidence can be exported for invoicing.",
+        "Effort per segment is compared across waves."
+      ],
+      "release": "R1",
+      "spec": "IB-05",
+      "status": "todo",
+      "increment": "I12"
+    },
+    {
+      "id": "E19.F1.S1",
+      "epic": "E19",
+      "epic_name": "Target vendor gap management",
+      "feature": "E19.F1",
+      "feature_name": "Gap routing and tracking",
+      "story": "As a solution architect, I want to route every gap to configuration, customer extension, vendor product change or process change, so that each gap has the right owner.",
+      "acceptance": [
+        "A gap cannot close without a route and an owner."
+      ],
+      "release": "R1",
+      "spec": "VG-01",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E19.F1.S2",
+      "epic": "E19",
+      "epic_name": "Target vendor gap management",
+      "feature": "E19.F1",
+      "feature_name": "Gap routing and tracking",
+      "story": "As a programme owner at the product company, I want to see vendor product changes as plan dependencies with the customers and waves they block, so that product changes are ranked by the migrations they unblock.",
+      "acceptance": [
+        "The ranked list can be exported for the vendor's product team."
+      ],
+      "release": "R1",
+      "spec": "VG-02",
+      "status": "todo",
+      "increment": "I7"
+    },
+    {
+      "id": "E20.F1.S1",
+      "epic": "E20",
+      "epic_name": "Agentification and Digital Worker test range",
+      "feature": "E20.F1",
+      "feature_name": "Find and design",
+      "story": "As a solution architect, I want to rank agentification candidates by volume, effort, rule clarity, data, risk and value, so that we build the Digital Workers that pay back first.",
+      "acceptance": [
+        "Each score shows its evidence."
+      ],
+      "release": "R2",
+      "spec": "AG-01",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E20.F1.S2",
+      "epic": "E20",
+      "epic_name": "Agentification and Digital Worker test range",
+      "feature": "E20.F1",
+      "feature_name": "Find and design",
+      "story": "As a solution architect, I want to design a Digital Worker with an outcome contract, hard guardrails, an autonomy level and an AI risk record, so that every worker is safe by design.",
+      "acceptance": [
+        "A design cannot be approved without all four parts."
+      ],
+      "release": "R2",
+      "spec": "AG-02",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E20.F2.S1",
+      "epic": "E20",
+      "epic_name": "Agentification and Digital Worker test range",
+      "feature": "E20.F2",
+      "feature_name": "Build, test and run",
+      "story": "As a test engineer, I want to run each Digital Worker through scenario tests, including manipulation and safety cases, so that only certified workers reach production.",
+      "acceptance": [
+        "Release is blocked without a test range certificate."
+      ],
+      "release": "R2",
+      "spec": "AG-03",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E20.F2.S2",
+      "epic": "E20",
+      "epic_name": "Agentification and Digital Worker test range",
+      "feature": "E20.F2",
+      "feature_name": "Build, test and run",
+      "story": "As a platform engineer, I want to deploy Digital Workers to Astra Agents or to the target product's own agent studio, so that workers run where the customer needs them.",
+      "acceptance": [
+        "Deployment target is set in the design."
+      ],
+      "release": "R3",
+      "spec": "AG-04",
+      "status": "todo",
+      "increment": "later-R3"
+    },
+    {
+      "id": "E20.F2.S3",
+      "epic": "E20",
+      "epic_name": "Agentification and Digital Worker test range",
+      "feature": "E20.F2",
+      "feature_name": "Build, test and run",
+      "story": "As an operations manager at the customer, I want to monitor Digital Workers in production and roll back to a lower autonomy level, so that problems are contained quickly.",
+      "acceptance": [
+        "Drift alerts go to a named owner.",
+        "Rollback takes effect within minutes."
+      ],
+      "release": "R2",
+      "spec": "Agentification",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E21.F1.S1",
+      "epic": "E21",
+      "epic_name": "Learning",
+      "feature": "E21.F1",
+      "feature_name": "Migration memory",
+      "story": "As a data subject expert, I want to see precedents from earlier decisions in my tenant when I review, so that decisions stay consistent.",
+      "acceptance": [
+        "Precedents show their source project and outcome."
+      ],
+      "release": "R1",
+      "spec": "Learning",
+      "status": "todo",
+      "increment": "I8"
+    },
+    {
+      "id": "E21.F1.S2",
+      "epic": "E21",
+      "epic_name": "Learning",
+      "feature": "E21.F1",
+      "feature_name": "Migration memory",
+      "story": "As an ontology and pack curator, I want to promote anonymised patterns to shared memory only when the customer contract allows it, so that learning is shared without exposing customer data.",
+      "acceptance": [
+        "Sharing is off by default.",
+        "A person checks a sample of each anonymised batch."
+      ],
+      "release": "R2",
+      "spec": "Learning",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E21.F2.S1",
+      "epic": "E21",
+      "epic_name": "Learning",
+      "feature": "E21.F2",
+      "feature_name": "Skill library",
+      "story": "As a data subject expert, I want to approve project skills drafted from repeated corrections or errors, so that agents stop repeating the same mistakes.",
+      "acceptance": [
+        "Skills cannot change guardrails or compliance rules.",
+        "Each agent call records the skills it used."
+      ],
+      "release": "R2",
+      "spec": "Skill library",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E21.F3.S1",
+      "epic": "E21",
+      "epic_name": "Learning",
+      "feature": "E21.F3",
+      "feature_name": "Decision model and estimates",
+      "story": "As a platform engineer, I want to send high-volume, fixed-option questions to a fast decision model with caching, so that row-level tagging is affordable.",
+      "acceptance": [
+        "Each decision is cached by input, question and pack version.",
+        "Low-confidence answers go to the reasoning model, then to a person."
+      ],
+      "release": "R2",
+      "spec": "Decision model",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E21.F3.S2",
+      "epic": "E21",
+      "epic_name": "Learning",
+      "feature": "E21.F3",
+      "feature_name": "Decision model and estimates",
+      "story": "As a migration lead, I want to have estimates improve from actual effort on past tasks, so that plans get more accurate over time.",
+      "acceptance": [
+        "Estimate error is reported per wave."
+      ],
+      "release": "R2",
+      "spec": "Learning",
+      "status": "todo",
+      "increment": "later-R2"
+    },
+    {
+      "id": "E22.F1.S1",
+      "epic": "E22",
+      "epic_name": "Evaluation harness",
+      "feature": "E22.F1",
+      "feature_name": "Golden datasets and release gate",
+      "story": "As a test engineer, I want to build a synthetic ConceptOne golden dataset with known correct outcomes, so that the first release can be measured from the start.",
+      "acceptance": [
+        "The dataset includes seeded errors, hidden rules and interfaces."
+      ],
+      "release": "R1",
+      "spec": "Evaluation",
+      "status": "todo",
+      "increment": "I4"
+    },
+    {
+      "id": "E22.F1.S2",
+      "epic": "E22",
+      "epic_name": "Evaluation harness",
+      "feature": "E22.F1",
+      "feature_name": "Golden datasets and release gate",
+      "story": "As a test engineer, I want to block a release if any measure drops below the previous release on any golden dataset, so that quality never goes backwards.",
+      "acceptance": [
+        "Measures cover mapping, configuration, code, planning, compliance and review."
+      ],
+      "release": "R1",
+      "spec": "Evaluation",
+      "status": "todo",
+      "increment": "I13"
+    },
+    {
+      "id": "E22.F1.S3",
+      "epic": "E22",
+      "epic_name": "Evaluation harness",
+      "feature": "E22.F1",
+      "feature_name": "Golden datasets and release gate",
+      "story": "As a test engineer, I want to measure how well confidence scores match reviewer outcomes, so that review thresholds can be trusted.",
+      "acceptance": [
+        "Calibration error is reported per agent."
+      ],
+      "release": "R2",
+      "spec": "Evaluation",
+      "status": "todo",
+      "increment": "later-R2"
+    }
+  ]
+}

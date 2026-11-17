@@ -1,0 +1,80 @@
+.state {
+  --state-icon-color: var(--color-text-muted);
+  --state-icon-bg: var(--color-bg-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+}
+
+.compact {
+  padding: var(--space-8) var(--space-4);
+}
+
+.danger {
+  --state-icon-color: var(--color-danger-text);
+  --state-icon-bg: var(--color-danger-bg);
+}
+
+.warning {
+  --state-icon-color: var(--color-warning-text);
+  --state-icon-bg: var(--color-warning-bg);
+}
+
+.neutral {
+  --state-icon-color: var(--color-text-muted);
+  --state-icon-bg: var(--color-bg-muted);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-lg);
+  background: var(--state-icon-bg);
+  color: var(--state-icon-color);
+}
+
+.icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text);
+}
+
+.compact .title {
+  font-size: var(--text-md);
+}
+
+.body {
+  max-width: 28rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-md);
+}
+
+.reference {
+  max-width: 32rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}

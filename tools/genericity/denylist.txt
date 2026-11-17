@@ -1,0 +1,9 @@
+# Terms that must never appear in platform code (one regex per line, case-insensitive).
+# Reference-case knowledge belongs in packs/ and programmes/ only. See docs/PLAN.md, rule 1.
+insurity
+concept\s*one
+pro\s*suite
+sure\s*mga
+sikich
+oip\s*insurtech
+epic[-\s]premier

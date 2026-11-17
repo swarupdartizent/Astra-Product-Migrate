@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  genericity:
+    name: Genericity guard
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: python tools/genericity/check.py
+
+  api:
+    name: API (lint, types, integration tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - name: Install uv
+        run: python -m pip install uv==0.13.9
+      - name: Install dependencies
+        working-directory: platform
+        run: python -m uv sync --frozen
+      - name: Lint
+        working-directory: platform
+        run: .venv/bin/python -m ruff check src tests
+      - name: Type check
+        working-directory: platform
+        run: .venv/bin/python -m mypy src
+      - name: Start local stack
+        run: python tools/dev.py up
+      - name: Migrate
+        working-directory: platform
+        run: .venv/bin/python -m alembic upgrade head
+      - name: Integration tests
+        working-directory: platform
+        run: .venv/bin/python -m pytest -q
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose -f infra/local/compose.yaml --env-file .local/compose.env logs --tail 200
+
+  web:
+    name: Web (lint, types, unit tests, build)
+    runs-on: ubuntu-24.04
+    defaults:
+      run: {working-directory: apps/web}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "24", cache: npm, cache-dependency-path: apps/web/package-lock.json}
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

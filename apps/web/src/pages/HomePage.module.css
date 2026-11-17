@@ -1,0 +1,159 @@
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (max-width: 64rem) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.email {
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-medium);
+}
+
+.roleCell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.roleLabel {
+  font-weight: var(--weight-medium);
+}
+
+.roleCode {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.statusLoading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.statusBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.statusSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.version {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.checkName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  color: var(--color-text-secondary);
+}
+
+.checkName svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.checkValue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.checkDetail {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.links {
+  list-style: none;
+}
+
+.links li + li {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.linkRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  color: var(--color-text);
+}
+
+.linkRow:hover {
+  background: var(--color-bg-subtle);
+  text-decoration: none;
+}
+
+.linkRow:focus-visible {
+  outline-offset: -2px;
+}
+
+.linkIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-text);
+}
+
+.linkIcon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.linkText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.linkLabel {
+  font-weight: var(--weight-medium);
+}
+
+.linkDescription {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.linkChevron {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-text-muted);
+}

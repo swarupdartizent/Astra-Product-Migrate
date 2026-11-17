@@ -1,0 +1,178 @@
+import type { QueryClient } from '@tanstack/react-query';
+import {
+  createRootRouteWithContext,
+  createRoute,
+  createRouter,
+  Outlet,
+  redirect,
+} from '@tanstack/react-router';
+import { safeReturnTo } from '@/auth/config';
+import type { AuthContextValue } from '@/auth/context';
+import { AccessPage } from '@/features/access/AccessPage';
+import { AuditPage } from '@/features/audit/AuditPage';
+import { ObservabilityPage } from '@/features/observability/ObservabilityPage';
+import { TraceDetailPage } from '@/features/observability/TraceDetailPage';
+import { ProgrammesPage } from '@/features/programmes/ProgrammesPage';
+import { TENANT_TABS, type TenantTab } from '@/features/tenants/model';
+import { TenantDetailPage } from '@/features/tenants/TenantDetailPage';
+import { TenantsPage } from '@/features/tenants/TenantsPage';
+import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
+import { HomePage } from '@/pages/HomePage';
+import { NotFoundPage } from '@/pages/NotFoundPage';
+import { RouteErrorPage } from '@/pages/RouteErrorPage';
+import { SignInPage } from '@/pages/SignInPage';
+import { AppShell } from './AppShell';
+
+export interface RouterContext {
+  queryClient: QueryClient;
+  auth: AuthContextValue;
+}
+
+const rootRoute = createRootRouteWithContext<RouterContext>()({
+  component: Outlet,
+  notFoundComponent: NotFoundPage,
+  errorComponent: RouteErrorPage,
+});
+
+// ---------- Public routes ----------
+
+interface SignInSearch {
+  redirect?: string;
+}
+
+const signInRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/sign-in',
+  validateSearch: (search: Record<string, unknown>): SignInSearch =>
+    typeof search.redirect === 'string' ? { redirect: search.redirect } : {},
+  beforeLoad: ({ context, search }) => {
+    if (context.auth.status === 'authenticated') {
+      throw redirect({ href: safeReturnTo(search.redirect), replace: true });
+    }
+  },
+  component: function SignInRoute() {
+    const { redirect: returnTo } = signInRoute.useSearch();
+    return <SignInPage returnTo={returnTo} />;
+  },
+});
+
+const authCallbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/auth/callback',
+  component: AuthCallbackPage,
+});
+
+// ---------- Authenticated routes (inside the app shell) ----------
+
+export const appLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'app',
+  beforeLoad: ({ context, location }) => {
+    if (context.auth.status !== 'authenticated') {
+      throw redirect({
+        to: '/sign-in',
+        search: location.href === '/' ? {} : { redirect: location.href },
+        replace: true,
+      });
+    }
+  },
+  component: AppShell,
+});
+
+const homeRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/',
+  component: HomePage,
+});
+
+// Feature routes: children of appLayoutRoute, registered in src/app/navigation.ts.
+// See README "Adding a feature page".
+
+const tenantsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/tenants',
+  component: TenantsPage,
+});
+
+interface TenantSearch {
+  tab?: TenantTab;
+}
+
+const tenantDetailRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/tenants/$tenantId',
+  validateSearch: (search: Record<string, unknown>): TenantSearch =>
+    TENANT_TABS.includes(search.tab as TenantTab) ? { tab: search.tab as TenantTab } : {},
+  component: function TenantDetailRoute() {
+    const { tenantId } = tenantDetailRoute.useParams();
+    const { tab } = tenantDetailRoute.useSearch();
+    return <TenantDetailPage tenantId={tenantId} tab={tab ?? 'overview'} />;
+  },
+});
+
+const programmesRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/programmes',
+  component: ProgrammesPage,
+});
+
+const accessRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/access',
+  component: AccessPage,
+});
+
+const auditRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/audit',
+  component: AuditPage,
+});
+
+const observabilityRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/observability',
+  component: ObservabilityPage,
+});
+
+const traceRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/observability/traces/$traceId',
+  component: function TraceRoute() {
+    const { traceId } = traceRoute.useParams();
+    return <TraceDetailPage traceId={traceId} />;
+  },
+});
+
+export const routeTree = rootRoute.addChildren([
+  signInRoute,
+  authCallbackRoute,
+  appLayoutRoute.addChildren([
+    homeRoute,
+    tenantsRoute,
+    tenantDetailRoute,
+    programmesRoute,
+    accessRoute,
+    auditRoute,
+    observabilityRoute,
+    traceRoute,
+  ]),
+]);
+
+export function createAppRouter(queryClient: QueryClient) {
+  return createRouter({
+    routeTree,
+    // `auth` is supplied by <RouterProvider context={{ auth }}> on every render.
+    context: { queryClient, auth: undefined as unknown as AuthContextValue },
+    defaultPreload: 'intent',
+    defaultPreloadStaleTime: 0,
+    scrollRestoration: true,
+  });
+}
+
+export type AppRouter = ReturnType<typeof createAppRouter>;
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: AppRouter;
+  }
+}

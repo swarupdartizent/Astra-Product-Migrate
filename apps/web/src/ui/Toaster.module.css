@@ -1,0 +1,53 @@
+.toast {
+  font-family: var(--font-sans) !important;
+  background: var(--color-surface-raised) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  color: var(--color-text) !important;
+  padding: var(--space-3) var(--space-4) !important;
+  gap: var(--space-2) !important;
+}
+
+.title {
+  font-size: var(--text-md) !important;
+  font-weight: var(--weight-semibold) !important;
+}
+
+.description {
+  font-size: var(--text-sm) !important;
+  color: var(--color-text-muted) !important;
+}
+
+.icon {
+  align-self: flex-start;
+  margin-top: 0.125rem;
+}
+
+.success .icon {
+  color: var(--color-success-solid);
+}
+
+.error .icon {
+  color: var(--color-danger-solid);
+}
+
+.warning .icon {
+  color: var(--color-warning-solid);
+}
+
+.info .icon {
+  color: var(--color-info-solid);
+}
+
+.close {
+  background: var(--color-surface-raised) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-muted) !important;
+}
+
+.action {
+  background: var(--color-accent) !important;
+  color: var(--color-accent-fg) !important;
+  border-radius: var(--radius-md) !important;
+}
