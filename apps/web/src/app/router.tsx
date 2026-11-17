@@ -10,6 +10,13 @@ import { safeReturnTo } from '@/auth/config';
 import type { AuthContextValue } from '@/auth/context';
 import { AccessPage } from '@/features/access/AccessPage';
 import { AuditPage } from '@/features/audit/AuditPage';
+import { ProjectPage } from '@/features/blueprints/ProjectPage';
+import { PROJECT_TABS, type ProjectTab } from '@/features/blueprints/tabs';
+import { ComposePage } from '@/features/packs/ComposePage';
+import { PackDetailPage } from '@/features/packs/PackDetailPage';
+import { PackLibraryPage } from '@/features/packs/PackLibraryPage';
+import { PACK_TABS, type PackTab } from '@/features/packs/tabs';
+import { TemplatesPage } from '@/features/templates/TemplatesPage';
 import { ObservabilityPage } from '@/features/observability/ObservabilityPage';
 import { TraceDetailPage } from '@/features/observability/TraceDetailPage';
 import { ProgrammesPage } from '@/features/programmes/ProgrammesPage';
@@ -143,6 +150,62 @@ const traceRoute = createRoute({
   },
 });
 
+const packsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/packs',
+  component: PackLibraryPage,
+});
+
+const composeRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/packs/compose',
+  component: ComposePage,
+});
+
+interface PackSearch {
+  tab?: PackTab;
+}
+
+const packDetailRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/packs/$name/$version',
+  validateSearch: (search: Record<string, unknown>): PackSearch =>
+    PACK_TABS.includes(search.tab as PackTab) ? { tab: search.tab as PackTab } : {},
+  component: function PackDetailRoute() {
+    const { name, version } = packDetailRoute.useParams();
+    const { tab } = packDetailRoute.useSearch();
+    return <PackDetailPage name={name} version={version} tab={tab ?? 'overview'} />;
+  },
+});
+
+interface ProjectSearch {
+  tab?: ProjectTab;
+  version?: number;
+}
+
+const projectRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/projects/$projectId',
+  validateSearch: (search: Record<string, unknown>): ProjectSearch => {
+    const out: ProjectSearch = {};
+    if (PROJECT_TABS.includes(search.tab as ProjectTab)) out.tab = search.tab as ProjectTab;
+    const v = Number(search.version);
+    if (Number.isInteger(v) && v > 0) out.version = v;
+    return out;
+  },
+  component: function ProjectRoute() {
+    const { projectId } = projectRoute.useParams();
+    const { tab, version } = projectRoute.useSearch();
+    return <ProjectPage projectId={projectId} tab={tab ?? 'editor'} version={version ?? null} />;
+  },
+});
+
+const templatesRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/templates',
+  component: TemplatesPage,
+});
+
 export const routeTree = rootRoute.addChildren([
   signInRoute,
   authCallbackRoute,
@@ -155,6 +218,11 @@ export const routeTree = rootRoute.addChildren([
     auditRoute,
     observabilityRoute,
     traceRoute,
+    packsRoute,
+    composeRoute,
+    packDetailRoute,
+    projectRoute,
+    templatesRoute,
   ]),
 ]);
 

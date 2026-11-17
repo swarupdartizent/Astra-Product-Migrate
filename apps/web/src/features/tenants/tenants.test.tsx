@@ -5,6 +5,7 @@ import type { Region, Tenant } from '@/api/types';
 import { jsonResponse, renderWithProviders, renderWithRouter } from '@/test/utils';
 import { CreateTenantDialog } from './CreateTenantDialog';
 import { PolicyTab } from './PolicyTab';
+import { RegionTab } from './RegionTab';
 import { SecretsTab } from './SecretsTab';
 
 // Test fixtures: shapes follow the /api/v1 contract; values are synthetic.
@@ -190,6 +191,83 @@ describe('CreateTenantDialog', () => {
     expect(await within(dialog).findByText('Name is reserved')).toBeInTheDocument();
     expect(within(dialog).getByRole('textbox', { name: /^Name/ })).toHaveAccessibleDescription(
       'Name is reserved',
+    );
+  });
+});
+
+function fieldProblem(field: string, message: string) {
+  return jsonResponse(
+    {
+      type: '/problems/validation',
+      title: 'Some fields need attention',
+      status: 422,
+      detail: message,
+      errors: [{ field, message }],
+    },
+    422,
+    'application/problem+json',
+  );
+}
+
+describe('server field errors land on the right field', () => {
+  it('secret creation: name', async () => {
+    fetchMock.mockImplementation((_input, init) =>
+      Promise.resolve(
+        init?.method === 'POST'
+          ? fieldProblem('name', 'A secret with this name already exists in this tenant.')
+          : jsonResponse([]),
+      ),
+    );
+    renderWithProviders(
+      <SecretsTab
+        tenant={tenant({ permissions: ['tenant:read', 'secrets:read', 'secrets:manage'] })}
+      />,
+    );
+    await userEvent.click((await screen.findAllByRole('button', { name: /Add secret/ }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Add connector secret' });
+    await userEvent.type(within(dialog).getByRole('textbox', { name: /^Name/ }), 'erp-db');
+    await userEvent.type(within(dialog).getByLabelText(/^Value/), 'fixture-value');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add secret' }));
+    expect(
+      await within(dialog).findByText('A secret with this name already exists in this tenant.'),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: /^Name/ })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+  });
+
+  it('region move: to_region', async () => {
+    fetchMock.mockImplementation((input, init) => {
+      const url = urlOf(input);
+      if (init?.method === 'POST')
+        return Promise.resolve(fieldProblem('to_region', "Region 'local-b' is not offered"));
+      if (url === '/api/v1/regions') {
+        return Promise.resolve(
+          jsonResponse([
+            ...regions,
+            { code: 'local-b', name: 'Local B', jurisdiction: 'Test', model_endpoints: {} },
+          ]),
+        );
+      }
+      return Promise.resolve(jsonResponse([]));
+    });
+    renderWithProviders(
+      <RegionTab tenant={tenant({ permissions: ['tenant:read', 'tenant:region_migrate'] })} />,
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Move region' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('combobox', { name: /Destination region/ }));
+    await userEvent.click(await screen.findByRole('option', { name: /Local B/ }));
+    await userEvent.type(
+      within(dialog).getByRole('textbox', { name: /Reason/ }),
+      'Customer moved data centre',
+    );
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Move region' }));
+    expect(await within(dialog).findByText("Region 'local-b' is not offered")).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: /Destination region/ })).toHaveAttribute(
+      'aria-invalid',
+      'true',
     );
   });
 });

@@ -38,6 +38,8 @@ export default tseslint.config(
         { checksVoidReturn: { attributes: false } },
       ],
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
+      // Labels often wrap a control plus a two-line description.
+      'jsx-a11y/label-has-associated-control': ['error', { depth: 4 }],
       // TanStack Router control flow throws redirect()/notFound() objects by design.
       '@typescript-eslint/only-throw-error': [
         'error',

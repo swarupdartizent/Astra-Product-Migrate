@@ -8,6 +8,7 @@ import { DangerZoneTab } from './DangerZoneTab';
 import { can, TENANT_TABS, type TenantTab } from './model';
 import { OverviewTab } from './OverviewTab';
 import { PolicyTab } from './PolicyTab';
+import { ProjectsTab } from './ProjectsTab';
 import { RegionTab } from './RegionTab';
 import { SecretsTab } from './SecretsTab';
 import { TenantStatusPill } from './TenantStatusPill';
@@ -98,6 +99,7 @@ function TenantDetail({ tenantId, tab }: TenantDetailPageProps) {
       >
         <TabsList aria-label="Tenant sections">
           <Tab value="overview">Overview</Tab>
+          <Tab value="projects">Projects</Tab>
           <Tab value="policy">Security policy</Tab>
           {showSecrets ? <Tab value="secrets">Connector secrets</Tab> : null}
           <Tab value="region">Region</Tab>
@@ -105,6 +107,9 @@ function TenantDetail({ tenantId, tab }: TenantDetailPageProps) {
         </TabsList>
         <TabPanel value="overview">
           <OverviewTab tenant={t} />
+        </TabPanel>
+        <TabPanel value="projects">
+          <ProjectsTab tenant={t} />
         </TabPanel>
         <TabPanel value="policy">
           <PolicyTab tenant={t} />

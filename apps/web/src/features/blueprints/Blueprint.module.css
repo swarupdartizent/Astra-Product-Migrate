@@ -1,0 +1,328 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (max-width: 72rem) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.side {
+  position: sticky;
+  top: calc(var(--topbar-h) + var(--space-4));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-height: calc(100dvh - var(--topbar-h) - var(--space-8));
+  overflow-y: auto;
+}
+
+@media (max-width: 72rem) {
+  .side {
+    position: static;
+    max-height: none;
+  }
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.yamlWrap {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.yamlWrap:focus-within {
+  border-color: var(--color-focus-ring);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle-hover);
+}
+
+.gutter {
+  padding: var(--space-3) var(--space-2);
+  border-right: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  text-align: right;
+  user-select: none;
+  overflow: hidden;
+  white-space: pre;
+}
+
+.yaml {
+  min-height: 32rem;
+  width: 100%;
+  padding: var(--space-3);
+  border: 0;
+  resize: vertical;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+}
+
+.yaml:focus-visible {
+  outline: none;
+}
+
+.stream {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.streamSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font-weight: var(--weight-medium);
+}
+
+.streamSummary:focus-visible {
+  outline-offset: -2px;
+}
+
+.streamBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.kvRow {
+  display: grid;
+  grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.repeater {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.repeaterLegend {
+  padding: 0;
+  margin-bottom: var(--space-1-5);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.freezeRow {
+  display: grid;
+  grid-template-columns: 10rem 10rem minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: end;
+}
+
+@media (max-width: 48rem) {
+  .freezeRow,
+  .kvRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.override {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.override:focus-visible {
+  outline-offset: 2px;
+}
+
+.overrideHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.overrideHead > button {
+  margin-left: auto;
+}
+
+.inlineError {
+  font-size: var(--text-sm);
+  color: var(--color-danger-text);
+}
+
+.issues {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.issue {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.issue:last-child {
+  border-bottom: 0;
+}
+
+.issueButton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.issueButton:hover:not(:disabled) {
+  background: var(--color-bg-subtle);
+}
+
+.issueButton:disabled {
+  cursor: default;
+}
+
+.issueButton:focus-visible {
+  outline-offset: -2px;
+}
+
+.issuePath {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.issueFix {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.counts {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.versionsLayout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (max-width: 64rem) {
+  .versionsLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.versionList {
+  list-style: none;
+}
+
+.versionButton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.versionButton:hover {
+  background: var(--color-bg-subtle);
+}
+
+.versionButton[aria-current='true'] {
+  background: var(--color-accent-subtle);
+}
+
+.versionButton:focus-visible {
+  outline-offset: -2px;
+}
+
+.progressList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.decision {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.valueChoice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.valueChoice:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.valueChoice:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.valueChoice input {
+  margin-top: 0.1875rem;
+  accent-color: var(--color-accent);
+}
+
+.valueChoice input:focus-visible {
+  outline: none;
+}

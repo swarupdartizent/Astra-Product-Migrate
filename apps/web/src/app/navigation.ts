@@ -2,8 +2,10 @@ import type { LinkProps } from '@tanstack/react-router';
 import {
   Activity,
   Building2,
+  FileCode,
   FolderKanban,
   House,
+  Package,
   ScrollText,
   Users,
   type LucideIcon,
@@ -19,7 +21,7 @@ import {
  * and talks to a real API; never add placeholders for features that are not built.
  */
 
-export type NavGroupId = 'overview' | 'platform' | 'governance';
+export type NavGroupId = 'overview' | 'platform' | 'configuration' | 'governance';
 
 export interface NavGroup {
   id: NavGroupId;
@@ -48,6 +50,7 @@ export interface NavItem {
 export const navGroups: readonly NavGroup[] = [
   { id: 'overview' },
   { id: 'platform', label: 'Platform' },
+  { id: 'configuration', label: 'Configuration' },
   { id: 'governance', label: 'Governance' },
 ];
 
@@ -81,6 +84,27 @@ export const navItems: readonly NavItem[] = [
     permission: 'tenant:read',
     group: 'platform',
     keywords: ['partners'],
+  },
+  {
+    id: 'packs',
+    to: '/packs',
+    label: 'Pack library',
+    description:
+      'Browse adapter, domain, compliance and pattern packs; upload, test and publish them.',
+    icon: Package,
+    permission: null,
+    group: 'configuration',
+    keywords: ['adapters', 'compliance', 'controls', 'compose'],
+  },
+  {
+    id: 'templates',
+    to: '/templates',
+    label: 'Templates',
+    description: 'Blueprint templates that new projects can start from.',
+    icon: FileCode,
+    permission: null,
+    group: 'configuration',
+    keywords: ['blueprint', 'starter'],
   },
   {
     id: 'access',

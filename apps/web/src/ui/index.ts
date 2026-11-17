@@ -23,6 +23,13 @@ export {
   type CardProps,
 } from './Card';
 export { Checkbox, type CheckboxProps } from './Checkbox';
+export {
+  CheckboxGroup,
+  RadioCards,
+  type CheckboxGroupProps,
+  type Choice,
+  type RadioCardsProps,
+} from './ChoiceGroup';
 export { CodeBlock, Mono, type CodeBlockProps, type MonoProps } from './Mono';
 export { ConfirmDialog, type ConfirmDialogProps } from './ConfirmDialog';
 export { CopyButton, type CopyButtonProps } from './CopyButton';

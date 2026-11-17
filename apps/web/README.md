@@ -14,7 +14,7 @@ Requirements: Node 22+ (developed on Node 24) and npm 11.
 ```bash
 cd apps/web
 npm ci
-npm run dev          # http://localhost:5173 (port is fixed: it is the registered OIDC redirect)
+npm run dev          # http://localhost:5273 (port is fixed: it is the registered OIDC redirect)
 ```
 
 The dev server proxies `/api` to `http://127.0.0.1:8000`. Set `ASTRA_API_PROXY_TARGET` to change this.
@@ -23,7 +23,7 @@ To sign in you need the local Keycloak realm running at `http://localhost:18080/
 
 | Command             | What it does                                                                |
 | ------------------- | --------------------------------------------------------------------------- |
-| `npm run dev`       | Vite dev server on port 5173                                                |
+| `npm run dev`       | Vite dev server on port 5273                                                |
 | `npm run build`     | Type-check, then production build to `dist/`                                |
 | `npm run preview`   | Serve `dist/` on port 4173                                                  |
 | `npm run typecheck` | `tsc -b` (strict)                                                           |
@@ -78,16 +78,22 @@ e2e/                    Playwright specs (axe accessibility smoke tests)
 
 ## Screens
 
-| Route                            | Nav permission       | What it does                                                                                                                                      |
-| -------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                              | any signed-in user   | Greeting, "Get started" links to the screens you can open, your role assignments, platform health                                                 |
-| `/tenants`                       | `tenant:read`        | Tenant list; "New tenant" (needs `tenant:create`) builds the database, role and key synchronously                                                 |
-| `/tenants/$tenantId?tab=`        | `tenant:read`        | Tabs: overview, security policy, connector secrets, region, danger zone                                                                           |
-| `/programmes`                    | `tenant:read`        | Programmes with partners; create programme and add partner need `programme:manage`                                                                |
-| `/access`                        | `access:read`        | People search, invite, role grant/revoke, enable/disable (side panel)                                                                             |
-| `/audit`                         | `audit:read`         | Filtered, keyset-paginated audit log; detail panel; CSV/JSONL export (`audit:export`); integrity verification (`audit:verify`) and signed anchors |
-| `/observability`                 | `observability:read` | Span summary grouped by category, tenant, operation, stage, agent or project; recent traces                                                       |
-| `/observability/traces/$traceId` | `observability:read` | Trace waterfall, span attributes, link to Jaeger when the API provides one                                                                        |
+| Route                                | Nav permission       | What it does                                                                                                                                                                                            |
+| ------------------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                  | any signed-in user   | Greeting, "Get started" links to the screens you can open, your role assignments, platform health                                                                                                       |
+| `/tenants`                           | `tenant:read`        | Tenant list; "New tenant" (needs `tenant:create`) builds the database, role and key synchronously                                                                                                       |
+| `/tenants/$tenantId?tab=`            | `tenant:read`        | Tabs: overview, security policy, connector secrets, region, danger zone                                                                                                                                 |
+| `/programmes`                        | `tenant:read`        | Programmes with partners; create programme and add partner need `programme:manage`                                                                                                                      |
+| `/access`                            | `access:read`        | People search, invite, role grant/revoke, enable/disable (side panel)                                                                                                                                   |
+| `/audit`                             | `audit:read`         | Filtered, keyset-paginated audit log; detail panel; CSV/JSONL export (`audit:export`); integrity verification (`audit:verify`) and signed anchors                                                       |
+| `/observability`                     | `observability:read` | Span summary grouped by category, tenant, operation, stage, agent or project; recent traces                                                                                                             |
+| `/observability/traces/$traceId`     | `observability:read` | Trace waterfall, span attributes, link to Jaeger when the API provides one                                                                                                                              |
+| `/packs`                             | any signed-in user   | Pack library grouped by name (expand for older versions), filters; "Upload pack" (`pack:publish`) sends a folder or files as `{files: {path: base64}}`                                                  |
+| `/packs/$name/$version?tab=`         | any signed-in user   | Overview (disclaimer, requires, digest, review), controls with placement, rules, settings, files, tests and release (run tests, record review with `pack:review`, publish, deprecate), compare versions |
+| `/packs/compose`                     | any signed-in user   | Composition preview of published packs: controls by placement area, settings with conflicts, requirement problems                                                                                       |
+| `/tenants/$tenantId?tab=projects`    | `tenant:read`        | Projects with latest/approved version and planning gate; "New project" needs `project:create` on the tenant                                                                                             |
+| `/projects/$projectId?tab=&version=` | project read         | Blueprint workspace: editor (form and YAML views, live validation, save), versions and approvals, compare, decisions                                                                                    |
+| `/templates`                         | any signed-in user   | Blueprint templates; "New template" needs `template:manage`                                                                                                                                             |
 
 Per-tenant actions are gated by `Tenant.permissions` (the permissions the caller holds on that
 tenant), not by the global `/me` list: policy edits need `tenant:update_policy`, secrets need
@@ -104,6 +110,23 @@ Forms follow one pattern: client validation mirrors the API rules and shows afte
 422 `errors: [{field, message}]` from the API are mapped onto the matching `Field` (the server wins);
 anything else renders in `FormError` (auth and permission problems render their dedicated state,
 e.g. the multi-factor step-up).
+
+### Blueprint workspace
+
+- The editor keeps one draft in two views. The form edits the blueprint mapping (`content`); the
+  YAML view edits the file. Switching calls `POST /blueprints/convert` so both always match the
+  server's reading; invalid YAML keeps you in the file view and shows the line and column.
+- Validation runs on every pause in typing (`POST /projects/{id}/blueprint/validate`; nothing is
+  stored). Issues are grouped by severity; selecting one focuses the matching form field
+  (`fieldId(path)` in `features/blueprints/model.ts`).
+- Overrides show a live badge: "Loosens · needs approval" and "No pack sets this" come from the
+  validation issues; "Tightens" / "Same as packs" / "Loosens · approved" are worked out from the
+  composed setting with the same strictness rule as the API.
+- Saving asks why (≥5 characters) and creates a new numbered version, committed to git. Approved
+  versions are locked; changes are new versions that need approval again.
+- Approve/Reject buttons appear only when `VersionDetail.can_approve_as` is non-empty; per-project
+  buttons use `Project.permissions`. Decisions (setting conflicts and loosening requests) are made
+  by a person with a reason; no default is ever applied.
 
 ## Auth
 

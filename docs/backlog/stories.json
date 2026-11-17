@@ -39,9 +39,9 @@
       ],
       "release": "R1",
       "spec": "NFR Residency",
-      "status": "in_progress",
+      "status": "done",
       "increment": "I1",
-      "note": "Region fixed at creation, DB-enforced, recorded region moves done. Remaining: blueprint residency control blocking a project (I2); per-region model endpoints wired in I3."
+      "note": "Region fixed at creation (DB-enforced), recorded region moves, and blueprint residency controls block projects in non-compliant regions or without in-region model endpoints."
     },
     {
       "id": "E01.F1.S3",
@@ -283,8 +283,9 @@
       ],
       "release": "R1",
       "spec": "CF-01",
-      "status": "todo",
-      "increment": "I2"
+      "status": "done",
+      "increment": "I2",
+      "note": "Form and YAML views over one canonical model, git history per tenant, templates."
     },
     {
       "id": "E03.F1.S2",
@@ -299,8 +300,9 @@
       ],
       "release": "R1",
       "spec": "CF-01",
-      "status": "todo",
-      "increment": "I2"
+      "status": "done",
+      "increment": "I2",
+      "note": "Structural diff (added/removed/changed) with author and reason per version."
     },
     {
       "id": "E03.F1.S3",
@@ -332,8 +334,9 @@
       ],
       "release": "R1",
       "spec": "CF-03",
-      "status": "todo",
-      "increment": "I2"
+      "status": "done",
+      "increment": "I2",
+      "note": "Plain-language issues with fixes; planning gate refuses while blocking problems remain."
     },
     {
       "id": "E03.F2.S2",
@@ -348,8 +351,9 @@
       ],
       "release": "R1",
       "spec": "CF-04",
-      "status": "todo",
-      "increment": "I2"
+      "status": "done",
+      "increment": "I2",
+      "note": "Conflicts list both values and source packs; decisions record person, time and reason; no default applied."
     },
     {
       "id": "E03.F2.S3",
@@ -364,8 +368,9 @@
       ],
       "release": "R1",
       "spec": "CF-05",
-      "status": "todo",
-      "increment": "I2"
+      "status": "in_progress",
+      "increment": "I2",
+      "note": "Loosening blocked until a different, named approver approves with a reason. Remaining: include approvals in the proof pack (I11)."
     },
     {
       "id": "E03.F2.S4",
@@ -380,8 +385,9 @@
       ],
       "release": "R1",
       "spec": "Lifecycle stage 1",
-      "status": "todo",
-      "increment": "I2"
+      "status": "done",
+      "increment": "I2",
+      "note": "Dual approval by required roles; approved versions locked in the database; changes create a new version needing approval."
     },
     {
       "id": "E04.F1.S1",
@@ -397,8 +403,9 @@
       ],
       "release": "R1",
       "spec": "CF-02",
-      "status": "todo",
-      "increment": "I2"
+      "status": "done",
+      "increment": "I2",
+      "note": "Draft -> tests -> publish; publish refused when tests fail; published versions immutable in the database; blueprints pin exact versions."
     },
     {
       "id": "E04.F1.S2",
@@ -413,8 +420,9 @@
       ],
       "release": "R1",
       "spec": "Configuration model",
-      "status": "todo",
-      "increment": "I2"
+      "status": "in_progress",
+      "increment": "I2",
+      "note": "Pack version diff done; upgrading a pin is a new blueprint version that needs approval. Remaining: show plan impact of an upgrade (needs the planner, I7)."
     },
     {
       "id": "E04.F2.S1",
@@ -429,8 +437,9 @@
       ],
       "release": "R1",
       "spec": "Configuration model",
-      "status": "todo",
-      "increment": "I2"
+      "status": "done",
+      "increment": "I2",
+      "note": "Packs declare requires/adds; schema has no removal; conflicts show the stricter value and need a recorded decision."
     },
     {
       "id": "E04.F3.S1",
@@ -694,8 +703,9 @@
       ],
       "release": "R1",
       "spec": "Control types",
-      "status": "todo",
-      "increment": "I2"
+      "status": "in_progress",
+      "increment": "I2",
+      "note": "Six control types with placement rules, validated per type. Remaining: control matrix in the plan (I7)."
     },
     {
       "id": "E07.F2.S1",

@@ -21,6 +21,8 @@ dependencies = [
   "opentelemetry-instrumentation-fastapi==0.50b0",
   "opentelemetry-instrumentation-sqlalchemy==0.50b0",
   "opentelemetry-instrumentation-httpx==0.50b0",
+  "dulwich==0.22.7",
+  "packaging==24.2",
 ]
 
 [dependency-groups]

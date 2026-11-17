@@ -36,6 +36,11 @@ for (const path of [
   '/audit',
   '/observability',
   '/observability/traces/abc',
+  '/packs',
+  '/packs/compose',
+  '/packs/fixture-pack/1.0.0?tab=controls',
+  '/projects/00000000-0000-4000-8000-000000000000?tab=versions&version=2',
+  '/templates',
 ]) {
   test(`deep link ${path} while signed out goes to sign-in and keeps the destination`, async ({
     page,

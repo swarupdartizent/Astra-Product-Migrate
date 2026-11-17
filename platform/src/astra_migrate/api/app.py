@@ -9,7 +9,7 @@ from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
 from astra_migrate.api import errors
-from astra_migrate.api.routes import access, core, secrets_audit_obs, tenants
+from astra_migrate.api.routes import access, core, packs, projects, secrets_audit_obs, tenants
 from astra_migrate.config import get_settings
 from astra_migrate.db.control import engine
 from astra_migrate.logging import configure_logging, register_secret
@@ -30,7 +30,7 @@ def create_app() -> FastAPI:
     errors.install(app)
     app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in settings.cors_origins.split(",")],
                        allow_methods=["*"], allow_headers=["*"], allow_credentials=False)
-    for r in (core.router, tenants.router, access.router, secrets_audit_obs.router):
+    for r in (core.router, tenants.router, access.router, secrets_audit_obs.router, packs.router, projects.router):
         app.include_router(r, prefix=API_PREFIX)
 
     FastAPIInstrumentor.instrument_app(app, tracer_provider=provider, excluded_urls="/api/v1/health")

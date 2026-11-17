@@ -115,7 +115,9 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Tenant creation and region moves run inside the HTTP request; move them to the durable job runner with progress | I3 (runtime) |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
-| Blueprint residency control blocking a project in a non-compliant region (E01.F1.S2) | I2 |
+| Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |
+| Loosening approvals and conflict decisions in the proof pack (E03.F2.S3) | I11 |
+| A pack CLI and SDK templates for partners (E04.F3.S1, R3); packs are uploaded through the API until then | I4 / R3 |
 | Model cost per agent on the observability dashboard (E01.F3.S2) | I3 |
 | Live verification against Microsoft Entra ID and Okta (E01.F2.S1) | Needs a test tenant |
 

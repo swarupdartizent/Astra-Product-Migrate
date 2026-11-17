@@ -17,6 +17,8 @@ export interface FieldProps {
   /** Put the label beside the control (checkbox / switch). */
   inline?: boolean;
   className?: string;
+  /** Fixed id for the control (e.g. so validation messages can focus it). Generated otherwise. */
+  controlId?: string;
   /** Exactly one form control from this design system (Input, Textarea, Select, Checkbox, Switch). */
   children: ReactNode;
 }
@@ -31,13 +33,14 @@ export function Field({
   hideLabel = false,
   inline = false,
   className,
+  controlId,
   children,
 }: FieldProps) {
   const baseId = useId();
   const hasError = error !== undefined && error !== null && error !== false && error !== '';
   const ctx = useMemo(
     () => ({
-      controlId: `${baseId}-control`,
+      controlId: controlId ?? `${baseId}-control`,
       labelId: `${baseId}-label`,
       helpId: help ? `${baseId}-help` : undefined,
       errorId: hasError ? `${baseId}-error` : undefined,
@@ -45,7 +48,7 @@ export function Field({
       required,
       disabled,
     }),
-    [baseId, help, hasError, required, disabled],
+    [baseId, controlId, help, hasError, required, disabled],
   );
 
   const labelEl = (

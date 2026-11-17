@@ -341,3 +341,345 @@ export interface TraceDetail {
   jaeger_url: string | null;
   spans: Span[];
 }
+
+// ---------- Packs (tag "packs") ----------
+
+export type PackType =
+  'source_adapter' | 'target_adapter' | 'domain' | 'compliance' | 'pattern' | 'agentification';
+
+export type PackStatus = 'draft' | 'published' | 'deprecated';
+
+export type ControlType =
+  'data_handling' | 'approval' | 'gate' | 'evidence' | 'residency' | 'retention';
+
+/** Which value of a setting is stricter. "none" = no order. */
+export type Strictness = 'higher' | 'lower' | 'true' | 'false' | 'none';
+
+export type SettingValueType = number | boolean | string;
+
+export interface PackSummary {
+  id: Uuid;
+  name: string;
+  version: string;
+  type: PackType | (string & {});
+  title: string;
+  status: PackStatus;
+  /** null = tests not run yet. */
+  tests_passed: boolean | null;
+  reviewed_by_name: string | null;
+  published_at: DateTime | null;
+  created_at: DateTime;
+}
+
+export interface PackSource {
+  reference: string;
+  url?: string | null;
+}
+
+export interface PackRequirement {
+  name: string;
+  versions: string;
+  reason?: string;
+}
+
+export interface PackControl {
+  id: string;
+  type: ControlType;
+  title: string;
+  rule: string;
+  evidence_required: string;
+  sources: PackSource[];
+  gate?: string | null;
+  parameters?: Record<string, unknown>;
+  compliance_critical?: boolean;
+  two_person_approval?: boolean;
+}
+
+export interface PackRule {
+  id: string;
+  statement: string;
+  applies_to?: string[];
+  severity?: 'blocking' | 'warning';
+  sources?: PackSource[];
+}
+
+export interface PackSetting {
+  key: string;
+  value: SettingValueType;
+  stricter: Strictness;
+  unit?: string | null;
+  description?: string;
+  sources?: PackSource[];
+}
+
+/** pack.yaml as stored (keys as in the file, e.g. apiVersion). */
+export interface PackManifest {
+  apiVersion?: string;
+  type: PackType;
+  name: string;
+  version: string;
+  title: string;
+  description?: string;
+  publisher: string;
+  licence?: string;
+  standards?: string[];
+  disclaimer?: string | null;
+  requires?: PackRequirement[];
+  adds?: { controls?: PackControl[]; rules?: PackRule[]; settings?: PackSetting[] };
+  content?: Record<string, unknown>;
+  tests?: Record<string, unknown>[];
+}
+
+export interface PackFile {
+  path: string;
+  size: number;
+  sha256: string;
+}
+
+export interface PackCheck {
+  name: string;
+  passed: boolean;
+  message: string;
+}
+
+export interface PackTestReport {
+  passed: boolean;
+  ran_at: DateTime;
+  digest: string;
+  checks: PackCheck[];
+}
+
+export interface PackDetail extends PackSummary {
+  manifest: PackManifest;
+  digest: string;
+  files: PackFile[];
+  test_report: PackTestReport | null;
+  reviewed_by_role: string | null;
+  reviewed_at: DateTime | null;
+  created_by: string;
+  published_by: string | null;
+  /** All versions of this pack, newest first (includes this one). */
+  other_versions: string[];
+}
+
+export interface PackFileContent {
+  path: string;
+  text: string | null;
+  size: number;
+  binary: boolean;
+}
+
+export interface ControlPlacement {
+  type: ControlType;
+  area: string;
+  detail: string;
+}
+
+export interface PackSectionDiff<T> {
+  added: T[];
+  removed: T[];
+  changed: { id: string; before: T; after: T }[];
+}
+
+export interface PackDiff {
+  from: string;
+  to: string;
+  controls: PackSectionDiff<PackControl>;
+  rules: PackSectionDiff<PackRule>;
+  settings: PackSectionDiff<PackSetting>;
+  requires: { before: PackRequirement[]; after: PackRequirement[] };
+}
+
+export interface ComposedControl extends PackControl {
+  key: string;
+  pack: string;
+  placement: { area: string; detail: string };
+}
+
+export interface ComposedSetting {
+  key: string;
+  stricter: Strictness;
+  unit: string | null;
+  conflict: boolean;
+  /** Stricter value when ordered; null for unordered conflicts. */
+  strictest: SettingValueType | null;
+  fingerprint: string;
+  values: { pack: string; value: SettingValueType }[];
+}
+
+export interface CompositionProblem {
+  severity: 'blocking' | 'warning';
+  code: string;
+  path: string;
+  message: string;
+  fix: string;
+}
+
+export interface Composition {
+  packs: string[];
+  controls: ComposedControl[];
+  rules: (PackRule & { pack: string })[];
+  settings: ComposedSetting[];
+  problems: CompositionProblem[];
+}
+
+// ---------- Projects and blueprints (tag "blueprints") ----------
+
+export interface VersionSummary {
+  number: number;
+  /** "draft" | "approved" | "superseded" | "rejected" */
+  status: string;
+  message: string;
+  author_name: string;
+  created_at: DateTime;
+  commit_sha: string;
+  template: string | null;
+}
+
+export interface PlanningGate {
+  ready: boolean;
+  reason: string;
+  version: number | null;
+}
+
+export interface Project {
+  id: Uuid;
+  tenant_id: Uuid;
+  tenant_name: string;
+  name: string;
+  description: string;
+  status: string;
+  created_at: DateTime;
+  latest_version: VersionSummary | null;
+  approved_version: number | null;
+  planning_gate: PlanningGate;
+  /** Permissions the caller holds on this project. */
+  permissions: string[];
+  /** Role keys the caller holds on this project. */
+  roles: string[];
+}
+
+export interface ProjectIn {
+  name: string;
+  description?: string;
+  template?: string | null;
+}
+
+export interface ValidationIssue {
+  severity: 'blocking' | 'warning';
+  code: string;
+  path: string;
+  message: string;
+  fix: string;
+}
+
+export interface BlueprintValidation {
+  ok: boolean;
+  blocking: number;
+  warnings: number;
+  issues: ValidationIssue[];
+  composition: Composition | null;
+  open_decisions: { id: Uuid; kind: string; subject: string; status: string }[];
+}
+
+export interface Approval {
+  user_name: string;
+  role: string;
+  decision: 'approve' | 'reject' | (string & {});
+  reason: string;
+  decided_at: DateTime;
+}
+
+export interface VersionDetail extends VersionSummary {
+  yaml_text: string;
+  content: Record<string, unknown>;
+  validation: BlueprintValidation;
+  required_roles: string[];
+  approvals: Approval[];
+  git_verified: boolean;
+  /** Roles the caller can still approve as; empty = no approve/reject buttons. */
+  can_approve_as: string[];
+}
+
+/** Exactly one of yaml_text (file) or content (form). */
+export type BlueprintBody = { yaml_text: string } | { content: Record<string, unknown> };
+
+export type SaveVersionIn = BlueprintBody & { message: string };
+
+export interface ConvertOut {
+  yaml_text: string;
+  content: Record<string, unknown>;
+}
+
+export interface BlueprintDiff {
+  from: VersionSummary;
+  to: VersionSummary;
+  added: { path: string; value: unknown }[];
+  removed: { path: string; value: unknown }[];
+  changed: { path: string; before: unknown; after: unknown }[];
+}
+
+export interface ApproveIn {
+  approve: boolean;
+  reason?: string;
+}
+
+export interface SettingConflictContext {
+  key: string;
+  stricter: Strictness;
+  unit: string | null;
+  strictest: SettingValueType | null;
+  values: {
+    pack: string;
+    value: SettingValueType;
+    description?: string;
+    sources?: PackSource[];
+  }[];
+}
+
+export interface LooseningContext {
+  setting: string;
+  value: SettingValueType;
+  effective: SettingValueType | null;
+  reason?: string;
+  packs?: string[];
+}
+
+export interface Decision {
+  id: Uuid;
+  kind: 'setting_conflict' | 'loosening';
+  subject: string;
+  status: 'open' | 'decided' | 'rejected';
+  /** SettingConflictContext or LooseningContext depending on kind. */
+  context: Record<string, unknown>;
+  chosen_value: SettingValueType | null;
+  reason: string | null;
+  requested_by_name: string | null;
+  decided_by_name: string | null;
+  decided_at: DateTime | null;
+  created_at: DateTime;
+  can_decide: boolean;
+}
+
+export interface DecideIn {
+  reason: string;
+  chosen_value?: SettingValueType | null;
+  approve?: boolean;
+}
+
+export interface BlueprintTemplate {
+  id: Uuid;
+  name: string;
+  title: string;
+  description: string;
+  yaml_text: string;
+  created_by: string;
+  created_at: DateTime;
+}
+
+export interface TemplateIn {
+  name: string;
+  title: string;
+  description?: string;
+  yaml_text: string;
+}

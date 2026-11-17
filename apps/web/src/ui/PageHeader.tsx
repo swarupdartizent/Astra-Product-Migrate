@@ -8,6 +8,8 @@ export interface Breadcrumb {
   label: ReactNode;
   /** Omit for the current page. */
   to?: LinkProps['to'];
+  /** Path params for `to`, e.g. { tenantId }. */
+  params?: Record<string, string>;
 }
 
 export interface PageHeaderProps {
@@ -40,7 +42,11 @@ export function PageHeader({
                 <Fragment key={index}>
                   <li>
                     {crumb.to && !isLast ? (
-                      <Link to={crumb.to} className={styles.crumbLink}>
+                      <Link
+                        to={crumb.to}
+                        {...(crumb.params ? { params: crumb.params as never } : {})}
+                        className={styles.crumbLink}
+                      >
                         {crumb.label}
                       </Link>
                     ) : (

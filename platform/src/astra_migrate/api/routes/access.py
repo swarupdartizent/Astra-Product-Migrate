@@ -15,7 +15,7 @@ from astra_migrate import audit
 from astra_migrate.api.errors import Problem, conflict, forbidden, not_found
 from astra_migrate.api.routes.core import scope_name
 from astra_migrate.db.control import get_session
-from astra_migrate.db.models import Partner, Programme, RoleAssignment, Tenant, User
+from astra_migrate.db.models import Partner, Programme, Project, RoleAssignment, Tenant, User
 from astra_migrate.security.principal import CurrentPrincipal, Principal, scope_of
 from astra_migrate.security.rbac import ADMIN_ROLE, ROLES, P, TenantScope, can_grant, grant_covers_tenant
 
@@ -46,6 +46,10 @@ class UserOut(BaseModel):
 def _scope_tenant(s: Session, scope_type: str, scope_id: uuid.UUID | None) -> TenantScope | None:
     if scope_type == "tenant" and scope_id:
         t = s.get(Tenant, scope_id)
+        return scope_of(t) if t else None
+    if scope_type == "project" and scope_id:
+        p = s.get(Project, scope_id)
+        t = s.get(Tenant, p.tenant_id) if p else None
         return scope_of(t) if t else None
     return None
 
@@ -156,9 +160,7 @@ def grant(body: GrantIn, principal: CurrentPrincipal, s: DB) -> AssignmentOut:
         raise Problem(422, "validation", f"{rd.label} can be granted only at: {', '.join(sorted(rd.allowed_scopes))}")
     if (body.scope_type == "platform") != (body.scope_id is None):
         raise Problem(422, "validation", "Platform grants have no scope; every other grant needs one")
-    if body.scope_type == "project":
-        raise Problem(422, "validation", "Project-level grants become available with projects")
-    model = {"programme": Programme, "partner": Partner, "tenant": Tenant}.get(body.scope_type)
+    model = {"programme": Programme, "partner": Partner, "tenant": Tenant, "project": Project}.get(body.scope_type)
     if model is not None and s.get(model, body.scope_id) is None:
         raise Problem(422, "validation", f"Unknown {body.scope_type}")
     if s.get(User, body.user_id) is None:
@@ -183,7 +185,8 @@ def grant(body: GrantIn, principal: CurrentPrincipal, s: DB) -> AssignmentOut:
                        granted_by=principal.user.id)
     s.add(a)
     s.flush()
-    tenant_id = body.scope_id if body.scope_type == "tenant" else None
+    st = _scope_tenant(s, body.scope_type, body.scope_id)
+    tenant_id = st.tenant_id if st else None
     audit.record(s, principal.actor, "access.role_granted", tenant_id=tenant_id, target_type="user",
                  target_id=str(body.user_id), details={"role": body.role, "scope_type": body.scope_type,
                                                        "scope_id": str(body.scope_id) if body.scope_id else None})

@@ -31,6 +31,14 @@ class P(StrEnum):
     AUDIT_VERIFY = "audit:verify"
     OBSERVABILITY_READ = "observability:read"
     PROGRAMME_MANAGE = "programme:manage"
+    PACK_PUBLISH = "pack:publish"
+    PACK_REVIEW = "pack:review"
+    PROJECT_CREATE = "project:create"
+    BLUEPRINT_EDIT = "blueprint:edit"
+    BLUEPRINT_APPROVE = "blueprint:approve"
+    DECIDE_CONFLICT = "decision:conflict"
+    APPROVE_LOOSENING = "decision:loosening"
+    TEMPLATE_MANAGE = "template:manage"
 
 
 @dataclass(frozen=True)
@@ -55,11 +63,13 @@ ROLES: dict[str, RoleDef] = {r.key: r for r in [
        set(P), {"platform"}),
     _r("platform_engineer", "Platform engineer", "Builds and operates the platform; reads traces and cost.",
        {P.TENANT_READ, P.OBSERVABILITY_READ, P.AUDIT_READ}, {"platform"}),
-    _r("pack_developer", "Pack developer", "Builds adapters and packs.", {P.TENANT_READ}, {"platform"}),
+    _r("pack_developer", "Pack developer", "Builds adapters and packs.", {P.TENANT_READ, P.PACK_PUBLISH},
+       {"platform"}),
     _r("ontology_curator", "Ontology and pack curator", "Maintains the ontology, domain packs and shared skills.",
-       {P.TENANT_READ}, {"platform"}),
+       {P.TENANT_READ, P.PACK_PUBLISH, P.TEMPLATE_MANAGE}, {"platform"}),
     _r("compliance_curator", "Compliance curator", "Maintains compliance packs and control rules.",
-       {P.TENANT_READ, P.AUDIT_READ}, {"platform", "programme"}),
+       {P.TENANT_READ, P.AUDIT_READ, P.PACK_PUBLISH, P.PACK_REVIEW, P.DECIDE_CONFLICT, P.APPROVE_LOOSENING},
+       {"platform", "programme", "tenant", "project"}),
     _r("auditor", "Auditor", "Checks evidence, the audit log and the proof pack.",
        {P.TENANT_READ, P.AUDIT_READ, P.AUDIT_EXPORT, P.AUDIT_VERIFY, P.ACCESS_READ}),
     _r("programme_owner", "Programme owner", "Owns an installed-base programme at the product company.",
@@ -69,16 +79,17 @@ ROLES: dict[str, RoleDef] = {r.key: r for r in [
        {P.TENANT_READ, P.ACCESS_READ, P.ACCESS_MANAGE, P.AUDIT_READ, P.SECRETS_READ},
        {"programme", "partner"}),
     _r("migration_lead", "Migration lead", "Runs a customer migration from set-up to sign-off.",
-       {P.TENANT_READ, P.ACCESS_READ, P.SECRETS_READ, P.SECRETS_MANAGE, P.AUDIT_READ, P.OBSERVABILITY_READ}),
+       {P.TENANT_READ, P.ACCESS_READ, P.SECRETS_READ, P.SECRETS_MANAGE, P.AUDIT_READ, P.OBSERVABILITY_READ,
+        P.PROJECT_CREATE, P.BLUEPRINT_EDIT, P.BLUEPRINT_APPROVE, P.DECIDE_CONFLICT}),
     _r("data_sme", "Data subject expert", "Reviews data, mappings, code lists and data quality.",
        {P.TENANT_READ}),
     _r("solution_architect", "Solution architect", "Owns target design, customizations, integrations and gaps.",
-       {P.TENANT_READ, P.SECRETS_READ}),
+       {P.TENANT_READ, P.SECRETS_READ, P.BLUEPRINT_EDIT}),
     _r("customer_data_owner", "Customer data owner", "Makes business data decisions and signs off reconciliation.",
-       {P.TENANT_READ, P.AUDIT_READ}, {"tenant", "project"}),
+       {P.TENANT_READ, P.AUDIT_READ, P.BLUEPRINT_APPROVE}, {"tenant", "project"}),
     _r("customer_it_security_lead", "Customer IT security lead", "Owns the customer's security set-up.",
        {P.TENANT_READ, P.TENANT_POLICY, P.ACCESS_READ, P.AUDIT_READ, P.AUDIT_EXPORT, P.SECRETS_READ,
-        P.SECRETS_MANAGE}, {"tenant"}),
+        P.SECRETS_MANAGE, P.APPROVE_LOOSENING}, {"tenant"}),
     _r("customer_operations_manager", "Operations manager (customer)", "Owns Digital Workers in production.",
        {P.TENANT_READ}, {"tenant", "project"}),
     _r("sales_engineer", "Sales engineer", "Runs pre-sales estimates and fleet scans.",
@@ -99,6 +110,7 @@ class Grant:
     role: str
     scope_type: str
     scope_id: uuid.UUID | None
+    tenant_id: uuid.UUID | None = None  # for project grants: the project's tenant
 
 
 @dataclass(frozen=True)
@@ -120,8 +132,31 @@ def grant_covers_tenant(g: Grant, t: TenantScope) -> bool:
             return t.partner_id is not None and g.scope_id == t.partner_id
         case "tenant":
             return g.scope_id == t.tenant_id
+        case "project":
+            # A project grant gives its permissions on the project; on the tenant it only allows reading.
+            return False
         case _:
-            return False  # project grants are resolved through the project's tenant (I2)
+            return False
+
+
+def grant_covers_project(g: Grant, t: TenantScope, project_id: uuid.UUID) -> bool:
+    if g.scope_type == "project":
+        return g.scope_id == project_id
+    return grant_covers_tenant(g, t)
+
+
+def has_project_permission(grants: list[Grant], perm: P, t: TenantScope, project_id: uuid.UUID) -> bool:
+    return any(perm in ROLES[g.role].permissions and grant_covers_project(g, t, project_id)
+               for g in grants if g.role in ROLES)
+
+
+def roles_on_project(grants: list[Grant], t: TenantScope, project_id: uuid.UUID) -> set[str]:
+    return {g.role for g in grants if grant_covers_project(g, t, project_id)}
+
+
+def can_read_tenant(grants: list[Grant], t: TenantScope) -> bool:
+    return has_tenant_permission(grants, P.TENANT_READ, t) or any(
+        g.scope_type == "project" and g.tenant_id == t.tenant_id for g in grants)
 
 
 def permissions_for(grants: list[Grant]) -> set[P]:
@@ -158,6 +193,6 @@ def can_grant(granter: list[Grant], role: str, scope_type: str, scope_id: uuid.U
             return True
         if g.scope_type == "programme" and scope_type == "partner" and scope_programme_of_partner == g.scope_id:
             return True
-        if scope_tenant is not None and scope_type == "tenant" and grant_covers_tenant(g, scope_tenant):
+        if scope_tenant is not None and scope_type in ("tenant", "project") and grant_covers_tenant(g, scope_tenant):
             return True
     return False

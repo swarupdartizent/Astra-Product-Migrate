@@ -186,6 +186,9 @@ def delete_tenant(session: Session, t: Tenant, vault: VaultClient, actor: audit.
     _drop_storage(t, region)
     vault.delete_secret_tree(secrets_prefix(t.id))
     vault.destroy_key(t.key_name)
+    from astra_migrate.blueprints.repo import delete_tenant_repo  # local import: blueprints depends on tenancy
+
+    delete_tenant_repo(t.id)
     session.query(ConnectorSecret).filter(ConnectorSecret.tenant_id == t.id).delete()
     t.status, t.deleted_at = "deleted", datetime.now(UTC)
     audit.record(session, actor, "tenant.deleted", tenant_id=t.id, target_type="tenant", target_id=str(t.id),

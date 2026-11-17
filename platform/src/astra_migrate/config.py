@@ -41,8 +41,9 @@ class Settings(BaseSettings):
     bootstrap_admin_emails: str = ""
 
     regions_file: str = "infra/local/regions.yaml"
+    data_dir: str = ".local/data"  # tenant file storage (blueprint git repositories); Azure: file share
     otlp_endpoint: str | None = None
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = "http://localhost:5273"
 
     @property
     def issuers(self) -> list[str]:

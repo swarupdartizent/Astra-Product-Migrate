@@ -4,7 +4,14 @@ import type { Tone } from '@/ui';
 
 // ---------- Detail tabs ----------
 
-export const TENANT_TABS = ['overview', 'policy', 'secrets', 'region', 'danger'] as const;
+export const TENANT_TABS = [
+  'overview',
+  'projects',
+  'policy',
+  'secrets',
+  'region',
+  'danger',
+] as const;
 export type TenantTab = (typeof TENANT_TABS)[number];
 
 // ---------- Status ----------

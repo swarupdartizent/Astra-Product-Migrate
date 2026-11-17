@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from astra_migrate.config import get_settings
 from astra_migrate.db.control import get_session, session_scope
-from astra_migrate.db.models import Partner, Programme, Tenant
+from astra_migrate.db.models import Partner, Programme, Project, Tenant
 from astra_migrate.security.principal import CurrentPrincipal
 from astra_migrate.security.rbac import ROLES, P
 from astra_migrate.tenancy.regions import load_regions
@@ -84,7 +84,7 @@ class Me(BaseModel):
 
 
 def scope_name(session: Session, scope_type: str, scope_id: uuid.UUID | None) -> str | None:
-    model = {"programme": Programme, "partner": Partner, "tenant": Tenant}.get(scope_type)
+    model = {"programme": Programme, "partner": Partner, "tenant": Tenant, "project": Project}.get(scope_type)
     if scope_id is None or model is None:
         return "Whole platform" if scope_type == "platform" else None
     obj = session.get(model, scope_id)

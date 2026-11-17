@@ -66,6 +66,11 @@ export class ApiError extends Error {
     return fieldErrorsOf(this.problem.errors);
   }
 
+  /** Every field-level message, in the order the API sent them. */
+  get fieldErrorList(): ProblemFieldError[] {
+    return Array.isArray(this.problem.errors) ? this.problem.errors.filter(isFieldError) : [];
+  }
+
   /** Errors worth retrying automatically: transient server/network failures. */
   get isRetryable(): boolean {
     return this.kind === 'network' || this.kind === 'rate_limited' || this.status >= 500;

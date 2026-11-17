@@ -23,16 +23,19 @@ from astra_migrate import audit
 from astra_migrate.api.errors import Problem, forbidden, not_found
 from astra_migrate.config import get_settings
 from astra_migrate.db.control import get_session, session_scope
-from astra_migrate.db.models import RoleAssignment, Tenant, User
+from astra_migrate.db.models import Project, RoleAssignment, Tenant, User
 from astra_migrate.security.oidc import Claims, OidcValidator, TokenError
 from astra_migrate.security.rbac import (
     ADMIN_ROLE,
     Grant,
     P,
     TenantScope,
+    can_read_tenant,
     has_platform_permission,
+    has_project_permission,
     has_tenant_permission,
     permissions_for,
+    roles_on_project,
 )
 
 
@@ -63,7 +66,15 @@ class Principal:
         return has_platform_permission(self.grants, perm)
 
     def has_on_tenant(self, perm: P, t: Tenant) -> bool:
+        if perm == P.TENANT_READ:
+            return can_read_tenant(self.grants, scope_of(t))
         return has_tenant_permission(self.grants, perm, scope_of(t))
+
+    def has_on_project(self, perm: P, t: Tenant, project_id: uuid.UUID) -> bool:
+        return has_project_permission(self.grants, perm, scope_of(t), project_id)
+
+    def roles_on_project(self, t: Tenant, project_id: uuid.UUID) -> set[str]:
+        return roles_on_project(self.grants, scope_of(t), project_id)
 
 
 def scope_of(t: Tenant) -> TenantScope:
@@ -123,8 +134,11 @@ def _provision(session: Session, c: Claims) -> User:
 
 
 def load_grants(session: Session, user_id: uuid.UUID) -> list[Grant]:
-    rows = session.scalars(select(RoleAssignment).where(RoleAssignment.user_id == user_id))
-    return [Grant(r.role, r.scope_type, r.scope_id) for r in rows]
+    rows = session.execute(select(RoleAssignment, Project.tenant_id)
+                           .outerjoin(Project, (RoleAssignment.scope_type == "project")
+                                      & (Project.id == RoleAssignment.scope_id))
+                           .where(RoleAssignment.user_id == user_id)).all()
+    return [Grant(r.role, r.scope_type, r.scope_id, tid) for r, tid in rows]
 
 
 def current_principal(request: Request, session: Annotated[Session, Depends(get_session)]) -> Principal:
@@ -175,3 +189,24 @@ def tenant_for(session: Session, principal: Principal, tenant_id: uuid.UUID, per
         raise forbidden()
     enforce_tenant_policy(principal, t)
     return t
+
+
+def project_for(session: Session, principal: Principal, project_id: uuid.UUID, perm: P | None
+                ) -> tuple[Tenant, Project]:
+    """Load a project the principal may act on (perm None = read). Applies the tenant's policy."""
+    p = session.get(Project, project_id)
+    t = session.get(Tenant, p.tenant_id) if p else None
+    if p is None or t is None or t.status == "deleted":
+        raise not_found("Project")
+    readable = principal.has_on_tenant(P.TENANT_READ, t) and (
+        principal.has_on_project(P.TENANT_READ, t, p.id) or any(
+            g.scope_type == "project" and g.scope_id == p.id for g in principal.grants))
+    if not readable:
+        raise not_found("Project")
+    if perm is not None and not principal.has_on_project(perm, t, p.id):
+        with session_scope() as s:
+            audit.record(s, principal.actor, "access.denied", outcome="denied", tenant_id=t.id, project_id=p.id,
+                         target_type="project", target_id=str(p.id), details={"permission": perm.value})
+        raise forbidden()
+    enforce_tenant_policy(principal, t)
+    return t, p

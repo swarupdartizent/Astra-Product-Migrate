@@ -35,7 +35,7 @@ cd platform && .venv/Scripts/python -m uvicorn astra_migrate.api.app:app --port 
 cd apps/web && npm install && npm run dev
 ```
 
-Open http://localhost:5173 and sign in as `admin@astra.local`. The password is in
+Open http://localhost:5273 and sign in as `admin@astra.local`. The password is in
 `.local/secrets/local_admin_password`. The first sign-in asks you to enrol an authenticator app (MFA).
 
 > On machines where policy blocks the launcher `.exe` files that Python creates in `.venv/Scripts`,
@@ -43,7 +43,7 @@ Open http://localhost:5173 and sign in as `admin@astra.local`. The password is i
 
 | Service | URL |
 |---|---|
-| Web app | http://localhost:5173 |
+| Web app | http://localhost:5273 |
 | API docs (OpenAPI) | http://localhost:8000/api/v1/docs |
 | Keycloak | http://localhost:18080 |
 | Jaeger (traces) | http://localhost:16686 |

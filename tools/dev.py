@@ -237,6 +237,13 @@ def bootstrap_keycloak() -> None:
     amr_id = next(s["id"] for s in scopes if s["name"] == "astra-amr")  # type: ignore[index,union-attr]
     _, clients = http("GET", f"{base}/clients?clientId=astra-web", token=tok)
     web_id = clients[0]["id"]  # type: ignore[index]
+    # Keep redirect URIs and origins in line with the realm file (the import only runs on first start).
+    realm = json.loads((ROOT / "infra" / "local" / "keycloak" / "realm-astra.json").read_text(encoding="utf-8"))
+    spec = next(c for c in realm["clients"] if c["clientId"] == "astra-web")
+    current = clients[0]  # type: ignore[index]
+    current.update({"redirectUris": spec["redirectUris"], "webOrigins": spec["webOrigins"]})
+    current.setdefault("attributes", {}).update(spec["attributes"])
+    http("PUT", f"{base}/clients/{web_id}", current, token=tok)
     http("PUT", f"{base}/clients/{web_id}/default-client-scopes/{amr_id}", token=tok)
 
     # The AMR mapper reports the reference value of each authenticator the user passed.

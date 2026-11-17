@@ -20,12 +20,13 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -184,6 +185,141 @@ class AuditEvent(Base):
     trace_id: Mapped[str | None] = mapped_column(String(32))
     prev_hash: Mapped[str] = mapped_column(String(64))
     hash: Mapped[str] = mapped_column(String(64), unique=True)
+
+
+PACK_STATUSES = ("draft", "published", "deprecated")
+
+
+class Pack(Base):
+    """One version of a pack. Published versions are immutable (enforced in the database)."""
+
+    __tablename__ = "packs"
+    __table_args__ = (
+        UniqueConstraint("name", "version", name="uq_pack_version"),
+        CheckConstraint(f"status in {PACK_STATUSES!r}", name="ck_pack_status"),
+        Index("ix_pack_name", "name"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(64))
+    version: Mapped[str] = mapped_column(String(32))
+    version_sort: Mapped[list[int]] = mapped_column(ARRAY(Integer))
+    type: Mapped[str] = mapped_column(String(30))
+    title: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(20), default="draft")
+    manifest: Mapped[dict[str, Any]] = mapped_column()
+    digest: Mapped[str] = mapped_column(String(64))
+    test_report: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    tests_passed: Mapped[bool | None] = mapped_column(Boolean)
+    reviewed_by_name: Mapped[str | None] = mapped_column(String(200))
+    reviewed_by_role: Mapped[str | None] = mapped_column(String(200))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    published_by: Mapped[str | None] = mapped_column(String(200))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PackFile(Base):
+    __tablename__ = "pack_files"
+
+    pack_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("packs.id", ondelete="CASCADE"), primary_key=True)
+    path: Mapped[str] = mapped_column(String(300), primary_key=True)
+    sha256: Mapped[str] = mapped_column(String(64))
+    size: Mapped[int] = mapped_column(Integer)
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+
+
+class Project(Base):
+    """A migration project inside a tenant (customer estate)."""
+
+    __tablename__ = "projects"
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_project_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), default="configuring")
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+BLUEPRINT_STATUSES = ("draft", "approved", "superseded", "rejected")
+
+
+class BlueprintVersion(Base):
+    """One saved version of a project's blueprint. The text is also committed to the tenant's git repository."""
+
+    __tablename__ = "blueprint_versions"
+    __table_args__ = (
+        UniqueConstraint("project_id", "number", name="uq_blueprint_version"),
+        CheckConstraint(f"status in {BLUEPRINT_STATUSES!r}", name="ck_blueprint_status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    number: Mapped[int] = mapped_column(Integer)
+    yaml_text: Mapped[str] = mapped_column(Text)
+    content: Mapped[dict[str, Any]] = mapped_column()
+    commit_sha: Mapped[str] = mapped_column(String(40))
+    message: Mapped[str] = mapped_column(Text)
+    template: Mapped[str | None] = mapped_column(String(200))
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    status: Mapped[str] = mapped_column(String(20), default="draft")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BlueprintApproval(Base):
+    __tablename__ = "blueprint_approvals"
+    __table_args__ = (UniqueConstraint("version_id", "user_id", name="uq_blueprint_approval"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("blueprint_versions.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    role: Mapped[str] = mapped_column(String(60))
+    decision: Mapped[str] = mapped_column(String(10))  # approve | reject
+    reason: Mapped[str] = mapped_column(Text, default="")
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Decision(Base):
+    """A recorded human decision: a pack rule conflict (CF-04) or a loosening approval (CF-05)."""
+
+    __tablename__ = "decisions"
+    __table_args__ = (
+        UniqueConstraint("project_id", "kind", "fingerprint", name="uq_decision"),
+        CheckConstraint("kind in ('setting_conflict', 'loosening')", name="ck_decision_kind"),
+        CheckConstraint("status in ('open', 'decided', 'rejected')", name="ck_decision_status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(30))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    subject: Mapped[str] = mapped_column(String(200))  # setting key
+    context: Mapped[dict[str, Any]] = mapped_column()  # values, packs, effective value, ...
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    chosen_value: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # {"value": ...}
+    reason: Mapped[str | None] = mapped_column(Text)
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BlueprintTemplate(Base):
+    __tablename__ = "blueprint_templates"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+    title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    yaml_text: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class AuditAnchor(Base):

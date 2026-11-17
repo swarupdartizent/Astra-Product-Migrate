@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Health, Me } from '@/api/types';
-import { jsonResponse, renderWithProviders } from '@/test/utils';
+import { jsonResponse, renderWithRouter } from '@/test/utils';
 import { HomePage } from './HomePage';
 
 // Test fixtures only: shapes follow the /api/v1 contract; values are synthetic.
@@ -53,7 +53,7 @@ describe('HomePage', () => {
       '/api/v1/me': () => jsonResponse(me),
       '/api/v1/health': () => jsonResponse(health),
     });
-    renderWithProviders(<HomePage />);
+    renderWithRouter(<HomePage />);
 
     expect(
       await screen.findByRole('heading', { level: 1, name: /Fixture User/ }),
@@ -67,7 +67,7 @@ describe('HomePage', () => {
 
   it('shows a real error with retry when the API is unreachable, never invented data', async () => {
     route({});
-    renderWithProviders(<HomePage />);
+    renderWithRouter(<HomePage />);
 
     const alerts = await screen.findAllByRole('alert');
     expect(alerts.length).toBeGreaterThanOrEqual(2);
