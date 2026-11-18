@@ -9,7 +9,9 @@ import { BlueprintEditor } from './BlueprintEditor';
 import { ProjectAgentsTab } from '../runtime/ProjectAgentsTab';
 import { ReviewWorkbenchTab } from '../review/ReviewWorkbenchTab';
 import type { ReviewSearch } from '../review/model';
-import type { PlanSection } from '../plan/model';
+import { PLAN_SECTIONS, type PlanSection } from '../plan/model';
+import { DesignTab } from '../design/DesignTab';
+import { isDesignSection, type DesignSearch } from '../design/model';
 import { StageStrip } from '../runtime/StageStrip';
 import { CompareTab } from './CompareTab';
 import { DecisionsTab } from './DecisionsTab';
@@ -84,6 +86,8 @@ function ProjectWorkspace({ project, search }: { project: Project; search: Proje
     run: _run,
     object: _object,
     agent_run: _agentRun,
+    key: _key,
+    artifact: _artifact,
     ...reviewSearch
   } = search;
   const goReviews = (next: ReviewSearch, replace: boolean) =>
@@ -100,6 +104,17 @@ function ProjectWorkspace({ project, search }: { project: Project; search: Proje
       search: { tab: 'plan', section },
       replace: true,
     });
+
+  const goDesign = (next: DesignSearch, replace: boolean) =>
+    void navigate({
+      to: '/projects/$projectId',
+      params: { projectId: project.id },
+      search: { tab: 'design', ...next },
+      replace,
+    });
+  const planSection = PLAN_SECTIONS.includes(search.section as PlanSection)
+    ? (search.section as PlanSection)
+    : 'overview';
 
   return (
     <>
@@ -146,6 +161,7 @@ function ProjectWorkspace({ project, search }: { project: Project; search: Proje
           <Tab value="conversion">Conversion</Tab>
           <Tab value="checklist">Hosting checklist</Tab>
           <Tab value="plan">Plan</Tab>
+          <Tab value="design">Design and build</Tab>
         </TabsList>
         <TabPanel value="editor">
           {latest && base.isPending ? (
@@ -209,10 +225,17 @@ function ProjectWorkspace({ project, search }: { project: Project; search: Proje
           <ChecklistTab project={project} />
         </TabPanel>
         <TabPanel value="plan">
-          <PlanTab
+          <PlanTab project={project} section={planSection} onSection={goPlanSection} />
+        </TabPanel>
+        <TabPanel value="design">
+          <DesignTab
             project={project}
-            section={search.section ?? 'overview'}
-            onSection={goPlanSection}
+            search={{
+              ...(isDesignSection(search.section) ? { section: search.section } : {}),
+              ...(search.key ? { key: search.key } : {}),
+              ...(search.artifact ? { artifact: search.artifact } : {}),
+            }}
+            onSearch={goDesign}
           />
         </TabPanel>
       </Tabs>

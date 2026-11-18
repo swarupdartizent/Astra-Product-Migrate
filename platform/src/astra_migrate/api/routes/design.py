@@ -362,7 +362,15 @@ class ParityIn(BaseModel):
 @router.post("/projects/{project_id}/design/form-parity")
 def form_parity(project_id: uuid.UUID, body: ParityIn, principal: CurrentPrincipal, s: DB) -> dict[str, Any]:
     t, p = project_for(s, principal, project_id, None)
+    ok, why = service.can_decide(principal, t, p.id, "form")
+    if not ok:
+        raise forbidden(why)
     with register.connect(t) as tc:
+        it = register.get(tc, p.id, "form", body.key)
+        if it is None:
+            raise not_found("Form")
+        if it["status"] in register.DECIDED:
+            raise conflict("The form is decided", f"The form is {it['status']}.")
         files = {r[0]: (r[1], r[2]) for r in tc.execute(
             "SELECT role, content, sha256 FROM estate.design_files WHERE project_id = %s AND item_key = %s",
             (p.id, body.key)).fetchall()}
@@ -429,6 +437,8 @@ def get_artifact(artifact_id: uuid.UUID, principal: CurrentPrincipal, s: DB) -> 
         row = tc.execute("SELECT code, tests, results, inputs FROM estate.build_code WHERE artifact_id = %s",
                          (a.id,)).fetchone()
     can, why = service.can_decide(principal, t, a.project_id, "code")
+    if can and str(a.created_by.get("id")) == str(principal.user.id):
+        can, why = False, "You generated this version, so someone else approves it."
     return {**_art_out(a), "code": row[0] if row else None, "tests": row[1] if row else [],
             "results": row[2] if row else [], "inputs": row[3] if row else {},
             "can_approve": can and a.status == "tests_passed",

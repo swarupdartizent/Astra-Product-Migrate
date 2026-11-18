@@ -180,6 +180,9 @@ def test_design_and_build_end_to_end(client: Any, admin: H, tenant_factory: Any,
     detail = client.get(f"/api/v1/build-artifacts/{cust['id']}", headers=arch_h).json()
     assert cust["status"] == "tests_failed" and not detail["can_approve"]  # 100-character names do not fit in 50
     assert any("truncated" in (r["detail"] or "").lower() for r in detail["results"]), detail["results"]
+    own = client.get(f"/api/v1/build-artifacts/{orders['id']}", headers=admin).json()
+    assert not own["can_approve"]  # the admin started the build (and holds no architect role)
+    assert client.post(f"{base}/design/form-parity", headers=sme_h, json={"key": "form:x"}).status_code == 403
     od = client.get(f"/api/v1/build-artifacts/{orders['id']}", headers=arch_h).json()
     assert "INSERT INTO [tgt].[dbo__Orders]" in od["code"] and od["inputs"]["mappings"]
     refused = client.post(f"/api/v1/build-artifacts/{cust['id']}/approve", headers=arch_h,

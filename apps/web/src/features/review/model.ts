@@ -8,6 +8,7 @@ import type {
 } from '@/api/types';
 import type { FieldErrors } from '@/lib/forms';
 import type { Tone } from '@/ui';
+import { isDesignStream, type DesignSection } from '../design/model';
 
 // ---------- URL state ----------
 
@@ -293,10 +294,12 @@ export type EvidenceTarget =
   | {
       to: 'project';
       search: {
-        tab: 'conversion' | 'delta' | 'agents';
+        tab: 'conversion' | 'delta' | 'agents' | 'design';
         run?: string;
         object?: string;
         agent_run?: string;
+        section?: DesignSection;
+        key?: string;
       };
       /** The screen opens near the object but cannot target it exactly. */
       gap?: string;
@@ -322,6 +325,13 @@ export function evidenceTarget(ev: ReviewEvidence): EvidenceTarget | null {
       return run ? { to: 'discovery-run', runId: run } : null;
     case 'agent_run':
       return run ? { to: 'project', search: { tab: 'agents', agent_run: run } } : null;
+    case 'design_item': {
+      const stream = ev.ref.stream;
+      const key = ev.ref.key;
+      return isDesignStream(stream) && key
+        ? { to: 'project', search: { tab: 'design', section: stream, key } }
+        : null;
+    }
     default:
       return null;
   }
@@ -333,4 +343,5 @@ export const EVIDENCE_KIND_LABELS: Record<string, string> = {
   delta_run: 'Version delta run',
   discovery_run: 'Discovery run',
   agent_run: 'Agent run',
+  design_item: 'Design register item',
 };

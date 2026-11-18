@@ -1117,7 +1117,7 @@ export type ReviewCompliance = 'none' | 'relevant' | 'critical';
 /** A link from a review item to the object it is about. `ref` holds the ids the kind needs. */
 export interface ReviewEvidence {
   label: string;
-  /** conversion_object | conversion_run | delta_run | discovery_run | agent_run */
+  /** conversion_object | conversion_run | delta_run | discovery_run | agent_run | design_item */
   kind: string;
   ref: Record<string, string>;
 }
