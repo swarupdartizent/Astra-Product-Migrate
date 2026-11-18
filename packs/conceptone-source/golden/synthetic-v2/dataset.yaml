@@ -1,0 +1,17 @@
+name: synthetic-v2
+title: Synthetic ConceptOne-shaped estate, version 2
+synthetic: true
+description: >-
+  An invented SQL Server estate shaped after public descriptions of a ConceptOne installation: 40 policies with
+  multi-carrier splits, invoices with surplus lines tax and fees, commissions with sub-producer splits, claims,
+  premium finance, bordereaux, 30 File Cabinet documents of several types and ages, two books with their own
+  products, rating tables and forms, user-defined tables, validation rules, workflows, security profiles, External
+  Programs, procedures, triggers and views, and 120 days of login and query records. Seeded errors, hidden rules,
+  undocumented interfaces and unused elements are listed in expected.yaml. It is not a copy of any customer or
+  vendor data.
+engine: sqlserver
+build: [schema.sql, data.sql]
+delta: delta.sql
+activity: activity.jsonl
+as_of: "2026-11-01"
+expected: expected.yaml

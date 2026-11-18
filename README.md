@@ -69,7 +69,14 @@ cd platform && .venv/Scripts/python -m astra_migrate.packs.cli validate ../packs
 
 Source adapters follow the adapter contract (`docs/adapter-contract.md`). A source adapter ships golden datasets:
 synthetic estates with known answers that run on the local SQL Server (Packs > Golden datasets). Domain and adapter
-packs publish only after a golden run with their exact contents passed. The reference case's packs and their own
+packs publish only after a golden run with their exact contents passed.
+
+### Discovery
+
+On a project, start a discovery run against a checked source connection: it reads the inventory, data dictionary,
+profiles, usage, code rules, interfaces, configuration and documents, builds the Migration Knowledge Graph and a
+coverage report across the nine streams. Usage and interfaces need login and query records imported on the
+connection; the format is in `docs/discovery.md`. The reference case's packs and their own
 tests are described in `programmes/conceptone-prosuite/README.md`.
 
 | Service | URL |

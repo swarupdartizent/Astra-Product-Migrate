@@ -1,4 +1,4 @@
--- SYNTHETIC golden estate, version 1.
+-- SYNTHETIC golden estate, version 2 (version 1 plus book-scoped configuration for discovery).
 -- This is NOT ConceptOne's real schema, which we have not seen. It is an invented schema shaped after
 -- what public material and product experts say a ConceptOne estate holds (fit assessment, 17 Nov 2026):
 -- policies with multi-carrier splits, billing and premium finance, commissions, claims, an embedded
@@ -100,6 +100,23 @@ GO
 CREATE TABLE dbo.AuditLog (
   AuditID int IDENTITY(1,1) NOT NULL PRIMARY KEY, TableName varchar(60) NOT NULL, RecordKey int NOT NULL,
   Action varchar(10) NOT NULL, LoggedOn datetime2 NOT NULL)
+GO
+
+-- Book-scoped configuration: products, rating tables and forms per book (multi-book MGA set-up).
+CREATE TABLE dbo.Product (
+  ProductID int NOT NULL PRIMARY KEY, BookID int NOT NULL REFERENCES dbo.Book(BookID), Code varchar(20) NOT NULL,
+  Name nvarchar(100) NOT NULL, LOBCode varchar(6) NOT NULL REFERENCES dbo.LineOfBusiness(LOBCode),
+  ModifiedBy varchar(40) NOT NULL, ModifiedOn datetime2 NOT NULL)
+GO
+CREATE TABLE dbo.RateTable (
+  RateTableID int NOT NULL PRIMARY KEY, BookID int NOT NULL REFERENCES dbo.Book(BookID),
+  ProductCode varchar(20) NOT NULL, Name nvarchar(100) NOT NULL, Version int NOT NULL, Factors nvarchar(1000) NOT NULL,
+  ModifiedBy varchar(40) NOT NULL, ModifiedOn datetime2 NOT NULL)
+GO
+CREATE TABLE dbo.FormTemplate (
+  FormID int NOT NULL PRIMARY KEY, BookID int NOT NULL REFERENCES dbo.Book(BookID), FormCode varchar(20) NOT NULL,
+  Name nvarchar(100) NOT NULL, Edition varchar(10) NOT NULL, IsPDF bit NOT NULL,
+  ModifiedBy varchar(40) NOT NULL, ModifiedOn datetime2 NOT NULL)
 GO
 
 -- User-defined tables (customer extensions). One has no primary key: a known trap.

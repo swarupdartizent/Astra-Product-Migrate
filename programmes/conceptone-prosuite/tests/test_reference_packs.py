@@ -21,6 +21,11 @@ ROOT = Path(__file__).resolve().parents[3]
 PACKS = ["core-ontology", "pc-insurance", "conceptone-source", "prosuite-base-target", "sox-itgc", "soc1-ssae18",
          "naic-data-security", "us-insurance-record-retention", "us-surplus-lines-filing"]
 COMPLIANCE = PACKS[4:]
+VERSIONS = {"pc-insurance": "1.1.0", "conceptone-source": "1.1.0"}
+
+
+def ver(name: str) -> str:
+    return VERSIONS.get(name, "1.0.0")
 
 
 def bundle(name: str) -> dict[str, Any]:
@@ -30,10 +35,10 @@ def bundle(name: str) -> dict[str, Any]:
 
 
 def _publish(client: Any, admin: H, name: str) -> None:
-    p = client.get(f"/api/v1/packs/{name}/1.0.0", headers=admin).json()
+    p = client.get(f"/api/v1/packs/{name}/{ver(name)}", headers=admin).json()
     if p["status"] != "draft":
         return
-    r = client.post(f"/api/v1/packs/{name}/1.0.0/publish", headers=admin)
+    r = client.post(f"/api/v1/packs/{name}/{ver(name)}/publish", headers=admin)
     assert r.status_code == 200, r.text
 
 
@@ -44,7 +49,7 @@ def reference(client: Any, admin: H) -> dict[str, Any]:
         assert r.status_code == 201, f"{name}: {r.text}"
     _publish(client, admin, "core-ontology")
     g = client.post("/api/v1/golden-runs", headers=admin, json={
-        "dataset": "conceptone-source@1.0.0:synthetic-v1", "packs": ["core-ontology@1.0.0", "pc-insurance@1.0.0"]})
+        "dataset": "conceptone-source@1.1.0:synthetic-v2", "packs": ["core-ontology@1.0.0", "pc-insurance@1.1.0"]})
     assert g.status_code == 202, g.text
     wait_job(client, admin, g.json()["job_id"], timeout_s=300)
     run = client.get(f"/api/v1/golden-runs/{g.json()['id']}", headers=admin).json()
@@ -65,12 +70,18 @@ def test_golden_estate_proves_the_adapter_and_the_pc_pack(reference: dict[str, A
         assert measures[f"Rule {rule} violations"]["recall"] == 1.0
     assert measures["Coverage report is complete"]["passed"]
     assert measures["Interfaces found"]["recall"] == 1.0
+    for name in ("Discovery: every phase completed", "Usage: elements with no use flagged for retirement review",
+                 "Interfaces found (activity, code and configuration)", "Code reader: rules found (object, kind)",
+                 "Configuration: items that differ between books", "Documents sized by type and age",
+                 "Coverage report: status per stream", "Knowledge graph holds every table, column and rule"):
+        assert measures[name]["passed"], name
 
 
 def test_published_packs_and_their_status(client: Any, admin: H, reference: dict[str, Any]) -> None:
     for name in ("core-ontology", "pc-insurance", "conceptone-source", "prosuite-base-target"):
-        assert client.get(f"/api/v1/packs/{name}/1.0.0", headers=admin).json()["status"] == "published"
-    adapters = {a["name"]: a for a in client.get("/api/v1/adapters", headers=admin).json()}
+        assert client.get(f"/api/v1/packs/{name}/{ver(name)}", headers=admin).json()["status"] == "published"
+    adapters = {a["name"]: a for a in client.get("/api/v1/adapters", headers=admin).json()
+                if a["version"] == ver(a["name"])}
     assert adapters["conceptone-source"]["engines"] == ["sqlserver", "sqlanywhere"]
     assert adapters["conceptone-source"]["validated"] is False  # until a real estate has been read
     assert set(adapters["conceptone-source"]["object_types"]) >= {
@@ -81,7 +92,7 @@ def test_published_packs_and_their_status(client: Any, admin: H, reference: dict
 def test_compliance_packs_list_sources_and_evidence_and_need_a_named_reviewer(client: Any, admin: H,
                                                                                reference: dict[str, Any]) -> None:
     for name in COMPLIANCE:
-        p = client.get(f"/api/v1/packs/{name}/1.0.0", headers=admin).json()
+        p = client.get(f"/api/v1/packs/{name}/{ver(name)}", headers=admin).json()
         m = p["manifest"]
         for c in m["adds"]["controls"]:
             assert c["sources"] and c["evidence_required"], f"{name} {c['id']}"
@@ -94,7 +105,7 @@ def test_compliance_packs_list_sources_and_evidence_and_need_a_named_reviewer(cl
 
 
 def test_mga_extension_concepts_and_rules_exist(client: Any, admin: H, reference: dict[str, Any]) -> None:
-    packs = {"packs": ["core-ontology@1.0.0", "pc-insurance@1.0.0"]}
+    packs = {"packs": ["core-ontology@1.0.0", "pc-insurance@1.1.0"]}
     listed = client.get("/api/v1/ontology/concepts", headers=admin, params=packs).json()["concepts"]
     concepts = {c["id"] for c in listed}
     assert {"pc.binding_authority_agreement", "pc.coverholder", "pc.bordereau", "pc.carrier_split",

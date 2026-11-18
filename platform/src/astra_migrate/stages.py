@@ -35,7 +35,7 @@ STAGE_TITLES = dict(STAGES)
 
 # What must exist before a stage can be marked done, beyond the previous stage being done.
 _DONE_EVIDENCE = {
-    "discovery": "No discovery coverage report has been produced for this project.",
+    "discovery": "No accepted discovery coverage report exists for this project.",
     "planning": "No approved migration plan exists for this project.",
     "execution": "No execution results have been recorded for this project.",
     "validation": "No signed-off reconciliation exists for this project.",
@@ -56,6 +56,11 @@ class StageError(ValueError):
 def _evidence(session: Session, project: Project, stage: str) -> bool:
     """True when the evidence a stage needs to be done exists. Each increment that produces
     evidence (I5 discovery, I7 plans, I9 execution, I10 reconciliation, I11 cutover) adds its check."""
+    if stage == "discovery":
+        from astra_migrate.db.models import CoverageReport
+
+        return session.scalar(select(CoverageReport.id).where(CoverageReport.project_id == project.id,
+                                                              CoverageReport.status == "accepted")) is not None
     return False
 
 

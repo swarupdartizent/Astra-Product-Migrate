@@ -2,10 +2,16 @@
 
     py -3.13 programmes/conceptone-prosuite/tools/make_golden.py
 
-Deterministic (fixed seed). Writes into packs/conceptone-source/golden/synthetic-v1/:
-  data.sql      rows for every table, including seeded errors
-  delta.sql     changes applied after the full extract, for delta extraction
-  expected.yaml the known correct answers the golden runner scores against
+Deterministic (fixed seed). Writes into packs/conceptone-source/golden/synthetic-v2/:
+  data.sql        rows for every table, including seeded errors
+  delta.sql       changes applied after the full extract, for delta extraction
+  activity.jsonl  120 days of login and query records (activity format), ending on the dataset's as-of date
+  expected.yaml   the known correct answers the golden runner scores against
+
+Version 2 adds, for discovery: book-scoped products, rating tables and forms with known differences between
+books; one tax id in the wrong shape; a user-defined note pointing at a policy that does not exist; documents of
+several types and ages; and activity from the product client, four other programs, one login-only tool and
+the platform itself, leaving known elements unused.
 
 Seeded errors (each listed in expected.yaml):
   - 2 policies whose term ends before it starts
@@ -26,8 +32,10 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
-OUT = ROOT / "packs" / "conceptone-source" / "golden" / "synthetic-v1"
+OUT = ROOT / "packs" / "conceptone-source" / "golden" / "synthetic-v2"
+AS_OF = datetime(2026, 11, 1)
 R = random.Random(20261118)  # noqa: S311 - reproducible synthetic data, not security
+R2 = random.Random(20261119)  # noqa: S311 - v2 additions, so v1 values stay the same
 C = Decimal("0.01")
 
 
@@ -83,7 +91,8 @@ insureds = []
 for n in range(20):
     eid += 1
     insureds.append(eid)
-    add("dbo.Entity", entity_cols, eid, "I", f"Synthetic Insured {n + 1:02d} LLC", f"99-{1000000 + eid}",
+    add("dbo.Entity", entity_cols, eid, "I", f"Synthetic Insured {n + 1:02d} LLC",
+        "UNKNOWN" if n == 13 else f"99-{1000000 + eid}",
         R.choice(states), stamp(R.randint(30, 360)))
 producer_entities = []
 for n in range(6):
@@ -195,14 +204,18 @@ for bid in range(1, 9):
 # documents: policy, claim and party links; two point at records that do not exist
 doc_cols = ("DocID", "DocName", "LinkType", "LinkKey", "CreatedOn", "Content", "ModifiedOn")
 broken = []
+docs_meta: list[tuple[str, datetime, str, bytes]] = []
 for did in range(1, 31):
     kind = ["P", "C", "E"][did % 3]
     key = R.randint(1, 40) if kind == "P" else (R.randint(1, 15) if kind == "C" else R.randint(1, 30))
     if did in (8, 22):
         key = 9000 + did
         broken.append(str(did))
-    body = f"%PDF-1.4\n% synthetic document {did} for golden estate v1\n".encode()
-    add("dbo.FileCabinet", doc_cols, did, f"Document {did:03d}.pdf", kind, key, stamp(R.randint(10, 300)), body,
+    ext = ["pdf", "pdf", "docx", "msg", "tif"][did % 5]
+    created = datetime(2016, 1, 4, 10) + timedelta(days=R2.randint(0, 3900))
+    body = f"%synthetic {ext} document {did} for golden estate v2\n".encode() * (1 + did % 4)
+    docs_meta.append((ext, created, kind, body))
+    add("dbo.FileCabinet", doc_cols, did, f"Document {did:03d}.{ext}", kind, key, created, body,
         stamp(R.randint(10, 300)))
 
 # configuration objects
@@ -238,12 +251,118 @@ for xid, (name, cmd, ev, db, ep) in enumerate(externals, 1):
                                 "ModifiedBy", "ModifiedOn"), xid, name, cmd, ev, db, ep, "cfg.admin", stamp(90 + xid))
 
 for nid in range(1, 6):
-    add("dbo.usr_InspectionNotes", ("NoteID", "PolicyID", "Note", "ModifiedOn"), nid, nid * 3, f"Inspection note {nid}",
-        stamp(50))
+    add("dbo.usr_InspectionNotes", ("NoteID", "PolicyID", "Note", "ModifiedOn"), nid, 999 if nid == 5 else nid * 3,
+        f"Inspection note {nid}", stamp(50))
 for cid_ in range(1, 5):
     add("dbo.usr_CarrierCodes", ("CarrierID", "ExternalCode"), cid_, f"EXT-{cid_:03d}")
 for pid in (2, 5, 8):
     add("dbo.usr_RenewalFlags", ("PolicyID", "Flag"), pid, "MANUAL_REVIEW")
+
+
+# ---------------------------------------------------------------- book-scoped configuration (v2)
+products = {1: [("CMP-PKG", "Commercial package", "CMP"), ("OL-GEN", "General liability", "OL"),
+                ("IM-CARGO", "Cargo", "IM")],
+            2: [("CMP-PKG", "Commercial package", "CMP"), ("OL-GEN", "General liability", "OL"),
+                ("CAL-FLEET", "Fleet auto", "CAL")]}
+pid_ = 0
+for book, prods in products.items():
+    for code, name, lob in prods:
+        pid_ += 1
+        add("dbo.Product", ("ProductID", "BookID", "Code", "Name", "LOBCode", "ModifiedBy", "ModifiedOn"), pid_, book,
+            code, name, lob, "cfg.admin", datetime(2026, 3, 1, 9) + timedelta(days=pid_))
+rates = [(1, "CMP-PKG", "CMP base rates", 3, '{"base": 0.82, "territory": {"FL": 1.15, "TX": 1.05}}'),
+         (2, "CMP-PKG", "CMP base rates", 3, '{"base": 0.79, "territory": {"FL": 1.20, "TX": 1.05}}'),
+         (1, "OL-GEN", "OL rates", 5, '{"base": 1.10, "class": {"contractor": 1.40}}'),
+         (2, "OL-GEN", "OL rates", 5, '{"base": 1.10, "class": {"contractor": 1.40}}'),
+         (1, "IM-CARGO", "Cargo rates", 1, '{"base": 0.45}')]
+for rid_, (book, prod, name, ver, factors) in enumerate(rates, 1):
+    add("dbo.RateTable", ("RateTableID", "BookID", "ProductCode", "Name", "Version", "Factors", "ModifiedBy",
+                          "ModifiedOn"), rid_, book, prod, name, ver, factors, "rating.admin",
+        datetime(2026, 4, 1, 9) + timedelta(days=rid_))
+forms = [(1, "DEC-PAGE", "Declarations page", "2024-01"), (2, "DEC-PAGE", "Declarations page", "2024-01"),
+         (1, "CARGO-END", "Cargo endorsement", "2023-07")]
+for fid_, (book, code, name, edition) in enumerate(forms, 1):
+    add("dbo.FormTemplate", ("FormID", "BookID", "FormCode", "Name", "Edition", "IsPDF", "ModifiedBy", "ModifiedOn"),
+        fid_, book, code, name, edition, True, "forms.admin", datetime(2026, 5, 1, 9) + timedelta(days=fid_))
+
+
+# ---------------------------------------------------------------- activity log (v2)
+def activity() -> list[dict[str, str]]:
+    out: list[dict[str, str]] = []
+    start = AS_OF - timedelta(days=120)
+
+    def ev(day: int, hour: int, minute: int, login: str, host: str, program: str, stmt: str) -> None:
+        ts = start + timedelta(days=day, hours=hour, minutes=minute)
+        out.append({"timestamp": ts.strftime("%Y-%m-%dT%H:%M:%S"), "login": login, "host": host, "program": program,
+                    "statement": stmt})
+
+    desktop = [
+        "SELECT p.PolicyNumber, e.Name FROM dbo.Policy p JOIN dbo.Entity e ON e.EntityID = p.InsuredID "
+        "WHERE p.PolicyID = 12",
+        "SELECT * FROM dbo.vw_PolicySummary WHERE PolicyID = 7",
+        "SELECT * FROM dbo.Claim WHERE PolicyID = 4",
+        "SELECT * FROM dbo.Invoice i JOIN dbo.InvoiceLine l ON l.InvoiceID = i.InvoiceID WHERE i.PolicyID = 9",
+        "SELECT * FROM dbo.CarrierSplit s JOIN dbo.Carrier c ON c.CarrierID = s.CarrierID WHERE s.PolicyID = 3",
+        "SELECT * FROM dbo.Commission c JOIN dbo.CommissionSplit s ON s.CommissionID = c.CommissionID "
+        "WHERE c.PolicyID = 2",
+        "SELECT * FROM dbo.Producer p JOIN dbo.Book b ON b.BookID = 1 WHERE p.ProducerID = 2",
+        "SELECT * FROM dbo.FileCabinet WHERE LinkType = 'P' AND LinkKey = 12",
+        "SELECT Code, Name FROM dbo.LineOfBusiness",
+        "SELECT * FROM dbo.Product p JOIN dbo.RateTable r ON r.ProductCode = p.Code WHERE p.BookID = 1",
+        "SELECT * FROM dbo.FormTemplate WHERE BookID = 2",
+        "SELECT * FROM dbo.ValidationRule",
+        "SELECT * FROM dbo.WorkflowDefinition",
+        "SELECT * FROM dbo.SecurityProfile",
+        "SELECT * FROM dbo.ExternalProgram WHERE TriggerEvent = 'PolicyBound'",
+        "UPDATE dbo.Policy SET Status = 'ACTIVE' WHERE PolicyID = 21",
+        "UPDATE dbo.Invoice SET ModifiedOn = '2026-08-01' WHERE InvoiceID = 3",
+        "INSERT INTO dbo.Claim (ClaimID, ClaimNumber, PolicyID, LossDate, ReportedDate, Status, ReserveAmount, "
+        "ModifiedOn) "
+        "VALUES (90, 'CLM-90', 3, '2026-08-01', '2026-08-02', 'OPEN', 100.00, '2026-08-02')",
+        "EXEC dbo.usp_CalcCommission @PolicyID = 21",
+        "EXEC dbo.usp_PostPayment @InvoiceID = 3, @Amount = 120.00",
+    ]
+    users = [("jdoe", "WS01"), ("asmith", "WS02"), ("bwong", "WS03"), ("cdiaz", "WS04")]
+    for day in range(120):
+        if (start + timedelta(days=day)).weekday() >= 5:
+            continue
+        for k, stmt in enumerate(desktop):
+            login, host = users[(day + k) % len(users)]
+            ev(day, 9 + k % 8, (k * 7) % 60, login, host, "C1Desktop.exe", stmt)
+        ev(day, 2, 15, "etl_dw", "DW01", "WarehouseLoader",
+           "SELECT s.PolicyID, s.CarrierID, s.PremiumShare FROM dbo.CarrierSplit s "
+           "JOIN dbo.Policy p ON p.PolicyID = s.PolicyID")
+        for h in (8, 12, 16):
+            ev(day, h, 5, "portal_api", "WEB01", "AgentPortalAPI",
+               "SELECT PolicyNumber, Status FROM dbo.Policy WHERE ProducerID = 3")
+        ev(day, 17, 30, "portal_api", "WEB01", "AgentPortalAPI",
+           "INSERT INTO dbo.usr_InspectionNotes (NoteID, PolicyID, Note, ModifiedOn) "
+           "VALUES (100, 3, 'from portal', '2026-08-01')")
+        ev(day, 6, 0, "bi_reader", "BI01", "Microsoft Power BI",
+           "SELECT CarrierID, Premium FROM dbo.vw_BordereauPremium")
+        ev(day, 22, 0, "c1_ext", "APP01", "rateexport.exe", "SELECT PolicyID, WrittenPremium, LOBCode FROM dbo.Policy")
+        ev(day, 23, 0, "astra_ro", "ASTRA01", "astra-migrate-adapter", "SELECT name FROM sys.tables")
+    for week in range(0, 120, 7):
+        ev(week, 3, 0, "etl_dw", "DW01", "WarehouseLoader", "EXEC dbo.usp_BordereauExtract @PeriodEnd = '2026-09-30'")
+    out.append({"timestamp": (AS_OF - timedelta(days=40)).strftime("%Y-%m-%dT%H:%M:%S"), "login": "dba",
+                "host": "DBA01",
+                "program": "sqlcmd", "statement": ""})
+    out.sort(key=lambda r: r["timestamp"])
+    return out
+
+
+def doc_sizing() -> list[dict[str, object]]:
+    agg: dict[tuple[str, str, str], list[int]] = {}
+    links = {"P": "policy", "C": "claim", "E": "party"}
+    for ext, created, kind, body in docs_meta:
+        days = (AS_OF - created).days
+        age = ("under 1 year" if days < 365 else "1-3 years" if days < 3 * 365 else
+               "3-7 years" if days < 7 * 365 else "over 7 years")
+        a = agg.setdefault((ext, age, links[kind]), [0, 0])
+        a[0] += 1
+        a[1] += len(body)
+    return [{"type": k[0], "age": k[1], "link_entity": k[2], "count": v[0], "bytes": v[1]}
+            for k, v in sorted(agg.items())]
 
 
 def insert_sql() -> str:
@@ -253,7 +372,8 @@ def insert_sql() -> str:
              "dbo.CarrierSplit", "dbo.Invoice", "dbo.InvoiceLine", "dbo.Commission", "dbo.CommissionSplit",
              "dbo.PremiumFinance", "dbo.Claim", "dbo.Bordereau", "dbo.FileCabinet", "dbo.ValidationRule",
              "dbo.WorkflowDefinition", "dbo.WorkflowStep", "dbo.SecurityProfile", "dbo.SecurityProfileRight",
-             "dbo.ExternalProgram", "dbo.usr_InspectionNotes", "dbo.usr_CarrierCodes", "dbo.usr_RenewalFlags"]
+             "dbo.ExternalProgram", "dbo.Product", "dbo.RateTable", "dbo.FormTemplate", "dbo.usr_InspectionNotes",
+             "dbo.usr_CarrierCodes", "dbo.usr_RenewalFlags"]
     for t in order:
         c = ", ".join(cols[t])
         for r in rows[t]:
@@ -280,7 +400,7 @@ delta_counts.update({"policy": 3, "claim": 2, "invoice": 1})
 
 expected = {
     "synthetic": True,
-    "metadata": {"counts": {"table": 22, "user_defined_table": 3, "view": 2, "procedure": 3, "function": 1,
+    "metadata": {"counts": {"table": 25, "user_defined_table": 3, "view": 2, "procedure": 3, "function": 1,
                             "trigger": 3, "validation_rule": 4, "workflow": 3, "security_profile": 3,
                             "external_program": 3},
                  # Dependencies the engine catalogue can see, checked by hand against schema.sql.
@@ -315,10 +435,47 @@ expected = {
                  "pc.premium_finance_agreement"],
 }
 expected["traps"] = {k: v for k, v in expected["traps"].items() if v is not None} | {"C1-DOC-ORPHAN-LINK": []}
+expected["discovery"] = {
+    "as_of": AS_OF.strftime("%Y-%m-%d"),
+    "profile": {
+        "broken_references": {"soft:dbo.usr_InspectionNotes.PolicyID": 1, "soft:dbo.usr_RenewalFlags.PolicyID": 0},
+        "null_rates": {"dbo.Entity.TaxID": round(4 / 30, 4)},
+        "dominant_shapes": {"dbo.Entity.TaxID": {"shape": "99-9999999", "share": round(25 / 26, 4)}},
+    },
+    "unused": ["dbo.Bordereau", "dbo.fn_PolicyTermDays", "dbo.PremiumFinance", "dbo.SecurityProfileRight",
+               "dbo.usr_CarrierCodes", "dbo.usr_RenewalFlags", "dbo.WorkflowStep"],
+    "interfaces": ["external_program:carrier statement upload", "external_program:outlook correspondence",
+                   "external_program:rating export", "linked_server:warehouse", "program:agentportalapi",
+                   "program:microsoft power bi", "program:rateexport.exe", "program:sqlcmd",
+                   "program:warehouseloader"],
+    "report_tools": ["program:microsoft power bi"],
+    # Rules the code reader must find, checked by hand against schema.sql and the External Programs rows.
+    "rules": [["dbo.usp_CalcCommission", "derivation"], ["dbo.usp_BordereauExtract", "interface"],
+              ["dbo.usp_PostPayment", "audit"], ["dbo.fn_PolicyTermDays", "calculation"],
+              ["dbo.trg_Policy_StatusGuard", "validation"], ["dbo.trg_Claim_ReserveGuard", "validation"],
+              ["dbo.trg_Invoice_Audit", "audit"], ["Rating export", "automation"],
+              ["Outlook correspondence", "automation"], ["Carrier statement upload", "automation"]],
+    "rule_fields": {
+        "dbo.usp_CalcCommission|derivation": ["dbo.Commission.Amount", "dbo.Commission.ModifiedOn",
+                                               "dbo.Commission.PolicyID", "dbo.Commission.Rate", "dbo.Policy.PolicyID",
+                                               "dbo.Policy.WrittenPremium"],
+        "dbo.trg_Policy_StatusGuard|validation": ["dbo.Claim.PolicyID", "dbo.Claim.Status", "dbo.Policy.PolicyID",
+                                                  "dbo.Policy.Status"],
+        "dbo.trg_Claim_ReserveGuard|validation": ["dbo.Claim.ReserveAmount"]},
+    "configuration": {"counts": {"book": 2, "product": 6, "rating": 5, "form": 3, "rule": 4, "workflow": 3},
+                      "only_in_some": [["form", "CARGO-END"], ["product", "CAL-FLEET"], ["product", "IM-CARGO"],
+                                       ["rating", "Cargo rates"]],
+                      "different": [["rating", "CMP base rates"]]},
+    "documents": doc_sizing(),
+    "streams": {"data": "covered", "configuration": "covered", "customizations": "covered",
+                "integrations": "covered", "reports": "covered", "users_security": "covered",
+                "process": "not_started", "agentification": "not_started", "platform": "covered"},
+}
 
 OUT.mkdir(parents=True, exist_ok=True)
 (OUT / "data.sql").write_text(insert_sql(), encoding="utf-8")
 (OUT / "delta.sql").write_text("\n".join(delta) + "\n", encoding="utf-8")
+(OUT / "activity.jsonl").write_text("".join(__import__("json").dumps(r) + "\n" for r in activity()), encoding="utf-8")
 header = ("# Known correct answers for the SYNTHETIC golden estate v1. Generated by make_golden.py;\n"
           "# 'dependencies' is added after manual verification against the built estate.\n")
 (OUT / "expected.yaml").write_text(header + yaml.safe_dump(expected, sort_keys=False), encoding="utf-8")

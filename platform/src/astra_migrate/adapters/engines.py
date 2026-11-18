@@ -63,6 +63,7 @@ class Session(Protocol):
                ) -> Iterator[list[dict[str, Any]]]: ...
     def check(self, min_version: str | None) -> ConnectionCheck: ...
     def quote(self, ident: str) -> str: ...
+    def size_expr(self, column_sql: str) -> str: ...
     def close(self) -> None: ...
 
 
@@ -90,6 +91,9 @@ class SqlServerSession:
 
     def quote(self, ident: str) -> str:
         return "[" + ident.replace("]", "]]") + "]"
+
+    def size_expr(self, column_sql: str) -> str:
+        return f"DATALENGTH({column_sql})"
 
     def query(self, sql: str, params: tuple[Any, ...] | None = None, *, limit: int | None = None
               ) -> list[dict[str, Any]]:
@@ -221,6 +225,9 @@ class SqlAnywhereSession:
 
     def quote(self, ident: str) -> str:
         return '"' + ident.replace('"', '""') + '"'
+
+    def size_expr(self, column_sql: str) -> str:
+        return f"LENGTH({column_sql})"
 
     def query(self, sql: str, params: tuple[Any, ...] | None = None, *, limit: int | None = None
               ) -> list[dict[str, Any]]:

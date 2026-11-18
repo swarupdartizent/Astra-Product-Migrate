@@ -1,7 +1,7 @@
 apiVersion: astra.packs/v1
 type: source_adapter
 name: conceptone-source
-version: 1.0.0
+version: 1.1.0
 title: ConceptOne source adapter
 description: >-
   Reads an Insurity ConceptOne estate on Microsoft SQL Server or SAP SQL Anywhere with a read-only account:
@@ -413,13 +413,89 @@ content:
         definition_pattern: '\b(ON\s+EXCEPTION\s+RESUME|MESSAGE\s+''|LIST\s*\(|NUMBER\s*\(\s*\*\s*\))'
       sources:
         - {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026: platform and hosting stream"}
+  dictionary:
+    columns:
+      sqlserver: >-
+        SELECT SCHEMA_NAME(t.schema_id) AS table_schema, t.name AS table_name, c.name AS column_name,
+               TYPE_NAME(c.user_type_id) AS data_type, c.max_length AS max_length, c.is_nullable AS nullable,
+               c.column_id AS ordinal
+        FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id WHERE t.is_ms_shipped = 0
+      sqlanywhere: >-
+        SELECT u.user_name AS table_schema, t.table_name AS table_name, c.column_name AS column_name,
+               d.domain_name AS data_type, c.width AS max_length,
+               CASE c.nulls WHEN 'Y' THEN 1 ELSE 0 END AS nullable, c.column_id AS ordinal
+        FROM SYS.SYSTABCOL c JOIN SYS.SYSTAB t ON t.table_id = c.table_id JOIN SYS.SYSUSER u ON u.user_id = t.creator
+        JOIN SYS.SYSDOMAIN d ON d.domain_id = c.domain_id
+        WHERE t.table_type_str = 'BASE' AND u.user_name NOT IN ('SYS', 'dbo', 'rs_systabgroup', 'SA_DEBUG')
+    relations:
+      sqlserver: >-
+        SELECT fk.name AS name, SCHEMA_NAME(pt.schema_id) AS from_schema, pt.name AS from_table,
+               pc.name AS from_column, SCHEMA_NAME(rt.schema_id) AS to_schema, rt.name AS to_table,
+               rc.name AS to_column
+        FROM sys.foreign_key_columns k JOIN sys.foreign_keys fk ON fk.object_id = k.constraint_object_id
+        JOIN sys.tables pt ON pt.object_id = k.parent_object_id
+        JOIN sys.columns pc ON pc.object_id = k.parent_object_id AND pc.column_id = k.parent_column_id
+        JOIN sys.tables rt ON rt.object_id = k.referenced_object_id
+        JOIN sys.columns rc ON rc.object_id = k.referenced_object_id AND rc.column_id = k.referenced_column_id
+    code_lists:
+      - {name: line_of_business, table: dbo.LineOfBusiness, code_column: LOBCode, label_column: Name}
+    soft_relations:
+      - {from_table: dbo.usr_InspectionNotes, from_column: PolicyID, to_table: dbo.Policy, to_column: PolicyID}
+      - {from_table: dbo.usr_RenewalFlags, from_column: PolicyID, to_table: dbo.Policy, to_column: PolicyID}
+  configuration:
+    - kind: book
+      label: Books
+      queries:
+        sqlserver: "SELECT Code AS [key], Name AS name, NULL AS scope, Name AS definition, NULL AS depends_on FROM dbo.Book"
+    - kind: product
+      label: Products
+      queries:
+        sqlserver: >-
+          SELECT b.Code + ':' + p.Code AS [key], p.Code AS name, b.Code AS scope,
+                 (SELECT p.Name AS name, p.LOBCode AS lob FOR JSON PATH, WITHOUT_ARRAY_WRAPPER) AS definition,
+                 'book:' + b.Code AS depends_on
+          FROM dbo.Product p JOIN dbo.Book b ON b.BookID = p.BookID
+    - kind: rating
+      label: Rating tables
+      queries:
+        sqlserver: >-
+          SELECT b.Code + ':' + r.Name AS [key], r.Name AS name, b.Code AS scope,
+                 (SELECT r.Version AS version, JSON_QUERY(r.Factors) AS factors FOR JSON PATH, WITHOUT_ARRAY_WRAPPER)
+                   AS definition,
+                 'product:' + b.Code + ':' + r.ProductCode AS depends_on
+          FROM dbo.RateTable r JOIN dbo.Book b ON b.BookID = r.BookID
+    - kind: form
+      label: Forms
+      queries:
+        sqlserver: >-
+          SELECT b.Code + ':' + f.FormCode AS [key], f.FormCode AS name, b.Code AS scope,
+                 (SELECT f.Name AS name, f.Edition AS edition, f.IsPDF AS pdf FOR JSON PATH, WITHOUT_ARRAY_WRAPPER)
+                   AS definition,
+                 'book:' + b.Code AS depends_on
+          FROM dbo.FormTemplate f JOIN dbo.Book b ON b.BookID = f.BookID
+    - kind: rule
+      label: Validation rules
+      queries:
+        sqlserver: >-
+          SELECT RuleName AS [key], RuleName AS name, NULL AS scope, TableName + ': ' + Expression AS definition,
+                 NULL AS depends_on FROM dbo.ValidationRule
+    - kind: workflow
+      label: Workflows
+      queries:
+        sqlserver: >-
+          SELECT w.Name AS [key], w.Name AS name, NULL AS scope,
+                 (SELECT st.Seq AS seq, st.Action AS action FROM dbo.WorkflowStep st WHERE st.WorkflowID = w.WorkflowID
+                   ORDER BY st.Seq FOR JSON PATH) AS definition, NULL AS depends_on
+          FROM dbo.WorkflowDefinition w
+  activity:
+    product_clients: ['^C1Desktop', '^ConceptOne']
   golden_datasets:
-    - name: synthetic-v1
-      path: golden/synthetic-v1
+    - name: synthetic-v2
+      path: golden/synthetic-v2
       engine: sqlserver
-      description: Synthetic estate with seeded errors, hidden rules and undocumented interfaces.
+      description: Synthetic estate with seeded errors, hidden rules, undocumented interfaces, book configuration and activity.
 tests:
   - name: Passes its own synthetic golden dataset
     kind: golden_dataset
-    dataset: "conceptone-source@1.0.0:synthetic-v1"
-    packs: ["core-ontology@1.0.0", "pc-insurance@1.0.0"]
+    dataset: "conceptone-source@1.1.0:synthetic-v2"
+    packs: ["core-ontology@1.0.0", "pc-insurance@1.1.0"]

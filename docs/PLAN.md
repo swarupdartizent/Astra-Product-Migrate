@@ -125,7 +125,11 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Pro Suite Base loads are Blocked: token endpoint, load endpoints, rate limits and approved bulk tools are unknown; only a synthetic baseline exists | Needs Insurity API docs, sandbox and baseline |
 | The five compliance packs are not published: each needs a named compliance specialist's review | Needs named reviewers |
 | Ontology embeddings are lexical (no meaning beyond shared wording); a model-based embedder can replace them | Later |
-| Dependencies hidden in dynamic SQL are not in the catalogue; the Code Reader must find them from code text | I5 |
+| Dependencies hidden in dynamic SQL are reported as interface rules, not resolved; resolving them needs the Code Reader agent or the RE Harness | Agents (model key) |
+| Discovery agents (Metadata Harvester, Profiler, Code Reader, Process Miner) are not registered yet; the deterministic engines run without them | Needs a model key |
+| Process mining (DS-04) and agentification candidates are not started; coverage reports show them as gaps | Agentification increment |
+| Screens are not linked to rules: no adapter supplies screen metadata yet | With a real estate |
+| Server-wide usage statistics (index usage, sessions) are not read; usage comes from imported records | Later |
 | API gaps from the I4 screens: no source-adapter detail endpoint, untyped run summaries and ontology responses, no permission hints on target connections and golden runs, extract documents capped at 500 without paging, loads have no record beyond the call log, and no up-front "loads blocked" flag on target connections | I5 |
 | `npm audit` reports high findings in development tooling only (via picomatch); production dependencies have none | Next dependency update |
 | I4 screens are verified by unit tests and by end-to-end tests against recorded API responses; a signed-in walk-through on the live stack needs the administrator's authenticator sign-in | Next demo |

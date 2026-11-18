@@ -227,6 +227,10 @@ def run_dataset(adapter: Manifest, files: dict[str, bytes], dataset: str, domain
                 exp_broken = [str(x) for x in expected["extract"].get("broken_links", [])]
                 card.measures.append(_set_measure("Documents whose entity link does not resolve", exp_broken, broken))
             marks = {e.name: source.watermark(sess, e) for e in content.entities if e.delta_column}
+            if desc.get("activity") and "discovery" in expected:
+                say(68, "Running discovery")
+                _score_discovery(card, sess, content, chk.model_dump(), files[f"{base}/{desc['activity']}"],
+                                 desc, expected["discovery"])
             results: dict[str, Any] = {}
             if domain:
                 say(70, "Running domain rules on the estate as built")
@@ -259,6 +263,70 @@ def run_dataset(adapter: Manifest, files: dict[str, bytes], dataset: str, domain
             _drop(target, dbname, login)
     say(100, "Done")
     return card
+
+
+def _score_discovery(card: Scorecard, sess: Any, content: SourceAdapterContent, check: dict[str, Any],
+                     activity_file: bytes, desc: dict[str, Any], exp: dict[str, Any]) -> None:
+    from datetime import datetime
+
+    from astra_migrate.discovery import activity, pipeline
+
+    events = activity.parse_file(activity_file, desc["activity"])
+    as_of = datetime.fromisoformat(str(desc.get("as_of") or exp["as_of"]))
+    d = pipeline.run(sess, content, check, events, as_of)
+    m = card.measures
+    m.append(Measure("Discovery: every phase completed", all(p.status == "done" for p in d.phases.values()),
+                     "done", {k: p.status for k, p in d.phases.items()},
+                     detail="; ".join(f"{k}: {p.detail}" for k, p in d.phases.items() if p.status != "done")))
+    broken = {b.relation: b.broken_rows for t in d.profile.tables for b in t.broken}
+    for rel, n in sorted(exp.get("profile", {}).get("broken_references", {}).items()):
+        m.append(Measure(f"Profile: broken references {rel}", broken.get(rel) == n, n, broken.get(rel)))
+    cols = {f"{t.table}.{c.column}".lower(): c for t in d.profile.tables for c in t.columns}
+    for col, rate in sorted(exp.get("profile", {}).get("null_rates", {}).items()):
+        got = cols.get(col.lower())
+        actual = round(got.null_rate, 4) if got else None
+        m.append(Measure(f"Profile: null rate {col}", actual == rate, rate, actual))
+    for col, shp in sorted(exp.get("profile", {}).get("dominant_shapes", {}).items()):
+        got = cols.get(col.lower())
+        shape_found = got.patterns[0] if got and got.patterns else None
+        m.append(Measure(f"Profile: dominant shape {col}", shape_found == shp, shp, shape_found))
+    m.append(Measure("Profile: every table has a quality score", all(t.error is None for t in d.profile.tables),
+                     len(d.profile.tables), sum(1 for t in d.profile.tables if t.error is None)))
+    m.append(_set_measure("Usage: elements with no use flagged for retirement review", exp.get("unused", []),
+                          d.usage.unused))
+    m.append(Measure("Usage: evidence covers the 90-day window", d.usage.evidence_days >= 90, ">= 90",
+                     d.usage.evidence_days))
+    m.append(_set_measure("Interfaces found (activity, code and configuration)", exp.get("interfaces", []),
+                          [i.key for i in d.interfaces]))
+    m.append(_set_measure("Report tools recognised", exp.get("report_tools", []),
+                          [i.key for i in d.interfaces if i.kind == "report_tool"]))
+    if "rules" in exp:
+        m.append(_set_measure("Code reader: rules found (object, kind)", [f"{o}|{k}" for o, k in exp["rules"]],
+                              [f"{r.object}|{r.kind}" for r in d.rules]))
+    for key, fields in sorted(exp.get("rule_fields", {}).items()):
+        obj, kind = key.split("|")
+        found = next((r for r in d.rules if r.object == obj and r.kind == kind), None)
+        m.append(_set_measure(f"Code reader: fields of {key}", fields, found.fields if found else []))
+    cfg = exp.get("configuration", {})
+    if cfg:
+        m.append(Measure("Configuration: items by kind", d.config.by_kind() == cfg.get("counts"), cfg.get("counts"),
+                         d.config.by_kind()))
+        m.append(_set_measure("Configuration: items only in some books",
+                              [f"{k}|{n}" for k, n in cfg.get("only_in_some", [])],
+                              [f"{x['kind']}|{x['name']}" for x in d.config_diff["only_in_some"]]))
+        m.append(_set_measure("Configuration: items that differ between books",
+                              [f"{k}|{n}" for k, n in cfg.get("different", [])],
+                              [f"{x['kind']}|{x['name']}" for x in d.config_diff["different"]]))
+    if "documents" in exp and d.documents is not None:
+        key = lambda r: (r["type"], r["age"], r["link_entity"])  # noqa: E731
+        m.append(Measure("Documents sized by type and age", sorted(exp["documents"], key=key)
+                         == sorted(d.documents.rows, key=key), len(exp["documents"]), len(d.documents.rows)))
+    statuses = {s["stream"]: s["status"] for s in d.streams}
+    m.append(Measure("Coverage report: status per stream", statuses == exp.get("streams"), exp.get("streams"),
+                     statuses, detail="; ".join(f"{g.id}: {g.message}" for g in d.gaps)))
+    bound = sum(1 for n in d.graph.nodes.values() if n.kind == "table")
+    m.append(Measure("Knowledge graph holds every table, column and rule", bound == len(d.dictionary.tables())
+                     and any(n.kind == "rule" for n in d.graph.nodes.values()), len(d.dictionary.tables()), bound))
 
 
 def _score_domain(card: Scorecard, domain: list[Manifest], results: dict[str, Any], expected: dict[str, Any]) -> None:

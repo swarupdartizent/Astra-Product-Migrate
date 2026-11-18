@@ -806,6 +806,76 @@ class GoldenRun(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class ActivityImport(Base):
+    """A file of login and query records imported for a source connection. Records stay in the tenant DB."""
+
+    __tablename__ = "activity_imports"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    connection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("source_connections.id", ondelete="CASCADE"))
+    filename: Mapped[str] = mapped_column(String(255))
+    sha256: Mapped[str] = mapped_column(String(64))
+    records: Mapped[int] = mapped_column(Integer)
+    first_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DiscoveryRun(Base):
+    """One discovery of a source estate for a project (E08). Results and the knowledge graph live in the
+    tenant database; this row holds status, phase outcomes and counts."""
+
+    __tablename__ = "discovery_runs"
+    __table_args__ = (
+        CheckConstraint("status in ('queued', 'running', 'succeeded', 'failed', 'blocked', 'cancelled')",
+                        name="ck_discovery_status"),
+        Index("ix_discovery_project", "project_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    connection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("source_connections.id", ondelete="CASCADE"))
+    adapter: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    window_days: Mapped[int] = mapped_column(Integer, default=90)
+    phases: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    summary: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    job_id: Mapped[uuid.UUID | None] = mapped_column()
+    requested_by: Mapped[dict[str, Any]] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CoverageReport(Base):
+    """Discovery coverage per stream, with gaps. The discovery gate needs an accepted report whose blocking
+    gaps are all waived by a person with a reason (E08.F3.S1)."""
+
+    __tablename__ = "coverage_reports"
+    __table_args__ = (
+        CheckConstraint("status in ('draft', 'accepted', 'rejected', 'superseded')", name="ck_coverage_status"),
+        Index("ix_coverage_project", "project_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    discovery_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("discovery_runs.id", ondelete="CASCADE"))
+    coverage_pct: Mapped[int] = mapped_column(Integer)
+    streams: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    gaps: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    waivers: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    status: Mapped[str] = mapped_column(String(20), default="draft")
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 STAGE_STATUSES = ("not_started", "blocked", "in_progress", "done")
 
 

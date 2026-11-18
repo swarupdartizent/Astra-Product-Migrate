@@ -160,6 +160,83 @@ class Trap(_M):
     sources: list[SourceRef] = Field(default_factory=list)
 
 
+class CodeListSource(_M):
+    name: Annotated[str, Field(pattern=KEY)]
+    table: Annotated[str, Field(pattern=QUALIFIED)]
+    code_column: Annotated[str, Field(pattern=IDENT)]
+    label_column: Annotated[str, Field(pattern=IDENT)]
+
+
+class SoftRelation(_M):
+    """A reference the database does not enforce (no foreign key), which profiling still checks."""
+
+    from_table: Annotated[str, Field(pattern=QUALIFIED)]
+    from_column: Annotated[str, Field(pattern=IDENT)]
+    to_table: Annotated[str, Field(pattern=QUALIFIED)]
+    to_column: Annotated[str, Field(pattern=IDENT)]
+
+
+class Dictionary(_M):
+    """How to read the data dictionary (E08.F1.S1).
+
+    `columns` returns: table_schema, table_name, column_name, data_type, max_length, nullable, ordinal.
+    `relations` returns: name, from_schema, from_table, from_column, to_schema, to_table, to_column.
+    """
+
+    columns: dict[Engine, str] = Field(min_length=1)
+    relations: dict[Engine, str] = Field(default_factory=dict)
+    code_lists: list[CodeListSource] = Field(default_factory=list)
+    soft_relations: list[SoftRelation] = Field(default_factory=list)
+    profile_exclude: list[str] = Field(default_factory=list, description="Tables (schema.name) not profiled")
+
+    @model_validator(mode="after")
+    def _ro(self) -> Dictionary:
+        for eng, q in self.columns.items():
+            _read_only(q, f"dictionary.columns.{eng}")
+        for eng, q in self.relations.items():
+            _read_only(q, f"dictionary.relations.{eng}")
+        return self
+
+
+class ConfigurationKind(_M):
+    """One kind of configuration item (E08.F2.S3).
+
+    The query returns: key, name, scope (for example a book code, or NULL for global items), definition
+    (text or JSON) and depends_on (comma-separated `kind:key` references).
+    """
+
+    kind: Annotated[str, Field(pattern=KEY)]
+    label: str = Field(min_length=2)
+    queries: dict[Engine, str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _ro(self) -> ConfigurationKind:
+        for eng, q in self.queries.items():
+            _read_only(q, f"configuration.{self.kind}.queries.{eng}")
+        return self
+
+
+class Activity(_M):
+    """Engine usage statistics and how to recognise the product's own clients (E08.F1.S3, E08.F2.S2).
+
+    `table_usage` returns: table_schema, table_name, reads, writes, last_read, last_write, since.
+    `sessions` returns: login, host, program (current connections).
+    """
+
+    table_usage: dict[Engine, str] = Field(default_factory=dict)
+    sessions: dict[Engine, str] = Field(default_factory=dict)
+    product_clients: list[str] = Field(
+        default_factory=list, description="Regular expressions on program names that are the product's own clients")
+
+    @model_validator(mode="after")
+    def _ro(self) -> Activity:
+        for eng, q in {**self.table_usage, **self.sessions}.items():
+            _read_only(q, f"activity.{eng}")
+        for p in self.product_clients:
+            re.compile(p)
+        return self
+
+
 class GoldenDataset(_M):
     name: Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]*$")]
     path: str = Field(description="Folder inside the pack holding dataset.yaml, schema and expected answers")
@@ -175,6 +252,9 @@ class SourceAdapterContent(_M):
     entities: list[Entity] = Field(default_factory=list)
     documents: DocumentStore | None = None
     traps: list[Trap] = Field(default_factory=list)
+    dictionary: Dictionary | None = None
+    configuration: list[ConfigurationKind] = Field(default_factory=list)
+    activity: Activity | None = None
     golden_datasets: list[GoldenDataset] = Field(default_factory=list)
     validated_against_real_estate: bool = Field(
         default=False, description="False until the queries have run against a real customer or vendor estate")

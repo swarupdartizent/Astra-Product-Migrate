@@ -1,7 +1,7 @@
 apiVersion: astra.packs/v1
 type: domain
 name: pc-insurance
-version: 1.0.0
+version: 1.1.0
 title: Property and casualty insurance, with MGA and delegated authority extension
 description: >-
   Concepts, code lists and rules for property and casualty insurance, extended for managing general agents,
@@ -413,5 +413,5 @@ adds:
 tests:
   - name: Passes the reference source adapter's synthetic golden dataset
     kind: golden_dataset
-    dataset: "conceptone-source@1.0.0:synthetic-v1"
+    dataset: "conceptone-source@1.1.0:synthetic-v2"
     packs: ["core-ontology@1.0.0"]

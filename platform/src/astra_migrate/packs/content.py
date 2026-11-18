@@ -30,7 +30,10 @@ def content_problems(m: Manifest, files: dict[str, bytes]) -> list[dict[str, str
                 except yaml.YAMLError as e:
                     out.append({"field": desc, "message": f"not valid YAML: {e}"})
                     continue
-                for f in [*(raw or {}).get("build", []), (raw or {}).get("expected", "")]:
+                raw = raw or {}
+                listed = [*raw.get("build", []), raw.get("expected", ""), raw.get("delta", ""),
+                          raw.get("activity", "")]
+                for f in listed:
                     if f and f"{g.path.rstrip('/')}/{f}" not in files:
                         out.append({"field": desc, "message": f"{f} is listed but not in the pack"})
             return out

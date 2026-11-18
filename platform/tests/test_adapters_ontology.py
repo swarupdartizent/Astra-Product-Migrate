@@ -367,13 +367,13 @@ def _reader(db: str) -> tuple[str, str]:
 
 
 def _connection(client: Any, admin: H, tenant: dict[str, Any], db: str, user: str, pw: str,
-                name: str) -> dict[str, Any]:
+                name: str, adapter: str | None = None) -> dict[str, Any]:
     s = client.post(f"/api/v1/tenants/{tenant['id']}/secrets", headers=admin,
                     json={"name": f"{name}-pw", "description": "test", "value": pw})
     assert s.status_code == 201, s.text
     t = admin_target()
     r = client.post(f"/api/v1/tenants/{tenant['id']}/source-connections", headers=admin, json={
-        "name": name, "adapter": f"{ADAPTER}@1.0.0", "engine": "sqlserver", "host": t.host, "port": t.port,
+        "name": name, "adapter": adapter or f"{ADAPTER}@1.0.0", "engine": "sqlserver", "host": t.host, "port": t.port,
         "database": db, "username": user, "password_ref": f"secret://{name}-pw", "encrypt": False})
     assert r.status_code == 201, r.text
     return dict(r.json())

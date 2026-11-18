@@ -786,8 +786,9 @@
       ],
       "release": "R1",
       "spec": "DS-01",
-      "status": "todo",
-      "increment": "I5"
+      "status": "done",
+      "increment": "I5",
+      "note": "Tables, columns, types, foreign keys, soft references and code lists harvested into the knowledge graph; target tables from the pinned baseline (same-name candidates until I6)."
     },
     {
       "id": "E08.F1.S2",
@@ -802,8 +803,9 @@
       ],
       "release": "R1",
       "spec": "DS-01",
-      "status": "todo",
-      "increment": "I5"
+      "status": "done",
+      "increment": "I5",
+      "note": "Null rates, distinct counts, value shapes and broken references per table; quality score per table and estate with published weights."
     },
     {
       "id": "E08.F1.S3",
@@ -818,8 +820,9 @@
       ],
       "release": "R1",
       "spec": "DS-03",
-      "status": "todo",
-      "increment": "I5"
+      "status": "done",
+      "increment": "I5",
+      "note": "Usage from imported login and query records over a 90-day window, flowing through code and triggers; unused elements flagged for retirement review in the review queue."
     },
     {
       "id": "E08.F2.S1",
@@ -834,8 +837,9 @@
       ],
       "release": "R1",
       "spec": "DS-02",
-      "status": "todo",
-      "increment": "I5"
+      "status": "done",
+      "increment": "I5",
+      "note": "Static code reader: rules with kind, confidence, excerpt and fields (read and set). Screens link when an adapter supplies screen metadata; the Astra RE Harness is not integrated."
     },
     {
       "id": "E08.F2.S2",
@@ -850,8 +854,9 @@
       ],
       "release": "R1",
       "spec": "Interface finder",
-      "status": "todo",
-      "increment": "I5"
+      "status": "done",
+      "increment": "I5",
+      "note": "Interfaces from login records and query logs, linked-server code and interface objects, each with source, frequency and objects touched."
     },
     {
       "id": "E08.F2.S3",
@@ -866,8 +871,9 @@
       ],
       "release": "R1",
       "spec": "Configuration Reader",
-      "status": "todo",
-      "increment": "I5"
+      "status": "done",
+      "increment": "I5",
+      "note": "Configuration items per kind with dependencies; differences between books shown."
     },
     {
       "id": "E08.F2.S4",
@@ -897,8 +903,9 @@
       ],
       "release": "R1",
       "spec": "Lifecycle stage 2",
-      "status": "todo",
-      "increment": "I5"
+      "status": "done",
+      "increment": "I5",
+      "note": "Coverage report across nine streams with gaps; waivers and acceptance by people; the discovery stage gate needs an accepted report."
     },
     {
       "id": "E09.F1.S1",
@@ -1431,8 +1438,9 @@
       ],
       "release": "R1",
       "spec": "DC-01",
-      "status": "todo",
-      "increment": "I5"
+      "status": "in_progress",
+      "increment": "I5",
+      "note": "Documents sized by type, age and entity in discovery results; appears in the plan with I7."
     },
     {
       "id": "E13.F2.S2",
