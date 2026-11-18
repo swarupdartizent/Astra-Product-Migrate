@@ -111,6 +111,8 @@ def enqueue(session: Session, kind: str, title: str, actor: audit.Actor, payload
 
 def _ensure_handlers() -> None:
     # Handlers live next to the code they drive; importing registers them.
+    from astra_migrate.adapters import jobs as _adapter_jobs  # noqa: F401
+    from astra_migrate.adapters import target as _target_jobs  # noqa: F401
     from astra_migrate.agents import jobs as _agent_jobs  # noqa: F401
     from astra_migrate.tenancy import jobs as _tenant_jobs  # noqa: F401
 

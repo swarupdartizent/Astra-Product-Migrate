@@ -13,6 +13,8 @@ import { PolicyTab } from './PolicyTab';
 import { ProjectsTab } from './ProjectsTab';
 import { RegionTab } from './RegionTab';
 import { SecretsTab } from './SecretsTab';
+import { SourcesTab } from '../sources/SourcesTab';
+import { TargetsTab } from '../sources/TargetsTab';
 import { TenantStatusPill } from './TenantStatusPill';
 
 export interface TenantDetailPageProps {
@@ -124,6 +126,8 @@ function TenantDetail({ tenantId, tab }: TenantDetailPageProps) {
           <Tab value="projects">Projects</Tab>
           <Tab value="policy">Security policy</Tab>
           {showSecrets ? <Tab value="secrets">Connector secrets</Tab> : null}
+          <Tab value="sources">Sources</Tab>
+          <Tab value="targets">Targets</Tab>
           <Tab value="region">Region</Tab>
           {showDanger ? <Tab value="danger">Danger zone</Tab> : null}
         </TabsList>
@@ -141,6 +145,12 @@ function TenantDetail({ tenantId, tab }: TenantDetailPageProps) {
             <SecretsTab tenant={t} />
           </TabPanel>
         ) : null}
+        <TabPanel value="sources">
+          <SourcesTab tenant={t} />
+        </TabPanel>
+        <TabPanel value="targets">
+          <TargetsTab tenant={t} />
+        </TabPanel>
         <TabPanel value="region">
           <RegionTab tenant={t} />
         </TabPanel>

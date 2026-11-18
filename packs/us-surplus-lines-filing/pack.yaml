@@ -1,0 +1,60 @@
+apiVersion: astra.packs/v1
+type: compliance
+name: us-surplus-lines-filing
+version: 1.0.0
+title: State surplus lines filing
+description: >-
+  Makes sure surplus lines tax, stamping fee and filing data carry over correctly, so filings due after cutover
+  still reconcile. Surplus lines premium tax is payable to the insured's home state; several states also have a
+  stamping or service office that receives filings and fees.
+publisher: Artizent
+licence: proprietary
+standards:
+  - Nonadmitted and Reinsurance Reform Act of 2010 (Dodd-Frank Act, Title V, Subtitle B)
+  - State surplus lines laws and stamping office filing rules
+disclaimer: >-
+  This pack supports, but does not certify, compliance with state surplus lines laws. The customer's compliance
+  owner confirms filing obligations with each state and stamping office.
+requires:
+  - {name: pc-insurance, versions: ">=1.0.0,<2", reason: "Uses the surplus lines tax, stamping fee and policy concepts"}
+adds:
+  controls:
+    - id: SL-CARRY-01
+      type: data_handling
+      title: Surplus lines data carried over unchanged
+      rule: >-
+        For every surplus lines policy, the home state, surplus lines tax, stamping fee and filing reference move to
+        the target unchanged, for in-force and historical policies within the filing look-back period.
+      evidence_required: Field-level reconciliation of these values per policy, with breaks resolved.
+      parameters: {applies_to: [pc.surplus_lines_tax, pc.stamping_fee, pc.policy]}
+      sources:
+        - {reference: "Nonadmitted and Reinsurance Reform Act of 2010 (home state rule)"}
+    - id: SL-REC-01
+      type: gate
+      gate: cutover
+      title: Surplus lines totals reconcile by state
+      rule: Surplus lines tax and stamping fee totals per state and open filing period reconcile to the cent between source and target.
+      evidence_required: Totals per state and period from both systems, the difference, and the sign-off.
+      compliance_critical: true
+      sources:
+        - {reference: "State surplus lines laws (tax and filing obligations)"}
+    - id: SL-FILE-01
+      type: evidence
+      title: Post-cutover filings can be produced
+      rule: The first filing due after cutover is produced from the target and checked against the same filing produced from the source.
+      evidence_required: Both filings, the comparison and the reviewer.
+      sources:
+        - {reference: "State surplus lines stamping and service offices' filing requirements"}
+    - id: SL-APPROVE-01
+      type: approval
+      title: Changes to surplus lines data approved by compliance
+      rule: Any correction to surplus lines tax, fee or filing data during the migration is approved by two people, one from compliance.
+      evidence_required: The correction, its reason, and both approvals.
+      parameters: {applies_to: [correction], approver_roles: [compliance_curator, migration_lead]}
+      compliance_critical: true
+      two_person_approval: true
+      sources:
+        - {reference: "State surplus lines laws"}
+tests:
+  - {name: Totals reconcile before cutover, kind: control_type, id: SL-REC-01, expect: gate}
+  - {name: Carries the data over, kind: contains_control, id: SL-CARRY-01}

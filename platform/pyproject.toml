@@ -25,6 +25,7 @@ dependencies = [
   "packaging==24.2",
   "anthropic==2.4.0",
   "openai==3.44.0",
+  "pymssql==2.4.6",
 ]
 
 [dependency-groups]

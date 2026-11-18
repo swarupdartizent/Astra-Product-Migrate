@@ -1,0 +1,417 @@
+apiVersion: astra.packs/v1
+type: domain
+name: pc-insurance
+version: 1.0.0
+title: Property and casualty insurance, with MGA and delegated authority extension
+description: >-
+  Concepts, code lists and rules for property and casualty insurance, extended for managing general agents,
+  program administrators and wholesale brokers: delegated authority, bordereaux, multi-carrier business,
+  surplus lines taxes and fees, billing and premium finance, and commissions. Definitions are Artizent's own;
+  public standards are referenced, not reproduced.
+publisher: Artizent
+licence: proprietary
+standards:
+  - ACORD P&C data model (referenced, not reproduced)
+  - NAIC Annual Statement lines of business (names)
+  - USPS state abbreviations
+  - Lloyd's Coverholder Reporting Standards (referenced)
+  - Nonadmitted and Reinsurance Reform Act of 2010 (home-state rule for surplus lines tax)
+requires:
+  - {name: core-ontology, versions: ">=1.0.0,<2", reason: "P&C concepts specialise the core business concepts"}
+content:
+  ontology:
+    namespace: pc
+    concepts:
+      # ------------------------------------------------------------- parties
+      - id: pc.insured
+        label: Insured
+        definition: The party whose risk an insurance policy covers and who holds the policy.
+        synonyms: [policyholder, named insured, client]
+        parent: core.party
+      - id: pc.producer
+        label: Producer
+        definition: An agent, agency or broker licensed to sell insurance, who places business and earns commission.
+        synonyms: [agent, agency, broker, retail agent, sub-producer]
+        parent: core.organisation
+        attributes:
+          - {name: license_number, type: identifier, description: The producer's licence number}
+        relations:
+          - {name: party, type: refers_to, target: core.party, description: The party record of the producer}
+      - id: pc.carrier
+        label: Carrier
+        definition: An insurer that takes on the risk of policies, directly or through a delegated authority such as an MGA.
+        synonyms: [insurer, insurance company, underwriter, risk carrier, capacity provider]
+        parent: core.organisation
+        attributes:
+          - {name: naic_code, type: identifier, description: The insurer's NAIC company code}
+      - id: pc.mga
+        label: Managing general agent
+        definition: An agent with authority from one or more carriers to underwrite, bind and administer policies on their behalf.
+        synonyms: [MGA, MGU, program administrator, managing general underwriter]
+        parent: core.organisation
+      - id: pc.coverholder
+        label: Coverholder
+        definition: A firm authorised by a Lloyd's managing agent to enter into contracts of insurance under a binding authority.
+        synonyms: [Lloyd's coverholder]
+        parent: pc.mga
+      - id: pc.finance_company
+        label: Premium finance company
+        definition: A lender that pays a policy's premium to the insurer or agent and is repaid by the insured in instalments.
+        synonyms: [finco, premium finance company, PFC]
+        parent: core.organisation
+      # ------------------------------------------------------------- products and policies
+      - id: pc.book
+        label: Book of business
+        definition: A set of policies an MGA or carrier manages together, for example per carrier, programme or company in a multi-book set-up.
+        synonyms: [book, company book, ledger book]
+        parent: core.business_object
+        attributes:
+          - {name: code, type: code, description: The book code}
+          - {name: name, type: text, description: The book name}
+      - id: pc.program
+        label: Insurance program
+        definition: A defined class of business written under one set of underwriting rules and carrier capacity.
+        synonyms: [programme, program business]
+        parent: core.product
+      - id: pc.policy
+        label: Policy
+        definition: An insurance contract that covers an insured's risks for a term in return for premium.
+        synonyms: [insurance policy, contract of insurance, binder]
+        parent: core.contract
+        attributes:
+          - {name: policy_number, type: identifier, description: The policy number}
+          - {name: effective_date, type: date, description: When cover starts}
+          - {name: expiration_date, type: date, description: When cover ends}
+          - {name: written_premium, type: money, description: The premium written for the term}
+          - {name: state, type: code, description: The state of the risk or the insured's home state, code_list: pc.us_state}
+          - {name: line_of_business, type: code, description: The line of business, code_list: pc.line_of_business}
+          - {name: bill_type, type: code, description: How the policy is billed, code_list: pc.bill_type}
+        relations:
+          - {name: insured, type: refers_to, target: pc.insured, description: The policyholder}
+          - {name: producer, type: produced_by, target: pc.producer, description: The producer who placed the policy}
+          - {name: book, type: part_of, target: pc.book, description: The book the policy belongs to}
+          - {name: binding_authority, type: governs, target: pc.binding_authority_agreement, description: The delegated authority it was bound under}
+      - id: pc.coverage
+        label: Coverage
+        definition: One part of a policy that covers a defined peril, property or liability with its own limit and deductible.
+        synonyms: [cover, coverage part, coverage line]
+        parent: core.business_object
+        attributes:
+          - {name: limit_amount, type: money, description: The limit of cover}
+          - {name: deductible, type: money, description: The deductible}
+        relations:
+          - {name: policy, type: part_of, target: pc.policy, description: The policy the coverage belongs to}
+      - id: pc.endorsement
+        label: Endorsement
+        definition: A change to a policy during its term, such as added cover or a changed address, often with a premium change.
+        synonyms: [policy change, mid-term adjustment, MTA, rider]
+        parent: core.event
+        attributes:
+          - {name: premium_change, type: money, description: The premium added or returned}
+        relations:
+          - {name: policy, type: refers_to, target: pc.policy}
+      # ------------------------------------------------------------- delegated authority and multi-carrier
+      - id: pc.binding_authority_agreement
+        label: Binding authority agreement
+        definition: A contract in which a carrier or Lloyd's managing agent delegates authority to an MGA or coverholder to bind policies within set limits.
+        synonyms: [binder agreement, delegated authority agreement, DUA, binding authority]
+        parent: core.contract
+        attributes:
+          - {name: max_premium, type: money, description: The largest premium the MGA may bind under the agreement}
+          - {name: max_limit, type: money, description: The largest limit the MGA may bind}
+        relations:
+          - {name: carrier, type: issued_by, target: pc.carrier}
+          - {name: mga, type: refers_to, target: pc.mga}
+      - id: pc.carrier_split
+        label: Carrier split
+        definition: The share of one policy's premium and risk that one carrier takes when several carriers share a policy.
+        synonyms: [premium split, participation, carrier share, quota share line, subscription line]
+        parent: core.business_object
+        attributes:
+          - {name: share_pct, type: percentage, description: "The carrier's share of the risk, in percent"}
+          - {name: premium_share, type: money, description: The carrier's share of the premium}
+        relations:
+          - {name: policy, type: split_of, target: pc.policy}
+          - {name: carrier, type: refers_to, target: pc.carrier}
+      - id: pc.carrier_statement
+        label: Carrier statement
+        definition: A periodic account an MGA sends a carrier of premium written, commissions kept and amounts due.
+        synonyms: [carrier account current, statement of account]
+        parent: core.document
+        relations:
+          - {name: carrier, type: refers_to, target: pc.carrier}
+      - id: pc.bordereau
+        label: Bordereau
+        definition: A periodic report from an MGA or coverholder to a carrier listing the premiums written or claims handled under delegated authority.
+        synonyms: [bordereaux, bdx, premium bordereau, claims bordereau, risk bordereau]
+        parent: core.document
+        attributes:
+          - {name: kind, type: code, description: Premium or claims bordereau}
+          - {name: period_end, type: date, description: The last day of the reporting period}
+          - {name: total_premium, type: money, description: The premium total reported}
+        relations:
+          - {name: carrier, type: reported_in, target: pc.carrier}
+      # ------------------------------------------------------------- billing, taxes and fees
+      - id: pc.invoice
+        label: Invoice
+        definition: A bill for the premium, taxes and fees due on a policy.
+        synonyms: [bill, premium invoice, billing statement]
+        parent: core.obligation
+        attributes:
+          - {name: invoice_date, type: date, description: The invoice date}
+          - {name: total_amount, type: money, description: The total billed}
+        relations:
+          - {name: policy, type: billed_to, target: pc.policy}
+      - id: pc.invoice_line
+        label: Invoice line
+        definition: One charge on an invoice, such as premium, a tax or a fee.
+        synonyms: [billing line, charge]
+        parent: core.transaction
+        attributes:
+          - {name: line_type, type: code, description: The kind of charge, code_list: pc.charge_type}
+          - {name: amount, type: money, description: The amount of the charge}
+        relations:
+          - {name: invoice, type: part_of, target: pc.invoice}
+      - id: pc.surplus_lines_tax
+        label: Surplus lines tax
+        definition: A state premium tax due on insurance placed with a non-admitted insurer, payable to the insured's home state.
+        synonyms: [SL tax, excess and surplus lines tax, E&S tax, nonadmitted premium tax]
+        parent: core.obligation
+        attributes:
+          - {name: rate, type: percentage, description: The tax rate}
+          - {name: home_state, type: code, description: The insured's home state, code_list: pc.us_state}
+      - id: pc.stamping_fee
+        label: Stamping fee
+        definition: A fee some states charge, through a stamping office, on surplus lines premium.
+        synonyms: [stamping office fee, SLSO fee]
+        parent: core.obligation
+      - id: pc.policy_fee
+        label: Policy fee
+        definition: A flat fee charged by the MGA, agent or carrier for issuing a policy.
+        synonyms: [issuance fee, admin fee, broker fee]
+        parent: core.obligation
+      - id: pc.inspection_fee
+        label: Inspection fee
+        definition: A fee charged for inspecting the insured risk.
+        synonyms: [survey fee]
+        parent: core.obligation
+      - id: pc.instalment
+        label: Instalment
+        definition: One scheduled payment of a policy's premium when it is paid in parts.
+        synonyms: [installment, payment plan instalment]
+        parent: core.obligation
+      - id: pc.premium_finance_agreement
+        label: Premium finance agreement
+        definition: A loan from a premium finance company that pays a policy's premium, repaid by the insured in instalments.
+        synonyms: [finance agreement, PFA, finco agreement]
+        parent: core.contract
+        attributes:
+          - {name: finance_company_name, type: text, description: The lender's name}
+          - {name: amount_financed, type: money, description: The amount lent}
+        relations:
+          - {name: policy, type: refers_to, target: pc.policy}
+          - {name: lender, type: refers_to, target: pc.finance_company}
+      - id: pc.open_item
+        label: Open item
+        definition: A receivable or payable that is not yet settled, such as an unpaid instalment or a return premium due.
+        synonyms: [outstanding item, unpaid balance]
+        parent: core.obligation
+      - id: pc.unapplied_cash
+        label: Unapplied cash
+        definition: Money received but not yet matched to the invoice or item it pays.
+        synonyms: [suspense cash, unallocated cash, on-account cash]
+        parent: core.transaction
+      # ------------------------------------------------------------- commissions
+      - id: pc.commission_agreement
+        label: Commission agreement
+        definition: An agreement that sets the commission rates a producer earns by line, program or carrier.
+        synonyms: [agency agreement, producer agreement, commission schedule]
+        parent: core.contract
+        relations:
+          - {name: producer, type: refers_to, target: pc.producer}
+      - id: pc.commission
+        label: Commission
+        definition: The amount a producer earns on a policy, usually a rate times the premium.
+        synonyms: [agent commission, brokerage, producer compensation]
+        parent: core.obligation
+        attributes:
+          - {name: rate, type: percentage, description: The commission rate}
+          - {name: amount, type: money, description: The commission amount}
+        relations:
+          - {name: policy, type: refers_to, target: pc.policy}
+          - {name: producer, type: refers_to, target: pc.producer}
+      - id: pc.commission_split
+        label: Commission split
+        definition: The part of one commission paid to a sub-producer.
+        synonyms: [sub-producer split, commission share]
+        parent: core.business_object
+        attributes:
+          - {name: amount, type: money, description: The amount paid to the sub-producer}
+        relations:
+          - {name: commission, type: split_of, target: pc.commission}
+          - {name: sub_producer, type: refers_to, target: pc.producer}
+      - id: pc.agency_statement
+        label: Agency statement
+        definition: A periodic statement to a producer of commissions earned and amounts due.
+        synonyms: [producer statement, commission statement]
+        parent: core.document
+      # ------------------------------------------------------------- claims
+      - id: pc.claim
+        label: Claim
+        definition: A request for payment under a policy after a loss, with its reserves and payments.
+        synonyms: [loss, claim file, FNOL]
+        parent: core.event
+        attributes:
+          - {name: claim_number, type: identifier, description: The claim number}
+          - {name: loss_date, type: date, description: When the loss happened}
+          - {name: reported_date, type: date, description: When the loss was reported}
+          - {name: reserve_amount, type: money, description: The amount reserved for the claim}
+          - {name: status, type: code, description: "Open, closed or reopened"}
+        relations:
+          - {name: policy, type: refers_to, target: pc.policy, description: The policy the claim is made under}
+    code_lists:
+      - id: pc.bill_type
+        title: Billing methods
+        standard: Common P&C billing practice
+        values:
+          - {code: D, label: Direct bill}
+          - {code: A, label: Agency bill}
+          - {code: T, label: Third-party bill}
+      - id: pc.charge_type
+        title: Invoice charge types
+        standard: Artizent definitions
+        values:
+          - {code: PREM, label: Premium}
+          - {code: SLTAX, label: Surplus lines tax}
+          - {code: STAMP, label: Stamping fee}
+          - {code: FEE, label: Policy fee}
+          - {code: INSP, label: Inspection fee}
+      - id: pc.line_of_business
+        title: Lines of business
+        standard: NAIC Annual Statement lines of business (names only; codes are Artizent's)
+        values:
+          - {code: FIRE, label: Fire}
+          - {code: ALLIED, label: Allied lines}
+          - {code: HO, label: Homeowners multiple peril}
+          - {code: CMP, label: Commercial multiple peril}
+          - {code: IM, label: Inland marine}
+          - {code: OL, label: Other liability}
+          - {code: PL, label: Products liability}
+          - {code: MPL, label: Medical professional liability}
+          - {code: WC, label: Workers' compensation}
+          - {code: PPAL, label: Private passenger auto liability}
+          - {code: CAL, label: Commercial auto liability}
+          - {code: APD, label: Auto physical damage}
+      - id: pc.us_state
+        title: US states and DC
+        standard: USPS two-letter state abbreviations
+        values:
+          - {code: AL, label: Alabama}
+          - {code: AK, label: Alaska}
+          - {code: AZ, label: Arizona}
+          - {code: AR, label: Arkansas}
+          - {code: CA, label: California}
+          - {code: CO, label: Colorado}
+          - {code: CT, label: Connecticut}
+          - {code: DE, label: Delaware}
+          - {code: DC, label: District of Columbia}
+          - {code: FL, label: Florida}
+          - {code: GA, label: Georgia}
+          - {code: HI, label: Hawaii}
+          - {code: ID, label: Idaho}
+          - {code: IL, label: Illinois}
+          - {code: IN, label: Indiana}
+          - {code: IA, label: Iowa}
+          - {code: KS, label: Kansas}
+          - {code: KY, label: Kentucky}
+          - {code: LA, label: Louisiana}
+          - {code: ME, label: Maine}
+          - {code: MD, label: Maryland}
+          - {code: MA, label: Massachusetts}
+          - {code: MI, label: Michigan}
+          - {code: MN, label: Minnesota}
+          - {code: MS, label: Mississippi}
+          - {code: MO, label: Missouri}
+          - {code: MT, label: Montana}
+          - {code: NE, label: Nebraska}
+          - {code: NV, label: Nevada}
+          - {code: NH, label: New Hampshire}
+          - {code: NJ, label: New Jersey}
+          - {code: NM, label: New Mexico}
+          - {code: NY, label: New York}
+          - {code: NC, label: North Carolina}
+          - {code: ND, label: North Dakota}
+          - {code: OH, label: Ohio}
+          - {code: OK, label: Oklahoma}
+          - {code: OR, label: Oregon}
+          - {code: PA, label: Pennsylvania}
+          - {code: RI, label: Rhode Island}
+          - {code: SC, label: South Carolina}
+          - {code: SD, label: South Dakota}
+          - {code: TN, label: Tennessee}
+          - {code: TX, label: Texas}
+          - {code: UT, label: Utah}
+          - {code: VT, label: Vermont}
+          - {code: VA, label: Virginia}
+          - {code: WA, label: Washington}
+          - {code: WV, label: West Virginia}
+          - {code: WI, label: Wisconsin}
+          - {code: WY, label: Wyoming}
+adds:
+  rules:
+    - id: PC-POLICY-TERM
+      statement: A policy term cannot end before it starts.
+      applies_to: [pc.policy]
+      severity: blocking
+      check: {kind: order, concept: pc.policy, first: effective_date, second: expiration_date}
+    - id: PC-CLAIM-IN-FORCE
+      statement: A claim must link to a policy that was in force on the loss date.
+      applies_to: [pc.claim]
+      severity: blocking
+      check: {kind: within, concept: pc.claim, date: loss_date, relation: policy, start: effective_date, end: expiration_date}
+    - id: PC-SPLIT-RECONCILE
+      statement: The premium shares of all carriers on a policy must add up to the policy's written premium, to the cent.
+      applies_to: [pc.carrier_split, pc.policy]
+      severity: blocking
+      check: {kind: sum_equals, concept: pc.policy, total: written_premium, child_concept: pc.carrier_split, child_relation: policy, part: premium_share}
+    - id: PC-INVOICE-RECONCILE
+      statement: An invoice's total must equal the sum of its premium, tax and fee lines, to the cent.
+      applies_to: [pc.invoice, pc.invoice_line]
+      severity: blocking
+      check: {kind: sum_equals, concept: pc.invoice, total: total_amount, child_concept: pc.invoice_line, child_relation: invoice, part: amount}
+    - id: PC-COMMISSION-SPLIT-RECONCILE
+      statement: The sub-producer splits of a commission must add up to the commission amount, to the cent.
+      applies_to: [pc.commission, pc.commission_split]
+      severity: blocking
+      check: {kind: sum_equals, concept: pc.commission, total: amount, child_concept: pc.commission_split, child_relation: commission, part: amount}
+    - id: PC-RECONCILE-TO-CENT
+      statement: Premium, taxes, fees and commissions must reconcile to the cent between source and target.
+      applies_to: [pc.policy, pc.invoice, pc.surplus_lines_tax, pc.stamping_fee, pc.policy_fee, pc.inspection_fee, pc.commission]
+      severity: blocking
+    - id: PC-OPEN-ITEMS-CARRY-OVER
+      statement: Open items, unapplied cash and in-force instalments must carry over unchanged.
+      applies_to: [pc.open_item, pc.unapplied_cash, pc.instalment]
+      severity: blocking
+    - id: PC-BORDEREAU-LEDGER
+      statement: Premium and claims bordereaux must reconcile to the ledger for each carrier and period.
+      applies_to: [pc.bordereau, pc.carrier]
+      severity: blocking
+    - id: PC-SL-TAX-HOME-STATE
+      statement: Surplus lines premium tax is due to the insured's home state; the home state must be kept with each surplus lines policy.
+      applies_to: [pc.surplus_lines_tax, pc.policy]
+      severity: blocking
+      sources:
+        - {reference: "Nonadmitted and Reinsurance Reform Act of 2010 (Dodd-Frank Act, Title V, Subtitle B)"}
+    - id: PC-BINDING-WITHIN-AUTHORITY
+      statement: A policy bound under delegated authority must lie within the binding authority agreement's limits.
+      applies_to: [pc.policy, pc.binding_authority_agreement]
+      severity: warning
+    - id: PC-PREMIUM-FINANCE-LINK
+      statement: A premium finance agreement must stay linked to the policy it finances and to its lender.
+      applies_to: [pc.premium_finance_agreement]
+      severity: blocking
+tests:
+  - name: Passes the reference source adapter's synthetic golden dataset
+    kind: golden_dataset
+    dataset: "conceptone-source@1.0.0:synthetic-v1"
+    packs: ["core-ontology@1.0.0"]

@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from astra_migrate import audit
 from astra_migrate.db.models import Pack, PackFile
 from astra_migrate.packs.compose import compose
+from astra_migrate.packs.content import content_problems
 from astra_migrate.packs.schema import Manifest, PackType, parse_ref
 
 MAX_FILES = 500
@@ -79,6 +80,9 @@ def version_key(v: str) -> list[int]:
 def register_draft(session: Session, files: dict[str, bytes], actor: audit.Actor) -> Pack:
     _check_paths(files)
     m = parse_manifest(files["pack.yaml"])
+    problems = content_problems(m, files)
+    if problems:
+        raise PackError("The pack content does not match its type's contract", problems)
     digest = bundle_digest(files)
     existing = session.scalar(select(Pack).where(Pack.name == m.name, Pack.version == m.version))
     if existing is not None:
@@ -148,10 +152,14 @@ def run_tests(session: Session, pack: Pack) -> dict[str, Any]:
         checks.append(Check("Compliance-critical approval controls require two people", not crit,
                             "OK" if not crit else f"Set two_person_approval on: {', '.join(crit)}"))
 
+    checks.extend(_ontology_checks(session, m))
+
     controls = {c.id: c for c in m.adds.controls}
     settings = {s.key: s for s in m.adds.settings}
     for t in m.tests:
         match t.kind:
+            case "golden_dataset":
+                checks.append(_golden_check(session, pack, t.name, t.dataset or "", t.packs))
             case "contains_control":
                 ok = t.id in controls
                 checks.append(Check(t.name, ok, "OK" if ok else f"Control {t.id} is missing"))
@@ -187,6 +195,104 @@ def run_tests(session: Session, pack: Pack) -> dict[str, Any]:
     passed = all(c.passed for c in checks)
     return {"passed": passed, "ran_at": datetime.now(UTC).isoformat(), "digest": pack.digest,
             "checks": [c.__dict__ for c in checks]}
+
+
+def _published_ontologies(session: Session) -> dict[str, dict[str, Any]]:
+    """Concept id -> {attributes, parent} across the latest published domain packs."""
+    from astra_migrate.ontology.model import DomainContent
+
+    latest: dict[str, Pack] = {}
+    for p in session.scalars(select(Pack).where(Pack.type == PackType.DOMAIN.value, Pack.status == "published")):
+        if p.name not in latest or p.version_sort > latest[p.name].version_sort:
+            latest[p.name] = p
+    out: dict[str, dict[str, Any]] = {}
+    for p in latest.values():
+        if "ontology" in (p.manifest.get("content") or {}):
+            for c in DomainContent.model_validate(p.manifest["content"]).ontology.concepts:
+                out[c.id] = {"attributes": {a.name for a in c.attributes},
+                             "relations": {r.name for r in c.relations}, "parent": c.parent, "pack": p.name}
+    return out
+
+
+def _lineage_attrs(concepts: dict[str, dict[str, Any]], cid: str, key: str) -> set[str]:
+    out: set[str] = set()
+    seen: set[str] = set()
+    while cid and cid in concepts and cid not in seen:
+        seen.add(cid)
+        out |= concepts[cid][key]
+        cid = concepts[cid]["parent"]
+    return out
+
+
+def _ontology_checks(session: Session, m: Manifest) -> list[Check]:
+    from astra_migrate.adapters.contract import parse_source
+    from astra_migrate.ontology.model import DomainContent
+
+    checks: list[Check] = []
+    if m.type == PackType.DOMAIN and "ontology" in m.content:
+        onto = DomainContent.model_validate(m.content).ontology
+        ext = onto.external_refs()
+        if ext:
+            known: set[str] = set()
+            for req in m.requires:
+                dep = latest_published(session, req.name, req.versions)
+                if dep is not None and "ontology" in (dep.manifest.get("content") or {}):
+                    known |= {c.id for c in DomainContent.model_validate(dep.manifest["content"]).ontology.concepts}
+            missing = sorted(ext - known)
+            checks.append(Check("Concepts from other packs come from required packs", not missing,
+                                "OK" if not missing else "Not found in required packs: " + ", ".join(missing[:10])))
+    if m.type == PackType.SOURCE_ADAPTER:
+        content = parse_source(m.content)
+        bound = [e for e in content.entities if e.concept]
+        if bound:
+            concepts = _published_ontologies(session)
+            problems = []
+            for e in bound:
+                assert e.concept is not None
+                if e.concept not in concepts:
+                    problems.append(f"{e.name} -> {e.concept} (no published domain pack defines it)")
+                    continue
+                attrs = _lineage_attrs(concepts, e.concept, "attributes")
+                bad = sorted(set(e.attributes) - attrs)
+                if bad:
+                    problems.append(f"{e.name}: {e.concept} has no attribute(s) {', '.join(bad)}")
+                rels = _lineage_attrs(concepts, e.concept, "relations")
+                bad_rel = sorted({r.concept_relation for r in e.relations.values()
+                                  if r.concept_relation and r.concept_relation not in rels})
+                if bad_rel:
+                    problems.append(f"{e.name}: {e.concept} has no relation(s) {', '.join(bad_rel)}")
+            checks.append(Check("Entity bindings point to published ontology concepts and attributes", not problems,
+                                "OK" if not problems else "; ".join(problems[:8])))
+    return checks
+
+
+def _golden_check(session: Session, pack: Pack, name: str, dataset: str, others: list[str]) -> Check:
+    from astra_migrate.db.models import GoldenRun
+
+    want = {f"{pack.name}@{pack.version}": pack.digest}
+    for ref in others:
+        n, v = parse_ref(ref)
+        p = session.scalar(select(Pack).where(Pack.name == n, Pack.version == v))
+        if p is None:
+            return Check(name, False, f"{ref} is not registered")
+        want[ref] = p.digest
+    adapter_ref = dataset.split(":", 1)[0]
+    if adapter_ref not in want:
+        n, v = parse_ref(adapter_ref)
+        p = session.scalar(select(Pack).where(Pack.name == n, Pack.version == v))
+        if p is None:
+            return Check(name, False, f"{adapter_ref} is not registered")
+        want[adapter_ref] = p.digest
+    runs = session.scalars(select(GoldenRun).where(GoldenRun.dataset == dataset)
+                           .order_by(GoldenRun.started_at.desc()).limit(50))
+    for r in runs:
+        if all(r.packs.get(ref) == d for ref, d in want.items()):
+            if r.status == "passed":
+                return Check(name, True, f"Golden run {r.id} passed on {r.finished_at:%Y-%m-%d %H:%M}" if r.finished_at
+                             else f"Golden run {r.id} passed")
+            return Check(name, False, f"The latest golden run with these exact pack contents {r.status}"
+                         + (f": {r.status_detail}" if r.status_detail else ""))
+    return Check(name, False, f"No golden run of {dataset} exists for these exact pack contents. Run it first.")
 
 
 def test_pack(session: Session, pack: Pack, actor: audit.Actor) -> dict[str, Any]:
@@ -226,9 +332,13 @@ def publish(session: Session, pack: Pack, actor: audit.Actor) -> Pack:
     if pack.type == PackType.COMPLIANCE.value and not pack.reviewed_by_name:
         raise PackError("A compliance pack must be reviewed by a named compliance specialist before it is published.")
     pack.status, pack.published_by, pack.published_at = "published", actor.name, datetime.now(UTC)
+    session.flush()
+    from astra_migrate.ontology.index import index_pack  # local import: ontology depends on packs
+
+    indexed = index_pack(session, pack)
     audit.record(session, actor, "pack.published", target_type="pack", target_id=str(pack.id),
                  details={"ref": f"{pack.name}@{pack.version}", "digest": pack.digest,
-                          "reviewer": pack.reviewed_by_name})
+                          "reviewer": pack.reviewed_by_name, "ontology_rows": indexed})
     return pack
 
 

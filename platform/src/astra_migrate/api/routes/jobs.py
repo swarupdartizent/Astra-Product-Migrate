@@ -38,6 +38,7 @@ class JobOut(BaseModel):
     project_id: uuid.UUID | None
     requested_by: str
     trace_id: str | None
+    can_cancel: bool = False
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
@@ -67,12 +68,23 @@ def can_see_job(s: Session, principal: Principal, j: Job) -> bool:
     return False
 
 
+def _can_cancel(principal: Principal, j: Job) -> bool:
+    mine = j.actor.get("type") == "user" and j.actor.get("id") == str(principal.user.id)
+    return j.status == "queued" and j.kind != "tenant.provision" and (mine or principal.has_platform(P.TENANT_CREATE))
+
+
+def job_out_for(principal: Principal, j: Job) -> JobOut:
+    out = job_out(j)
+    out.can_cancel = _can_cancel(principal, j)
+    return out
+
+
 @router.get("/jobs/{job_id}", response_model=JobOut)
 def get_job(job_id: uuid.UUID, principal: CurrentPrincipal, s: DB) -> JobOut:
     j = s.get(Job, job_id)
     if j is None or not can_see_job(s, principal, j):
         raise not_found("Job")
-    return job_out(j)
+    return job_out_for(principal, j)
 
 
 @router.get("/jobs", response_model=list[JobOut])
@@ -89,7 +101,7 @@ def list_jobs(principal: CurrentPrincipal, s: DB, tenant_id: uuid.UUID | None = 
     out: list[JobOut] = []
     for j in s.scalars(stmt.limit(limit * 4)):
         if can_see_job(s, principal, j):
-            out.append(job_out(j))
+            out.append(job_out_for(principal, j))
         if len(out) >= limit:
             break
     return out

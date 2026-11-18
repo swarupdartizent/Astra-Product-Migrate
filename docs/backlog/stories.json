@@ -148,7 +148,7 @@
       "spec": "NFR Observability",
       "status": "in_progress",
       "increment": "I1",
-      "note": "OpenTelemetry to Jaeger + span store + dashboard with waterfall. Model cost per agent and per model on the dashboard (I3). Remaining: open trace from review items (I8)."
+      "note": "Model cost per agent and per model on the dashboard (I3). Remaining: open trace from review items (I8)."
     },
     {
       "id": "E01.F3.S3",
@@ -478,8 +478,9 @@
       ],
       "release": "R1",
       "spec": "Pack types",
-      "status": "todo",
-      "increment": "I4"
+      "status": "done",
+      "increment": "I4",
+      "note": "Contract astra.adapters/v1 documented (docs/adapter-contract.md) and versioned; contract checks at registration; golden datasets act as the contract test suite; read-only guard, account check and rolled-back sessions."
     },
     {
       "id": "E05.F2.S1",
@@ -495,8 +496,9 @@
       ],
       "release": "R1",
       "spec": "Reference case",
-      "status": "todo",
-      "increment": "I4"
+      "status": "in_progress",
+      "increment": "I4",
+      "note": "SQL Server proven read-only with engine and version reported. SQL Anywhere driver written; Blocked until an engine with SAP client libraries is available."
     },
     {
       "id": "E05.F2.S2",
@@ -512,8 +514,9 @@
       ],
       "release": "R1",
       "spec": "Reference case",
-      "status": "todo",
-      "increment": "I4"
+      "status": "done",
+      "increment": "I4",
+      "note": "All listed object types read with owner, last change and dependencies, plus a coverage report; proven on the synthetic estate. Re-prove on a real estate (adapter marked unvalidated)."
     },
     {
       "id": "E05.F2.S3",
@@ -529,8 +532,9 @@
       ],
       "release": "R1",
       "spec": "Reference case",
-      "status": "todo",
-      "increment": "I4"
+      "status": "done",
+      "increment": "I4",
+      "note": "Full and delta extraction, File Cabinet documents with entity links, counts checked against the source; data kept in the tenant database."
     },
     {
       "id": "E05.F2.S4",
@@ -545,8 +549,9 @@
       ],
       "release": "R1",
       "spec": "Pack types",
-      "status": "todo",
-      "increment": "I4"
+      "status": "done",
+      "increment": "I4",
+      "note": "Traps ship in the adapter pack and curators add more (API); harvests flag every trap that applies."
     },
     {
       "id": "E05.F3.S1",
@@ -561,8 +566,9 @@
       ],
       "release": "R1",
       "spec": "Reference case",
-      "status": "todo",
-      "increment": "I4"
+      "status": "done",
+      "increment": "I4",
+      "note": "Baselines stored by name, immutable, pinned per project. Only a synthetic baseline exists until Insurity provides the real one."
     },
     {
       "id": "E05.F3.S2",
@@ -578,8 +584,9 @@
       ],
       "release": "R1",
       "spec": "DB-03",
-      "status": "todo",
-      "increment": "I4"
+      "status": "done",
+      "increment": "I4",
+      "note": "REST/OAuth2 loader with rate limiting and every call logged; no database load method exists. Pro Suite endpoints unknown, so reference loads are Blocked."
     },
     {
       "id": "E05.F3.S3",
@@ -594,8 +601,9 @@
       ],
       "release": "R1",
       "spec": "Target vendor gaps",
-      "status": "todo",
-      "increment": "I4"
+      "status": "done",
+      "increment": "I4",
+      "note": "Constraints carry source, date and confidence and compose as TGT- planning rules."
     },
     {
       "id": "E05.F4.S1",
@@ -627,8 +635,9 @@
       ],
       "release": "R1",
       "spec": "Ontology service",
-      "status": "todo",
-      "increment": "I4"
+      "status": "done",
+      "increment": "I4",
+      "note": "Five operations over a Postgres property graph and pgvector HNSW index; every answer names its ontology version; p95 well under 1 s in tests. Embeddings are lexical until a model embedder is added."
     },
     {
       "id": "E06.F2.S1",
@@ -643,8 +652,9 @@
       ],
       "release": "R1",
       "spec": "Domain packs",
-      "status": "todo",
-      "increment": "I4"
+      "status": "done",
+      "increment": "I4",
+      "note": "core-ontology@1.0.0: concepts with definitions, synonyms and relations; validated and tested."
     },
     {
       "id": "E06.F2.S2",
@@ -660,8 +670,9 @@
       ],
       "release": "R1",
       "spec": "MGA extension",
-      "status": "todo",
-      "increment": "I4"
+      "status": "done",
+      "increment": "I4",
+      "note": "pc-insurance@1.0.0 with the MGA extension; reconcile-to-the-cent rules; passes the golden dataset."
     },
     {
       "id": "E06.F3.S1",
@@ -727,8 +738,9 @@
       ],
       "release": "R1",
       "spec": "Compliance additions",
-      "status": "todo",
-      "increment": "I4"
+      "status": "in_progress",
+      "increment": "I4",
+      "note": "Five packs with sourced controls and evidence pass their tests; publication waits for a named compliance specialist's review."
     },
     {
       "id": "E07.F2.S2",
@@ -2041,8 +2053,9 @@
       ],
       "release": "R1",
       "spec": "Evaluation",
-      "status": "todo",
-      "increment": "I4"
+      "status": "done",
+      "increment": "I4",
+      "note": "Synthetic golden estate with seeded errors, hidden rules and interfaces; runner scores every measure; pack tests require a passing golden run."
     },
     {
       "id": "E22.F1.S2",

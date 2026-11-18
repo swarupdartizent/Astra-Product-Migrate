@@ -1,0 +1,61 @@
+apiVersion: astra.packs/v1
+type: compliance
+name: us-insurance-record-retention
+version: 1.0.0
+title: State insurance record retention
+description: >-
+  Applies state record retention rules to policy, claims and accounting records before anything is archived, left
+  behind in the legacy system or deleted. Retention periods differ by state and record type, so this pack does not
+  guess them: it requires the customer's compliance owner to record the schedule for each state the customer writes
+  in, and it blocks archive and decommission work until that schedule is approved.
+publisher: Artizent
+licence: proprietary
+standards:
+  - State insurance codes and regulations on record retention (each state sets its own periods)
+disclaimer: >-
+  This pack supports, but does not certify, compliance with state record retention rules. The customer's compliance
+  owner and counsel confirm the periods that apply.
+adds:
+  controls:
+    - id: RET-SCHED-01
+      type: retention
+      title: Retention schedule recorded per state and record type
+      rule: >-
+        Before any record is archived, left in the legacy system or deleted, the project holds an approved retention
+        schedule with a period for every state and record type (policy, claims, accounting) in scope.
+      evidence_required: The approved schedule, with its legal source for each state and the approver.
+      parameters: {periods_source: blueprint, record_types: [policy, claim, accounting]}
+      compliance_critical: true
+      sources:
+        - {reference: "State insurance codes and regulations on record retention; to be cited per state by the customer"}
+    - id: RET-HOLD-01
+      type: retention
+      title: Legal holds respected
+      rule: Records under legal hold are neither changed, archived nor deleted until the hold is released.
+      evidence_required: Legal hold register checked before each archive or deletion task, with the check result.
+      sources:
+        - {reference: "Customer legal hold policy; state and federal discovery obligations"}
+    - id: RET-ARCHIVE-01
+      type: evidence
+      title: Archive integrity verified
+      rule: Archived records can be retrieved complete and unchanged for the whole retention period.
+      evidence_required: Archive manifest with hashes, and a retrieval test of a sample from each record type.
+      sources:
+        - {reference: "Records and retention control group (Astra Migrate specification)"}
+    - id: RET-GATE-01
+      type: gate
+      gate: decommission
+      title: Decommission waits for retention
+      rule: The legacy system is switched off only after the retention schedule is approved and the archive is verified.
+      evidence_required: Approved schedule, archive verification, and the decommission approval.
+      compliance_critical: true
+      sources:
+        - {reference: "State insurance codes and regulations on record retention"}
+  settings:
+    - key: retention.schedule_required
+      value: true
+      stricter: "true"
+      description: Archive and decommission tasks need an approved state retention schedule.
+tests:
+  - {name: Decommission is gated, kind: control_type, id: RET-GATE-01, expect: gate}
+  - {name: Schedule is required, kind: setting_value, key: retention.schedule_required, expect: true}

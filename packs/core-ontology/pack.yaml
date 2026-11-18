@@ -1,0 +1,185 @@
+apiVersion: astra.packs/v1
+type: domain
+name: core-ontology
+version: 1.0.0
+title: Core business ontology
+description: >-
+  Shared business concepts every industry pack builds on: parties and their roles, products, contracts,
+  transactions and ledger entries, documents, obligations, events, locations and assets. Definitions are
+  written by Artizent curators. Industry packs add their own concepts as children of these.
+publisher: Artizent
+licence: proprietary
+standards:
+  - ISO 4217 currency codes
+  - ISO 3166-1 alpha-2 country codes
+content:
+  ontology:
+    namespace: core
+    concepts:
+      - id: core.business_object
+        label: Business object
+        definition: Anything a business records and keeps track of. The root of every concept in the ontology.
+        attributes:
+          - {name: identifier, type: identifier, description: The identifier the source system uses for the record}
+          - {name: created_at, type: datetime, description: When the record was created}
+          - {name: modified_at, type: datetime, description: When the record last changed}
+      - id: core.party
+        label: Party
+        definition: A person or organisation that takes part in business, for example as a customer, supplier, agent or counterparty.
+        synonyms: [entity, contact, counterparty, name record, client]
+        parent: core.business_object
+        attributes:
+          - {name: name, type: text, description: The party's legal or display name}
+          - {name: tax_id, type: identifier, description: A tax or registration number}
+          - {name: jurisdiction, type: code, description: "The state, province or country the party is registered in"}
+          - {name: party_type, type: code, description: The kind of party as the source system classifies it}
+      - id: core.person
+        label: Person
+        definition: A natural person who takes part in business in their own name.
+        synonyms: [individual, natural person]
+        parent: core.party
+        attributes:
+          - {name: date_of_birth, type: date, description: The person's date of birth}
+      - id: core.organisation
+        label: Organisation
+        definition: A company, partnership, public body or other legal entity that is not a natural person.
+        synonyms: [company, organization, legal entity, firm, business]
+        parent: core.party
+        attributes:
+          - {name: registration_number, type: identifier, description: The organisation's registration number}
+      - id: core.party_role
+        label: Party role
+        definition: A role a party plays in a relationship, such as customer, agent or supplier. One party can play many roles.
+        synonyms: [role, relationship type]
+        parent: core.business_object
+        attributes:
+          - {name: role_type, type: code, description: The kind of role}
+          - {name: start_date, type: date, description: When the party started playing the role}
+          - {name: end_date, type: date, description: When the party stopped playing the role}
+        relations:
+          - {name: party, type: refers_to, target: core.party, description: The party playing the role}
+      - id: core.product
+        label: Product
+        definition: Something a business offers to customers under defined terms, such as an insurance product, a loan product or a service.
+        synonyms: [offering, plan, programme product]
+        parent: core.business_object
+        attributes:
+          - {name: code, type: code, description: The product code}
+          - {name: name, type: text, description: The product name}
+      - id: core.contract
+        label: Contract
+        definition: A binding agreement between parties that sets out obligations over a period, such as a policy, a loan or a service agreement.
+        synonyms: [agreement, arrangement]
+        parent: core.business_object
+        attributes:
+          - {name: number, type: identifier, description: The contract number}
+          - {name: start_date, type: date, description: When the contract takes effect}
+          - {name: end_date, type: date, description: When the contract ends}
+          - {name: status, type: code, description: The contract's current status}
+        relations:
+          - {name: holder, type: refers_to, target: core.party, description: The party that holds the contract}
+          - {name: product, type: refers_to, target: core.product, description: The product the contract is for}
+      - id: core.transaction
+        label: Transaction
+        definition: A business event that moves money or value, such as a charge, a payment, a refund or an adjustment.
+        synonyms: [financial transaction, posting, movement]
+        parent: core.business_object
+        attributes:
+          - {name: transaction_date, type: date, description: When the transaction happened}
+          - {name: amount, type: money, description: The amount moved}
+          - {name: currency, type: code, description: The ISO 4217 currency, code_list: core.currency}
+      - id: core.ledger_account
+        label: Ledger account
+        definition: An account in a general or subsidiary ledger that records balances of one kind.
+        synonyms: [GL account, general ledger account, account]
+        parent: core.business_object
+        attributes:
+          - {name: account_code, type: code, description: The account code in the chart of accounts}
+          - {name: name, type: text, description: The account name}
+      - id: core.ledger_entry
+        label: Ledger entry
+        definition: One debit or credit line posted to a ledger account. Entries of one journal balance to zero.
+        synonyms: [journal line, posting line, GL entry]
+        parent: core.transaction
+        attributes:
+          - {name: side, type: code, description: Debit or credit}
+          - {name: period, type: code, description: The accounting period the entry belongs to}
+        relations:
+          - {name: account, type: refers_to, target: core.ledger_account, description: The account posted to}
+      - id: core.obligation
+        label: Obligation
+        definition: Something one party owes another under a contract or law, such as a payment due, a filing or a report.
+        synonyms: [liability, duty, amount due]
+        parent: core.business_object
+        attributes:
+          - {name: due_date, type: date, description: When the obligation falls due}
+          - {name: amount, type: money, description: "The amount owed, if the obligation is monetary"}
+        relations:
+          - {name: obligor, type: refers_to, target: core.party, description: The party that owes}
+          - {name: contract, type: refers_to, target: core.contract, description: The contract the obligation arises from}
+      - id: core.document
+        label: Document
+        definition: A stored file or generated output, such as a form, letter, statement or image, linked to the records it concerns.
+        synonyms: [file, attachment, image, letter, form]
+        parent: core.business_object
+        attributes:
+          - {name: name, type: text, description: The document's name or title}
+          - {name: media_type, type: code, description: "The file format, for example application/pdf"}
+          - {name: size_bytes, type: integer, description: The file size in bytes}
+        relations:
+          - {name: subject, type: refers_to, target: core.business_object, description: The record the document belongs to}
+      - id: core.event
+        label: Event
+        definition: Something that happened at a point in time that the business records, such as a loss, a status change or a notification.
+        synonyms: [occurrence, incident, happening]
+        parent: core.business_object
+        attributes:
+          - {name: event_date, type: datetime, description: When the event happened}
+          - {name: event_type, type: code, description: The kind of event}
+      - id: core.location
+        label: Location
+        definition: A place identified by an address or coordinates, such as a risk location, a branch or a registered office.
+        synonyms: [address, site, premises, place]
+        parent: core.business_object
+        attributes:
+          - {name: address, type: text, description: The postal address}
+          - {name: jurisdiction, type: code, description: The state or province}
+          - {name: country, type: code, description: The ISO 3166-1 alpha-2 country, code_list: core.country}
+      - id: core.asset
+        label: Asset
+        definition: A physical or financial item of value that a party owns, insures, maintains or finances.
+        synonyms: [item, property, equipment]
+        parent: core.business_object
+        attributes:
+          - {name: description, type: text, description: What the asset is}
+          - {name: value, type: money, description: The asset's value}
+    code_lists:
+      - id: core.currency
+        title: Currencies used in the reference cases
+        standard: ISO 4217
+        values:
+          - {code: USD, label: US dollar}
+          - {code: CAD, label: Canadian dollar}
+          - {code: GBP, label: Pound sterling}
+          - {code: EUR, label: Euro}
+      - id: core.country
+        title: Countries used in the reference cases
+        standard: ISO 3166-1 alpha-2
+        values:
+          - {code: US, label: United States}
+          - {code: CA, label: Canada}
+          - {code: GB, label: United Kingdom}
+adds:
+  rules:
+    - id: CORE-CONTRACT-PERIOD
+      statement: A contract cannot end before it starts.
+      applies_to: [core.contract]
+      severity: blocking
+    - id: CORE-JOURNAL-BALANCE
+      statement: The ledger entries of one journal must balance to zero.
+      applies_to: [core.ledger_entry]
+      severity: blocking
+    - id: CORE-DOCUMENT-LINK
+      statement: Every document must stay linked to the record it belongs to after migration.
+      applies_to: [core.document]
+      severity: blocking

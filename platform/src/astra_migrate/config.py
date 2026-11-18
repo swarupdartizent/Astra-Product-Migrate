@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5273"
     # Job worker threads in the API process. Azure runs workers in their own container and sets this to 0.
     job_workers: int = 2
+    # Test environments only: "user:password@host:port" of a SQL Server administrator used to build
+    # synthetic golden estates. Never set where customer data lives.
+    golden_sqlserver_admin: SecretStr | None = None
 
     @property
     def issuers(self) -> list[str]:

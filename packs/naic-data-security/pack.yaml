@@ -1,0 +1,69 @@
+apiVersion: astra.packs/v1
+type: compliance
+name: naic-data-security
+version: 1.0.0
+title: NAIC Insurance Data Security Model Law
+description: >-
+  Protects policyholders' nonpublic information during a migration, following the NAIC Insurance Data Security
+  Model Law: risk-based safeguards, oversight of third-party service providers (including migration partners and the
+  hosting vendor), an incident response plan, and investigation and notice of cybersecurity events. States adopt the
+  model with their own changes; the customer's counsel confirms which version applies.
+publisher: Artizent
+licence: proprietary
+standards:
+  - NAIC Insurance Data Security Model Law (Model #668)
+disclaimer: >-
+  This pack supports, but does not certify, compliance with the NAIC Insurance Data Security Model Law or any state's
+  version of it. It does not replace legal advice.
+adds:
+  controls:
+    - id: NAIC-DH-01
+      type: data_handling
+      title: Nonpublic information protected outside production
+      rule: >-
+        Nonpublic information is masked or synthetic in every non-production environment, and encrypted in transit
+        and at rest wherever migration data is stored.
+      evidence_required: Masking rules applied per environment, masking test results, and encryption settings.
+      parameters: {applies_to: [extract, test_environment]}
+      sources:
+        - {reference: "NAIC Model #668, Section 4 (Information Security Program; risk management measures)"}
+    - id: NAIC-TPSP-01
+      type: approval
+      title: Third-party service providers assessed before access
+      rule: >-
+        Every third-party service provider that will hold or access nonpublic information during the migration
+        (migration partner, hosting vendor, tools) is assessed and approved before it gets access.
+      evidence_required: Provider assessments, contract security terms and the approvals.
+      parameters: {applies_to: [third_party_access]}
+      compliance_critical: true
+      two_person_approval: true
+      sources:
+        - {reference: "NAIC Model #668, Section 4 (oversight of third-party service provider arrangements)"}
+    - id: NAIC-IRP-01
+      type: gate
+      gate: build_rehearse
+      title: Incident response plan covers the migration
+      rule: Before data leaves production for a rehearsal, an incident response plan names who investigates and who notifies.
+      evidence_required: The approved incident response plan covering migration environments.
+      sources:
+        - {reference: "NAIC Model #668, Section 4 (incident response plan)"}
+    - id: NAIC-EVENT-01
+      type: evidence
+      title: Cybersecurity events investigated and notified
+      rule: >-
+        Any cybersecurity event affecting migration data is investigated, and the insurance commissioner is notified
+        within the deadline the applicable state law sets.
+      evidence_required: Event log, investigation records, and notices sent with their dates.
+      sources:
+        - {reference: "NAIC Model #668, Section 5 (investigation) and Section 6 (notification to the commissioner within 72 hours)"}
+  settings:
+    - key: incident.notify_commissioner_hours
+      value: 72
+      stricter: lower
+      unit: hours
+      description: Longest time from determining a cybersecurity event to notifying the commissioner.
+      sources:
+        - {reference: "NAIC Model #668, Section 6 (72 hours); some states set other periods"}
+tests:
+  - {name: Masks data outside production, kind: control_type, id: NAIC-DH-01, expect: data_handling}
+  - {name: Notice within 72 hours, kind: setting_value, key: incident.notify_commissioner_hours, expect: 72}

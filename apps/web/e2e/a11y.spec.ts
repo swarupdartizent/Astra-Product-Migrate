@@ -46,6 +46,15 @@ for (const path of [
   '/agents/register',
   '/agents/fixture-agent/1.0.0?tab=tests',
   '/projects/00000000-0000-4000-8000-000000000000?tab=reviews',
+  '/adapters?tab=contract',
+  '/adapters/fixture-source/1.0.0?tab=traps',
+  '/golden',
+  '/adapter-runs/00000000-0000-4000-8000-000000000000',
+  '/baselines',
+  '/baselines/00000000-0000-4000-8000-000000000000',
+  '/ontology',
+  '/ontology/fixture.concept?tab=bindings',
+  '/tenants/00000000-0000-4000-8000-000000000000?tab=sources',
 ]) {
   test(`deep link ${path} while signed out goes to sign-in and keeps the destination`, async ({
     page,

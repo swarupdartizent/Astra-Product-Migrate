@@ -710,6 +710,8 @@ export interface Job {
   created_at: DateTime;
   started_at: DateTime | null;
   finished_at: DateTime | null;
+  /** True when the caller may cancel this job now. */
+  can_cancel: boolean;
 }
 
 /** The short form embedded in TenantOut.active_job. */
@@ -1131,6 +1133,8 @@ export interface ReviewItem {
   resolved_at: DateTime | null;
   created_at: DateTime;
   can_resolve: boolean;
+  /** Why the caller cannot resolve the item, when can_resolve is false. */
+  cannot_resolve_reason?: string | null;
   /** Screening flags only, on GET /review-items/{id}: the legacy text, hidden characters revealed. */
   flagged_text?: string | null;
 }
@@ -1151,4 +1155,541 @@ export interface ProjectStage {
   updated_by: string | null;
   updated_by_type: string | null;
   updated_at: DateTime | null;
+}
+
+// ---------- Adapters (tag "adapters") ----------
+
+export type SourceEngine = 'sqlserver' | 'sqlanywhere';
+
+export interface AdapterSummary {
+  ref: string;
+  name: string;
+  version: string;
+  /** "source_adapter" | "target_adapter" */
+  type: string;
+  status: string;
+  title: string;
+  product: string;
+  product_versions: string[];
+  engines: string[];
+  object_types: string[];
+  entities: number;
+  traps: number;
+  curated_traps: number;
+  golden_datasets: string[];
+  constraints: number;
+  /** false = not yet proven on a real estate or target. */
+  validated: boolean;
+  contract_valid: boolean;
+  contract_problem: string | null;
+}
+
+export interface AdapterContract {
+  version: string;
+  operations: { name: string; description: string }[];
+  documentation: string;
+  source_schema: Record<string, unknown>;
+  read_only_layers: string[];
+}
+
+/** Source adapter content (pack manifest `content`, contract astra.adapters/v1). */
+export interface SourceAdapterContent {
+  contract: string;
+  product: { name: string; versions: string[] };
+  engines: { engine: SourceEngine; min_version?: string | null; notes?: string }[];
+  object_types: {
+    key: string;
+    label: string;
+    code?: boolean;
+    queries: Record<string, string>;
+    dependencies?: Record<string, string>;
+    required?: boolean;
+    interface?: boolean;
+  }[];
+  entities?: {
+    name: string;
+    table: string;
+    key: string[];
+    delta_column?: string | null;
+    concept?: string | null;
+    attributes?: Record<string, string>;
+    relations?: Record<
+      string,
+      { entity: string; column: string; concept_relation?: string | null }
+    >;
+  }[];
+  documents?: {
+    table: string;
+    key: string;
+    name_column: string;
+    content_column?: string | null;
+    created_column?: string | null;
+    delta_column?: string | null;
+    link_type_column: string;
+    link_key_column: string;
+    link_types: Record<string, string>;
+  } | null;
+  traps?: AdapterTrapDef[];
+  golden_datasets?: { name: string; path: string; engine: SourceEngine; description?: string }[];
+  validated_against_real_estate?: boolean;
+}
+
+export interface TrapDetect {
+  kind: 'object_exists' | 'query';
+  object_type?: string | null;
+  name_pattern?: string | null;
+  definition_pattern?: string | null;
+  queries?: Record<string, string>;
+}
+
+export interface AdapterTrapDef {
+  id: string;
+  title: string;
+  description: string;
+  severity: 'high' | 'medium' | 'low';
+  stream: string;
+  advice: string;
+  detect: TrapDetect;
+  sources?: PackSource[];
+}
+
+export interface AdapterTrap extends AdapterTrapDef {
+  /** "pack" | "curated" */
+  origin: string;
+  active: boolean;
+  added_by: string | null;
+  reason: string | null;
+}
+
+export interface TargetConstraint {
+  id: string;
+  kind: string;
+  title: string;
+  statement: string;
+  applies_to: string[];
+  value?: unknown;
+  source: PackSource;
+  recorded_on: string;
+  confidence: 'confirmed' | 'reported' | 'assumed' | (string & {});
+  /** The planning rule it becomes, TGT-<id>. */
+  rule_id: string;
+}
+
+export interface TargetLoadConfig {
+  method: 'rest_api' | 'vendor_tool' | (string & {});
+  auth: string;
+  token_path: string | null;
+  scopes: string[];
+  endpoints: { entity: string; method: string; path: string; batch_size: number }[];
+  rate_limit: {
+    requests_per_minute: number;
+    burst: number;
+    source: PackSource;
+    recorded_on: string;
+  };
+  approved_tools: string[];
+}
+
+export interface TargetConstraints {
+  adapter: string;
+  validated: boolean;
+  load: TargetLoadConfig;
+  constraints: TargetConstraint[];
+}
+
+export interface SourceConnection {
+  id: Uuid;
+  tenant_id: Uuid;
+  project_id: Uuid | null;
+  name: string;
+  adapter: string;
+  engine: string;
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  password_ref: string;
+  encrypt: boolean;
+  last_check: Record<string, unknown> | null;
+  last_checked_at: DateTime | null;
+  created_at: DateTime;
+  can_manage: boolean;
+}
+
+export interface SourceConnectionIn {
+  name: string;
+  adapter: string;
+  engine: SourceEngine;
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  password_ref: string;
+  encrypt: boolean;
+  project_id?: Uuid | null;
+}
+
+export type AdapterRunKind = 'check' | 'harvest' | 'extract';
+
+export interface AdapterRun {
+  id: Uuid;
+  connection_id: Uuid;
+  kind: AdapterRunKind | (string & {});
+  mode: string | null;
+  adapter: string;
+  /** "queued" | "running" | "succeeded" | "failed" | "blocked" | "cancelled" */
+  status: string;
+  status_detail: string | null;
+  /** check: ConnectionCheck; harvest: objects/objects_by_type/coverage_complete/...; extract: mode/entities/documents/rows */
+  summary: Record<string, unknown>;
+  job_id: Uuid | null;
+  requested_by: string;
+  created_at: DateTime;
+  finished_at: DateTime | null;
+}
+
+export interface ConnectionCheck {
+  ok: boolean;
+  engine: string;
+  engine_version: string | null;
+  edition?: string | null;
+  database?: string | null;
+  login?: string | null;
+  read_only: boolean;
+  read_only_evidence: string[];
+  supported: boolean;
+  problems: string[];
+}
+
+export interface CoverageRow {
+  object_type: string;
+  label: string;
+  required: boolean;
+  status: string;
+  count: number | null;
+  error: string | null;
+  dependencies: number | null;
+  code_missing: number | null;
+}
+
+export interface TrapFinding {
+  trap_id: string;
+  origin: string;
+  title: string;
+  severity: string;
+  stream: string;
+  advice: string;
+  hits: string[];
+}
+
+export interface ExtractCount {
+  entity: string;
+  mode: string;
+  source_count: number | null;
+  extracted: number;
+  watermark: string | null;
+}
+
+export interface ExtractedDocument {
+  doc_key: string;
+  name: string;
+  link_type: string | null;
+  link_entity: string | null;
+  link_key: string | null;
+  link_resolved: boolean;
+  size_bytes: number | null;
+  sha256: string | null;
+}
+
+export interface AdapterRunDetail {
+  run: AdapterRun;
+  coverage?: CoverageRow[];
+  traps?: TrapFinding[];
+  counts?: ExtractCount[];
+  documents?: ExtractedDocument[];
+}
+
+export interface SourceObject {
+  object_type: string;
+  schema: string;
+  name: string;
+  owner: string | null;
+  modified_at: DateTime | null;
+  has_code: boolean;
+  definition_sha256: string | null;
+  depends_on: string[] | null;
+  detail: Record<string, unknown> | null;
+}
+
+export interface SourceObjectPage {
+  total: number;
+  offset: number;
+  items: SourceObject[];
+}
+
+export interface SourceObjectDetail extends Omit<SourceObject, 'has_code'> {
+  definition: string | null;
+}
+
+// ---------- Targets, baselines and golden runs (tag "targets") ----------
+
+export interface Baseline {
+  id: Uuid;
+  adapter_name: string;
+  name: string;
+  product_version: string;
+  provided_by: string;
+  provided_on: DateTime;
+  digest: string;
+  object_count: number;
+  objects_by_type: Record<string, number>;
+  /** True when this is not the vendor's real baseline. */
+  synthetic: boolean;
+  created_by: string | null;
+  created_at: DateTime;
+  pinned_projects: number;
+}
+
+export interface BaselineObject {
+  type: string;
+  name: string;
+  schema?: string | null;
+  columns?: Record<string, unknown>[];
+  detail?: Record<string, unknown>;
+}
+
+export interface BaselineDetail {
+  baseline: Baseline;
+  total: number;
+  objects: BaselineObject[];
+}
+
+export interface BaselineIn {
+  adapter_name: string;
+  name: string;
+  baseline_yaml: string;
+  synthetic: boolean;
+}
+
+export interface ProjectBaselinePin {
+  pinned: Baseline | null;
+  reason?: string;
+  pinned_by?: string | null;
+  pinned_at?: DateTime;
+}
+
+export interface TargetConnection {
+  id: Uuid;
+  tenant_id: Uuid;
+  name: string;
+  adapter: string;
+  base_url: string;
+  client_id: string;
+  client_secret_ref: string;
+  created_at: DateTime;
+}
+
+export interface TargetConnectionIn {
+  name: string;
+  adapter: string;
+  base_url: string;
+  client_id: string;
+  client_secret_ref: string;
+}
+
+export interface LoadIn {
+  entity: string;
+  records: Record<string, unknown>[];
+  reason: string;
+}
+
+export interface LoadCall {
+  id: Uuid;
+  created_at: DateTime;
+  entity: string;
+  method: string;
+  path: string;
+  status_code: number | null;
+  /** "ok" | "rejected" | "rate_limited" | "error" */
+  outcome: string;
+  records: number;
+  waited_ms: number;
+  latency_ms: number;
+  rate_limit_remaining: number | null;
+  error: string | null;
+  trace_id: string | null;
+}
+
+export interface GoldenDataset {
+  /** "adapter@version:name" */
+  dataset: string;
+  adapter: string;
+  adapter_status: string;
+  name: string;
+  engine: string;
+  description: string;
+  last_run: { id: Uuid; status: string; started_at: DateTime } | null;
+}
+
+export interface GoldenFiles {
+  dataset: Record<string, unknown>;
+  expected: Record<string, unknown> | null;
+  files: string[];
+}
+
+export interface GoldenMeasure {
+  name: string;
+  passed: boolean;
+  expected: unknown;
+  actual: unknown;
+  precision: number | null;
+  recall: number | null;
+  detail: string;
+}
+
+export interface GoldenScorecard {
+  dataset: string;
+  database: string;
+  passed: boolean;
+  measures: GoldenMeasure[];
+}
+
+export interface GoldenRun {
+  id: Uuid;
+  dataset: string;
+  /** ref → digest at request time */
+  packs: Record<string, string>;
+  /** "queued" | "running" | "passed" | "failed" | "blocked" | "error" */
+  status: string;
+  status_detail: string | null;
+  scorecard: GoldenScorecard | null;
+  keep: boolean;
+  job_id: Uuid | null;
+  started_by: string | null;
+  started_at: DateTime;
+  finished_at: DateTime | null;
+}
+
+export interface GoldenRunIn {
+  dataset: string;
+  packs: string[];
+  keep: boolean;
+}
+
+// ---------- Ontology (tag "ontology") ----------
+
+export interface OntologyScope {
+  ontology_version: string;
+  packs: { ref: string; concepts: number }[];
+}
+
+export interface ConceptSummary {
+  id: string;
+  label: string;
+  parent: string | null;
+  pack: string;
+  definition: string;
+}
+
+export interface ConceptBrowse {
+  ontology_version: string;
+  concepts: ConceptSummary[];
+}
+
+export interface ConceptMatch extends ConceptSummary {
+  synonyms: string[];
+  score: number;
+  match: 'exact' | 'similar';
+}
+
+export interface ConceptFind {
+  ontology_version: string;
+  query: string;
+  results: ConceptMatch[];
+  elapsed_ms?: number;
+}
+
+export interface ConceptAttribute {
+  name: string;
+  type: string;
+  description: string;
+  code_list?: string | null;
+}
+
+export interface ConceptDetail {
+  ontology_version: string;
+  concept: ConceptSummary & {
+    synonyms: string[];
+    attributes: ConceptAttribute[];
+    standards: string[];
+  };
+  ancestors: string[];
+  children: string[];
+  relations: {
+    name: string;
+    type: string;
+    target: string;
+    cardinality: string;
+    description: string;
+  }[];
+  referenced_by: { source: string; name: string; type: string; cardinality: string }[];
+  code_lists: {
+    list_id: string;
+    title: string;
+    standard: string;
+    code_values: { code: string; label: string }[];
+  }[];
+}
+
+export interface ConceptConstraint {
+  id: string;
+  statement: string;
+  severity: string;
+  pack: string;
+  kind: 'domain_rule' | 'target_constraint' | (string & {});
+  executable: boolean;
+  sources: string[];
+  recorded_on?: string | null;
+}
+
+export interface ConceptConstraints {
+  ontology_version: string;
+  concept: string;
+  inherited_from: string[];
+  constraints: ConceptConstraint[];
+  elapsed_ms?: number;
+}
+
+export interface ConceptBinding {
+  adapter_ref: string;
+  entity: string;
+  table_name: string;
+  attributes: Record<string, string> | null;
+  relations: Record<string, unknown> | null;
+  validated: boolean;
+}
+
+export interface ConceptBindings {
+  ontology_version: string;
+  concept: string;
+  bindings: ConceptBinding[];
+  elapsed_ms?: number;
+}
+
+export interface ConceptPrecedent {
+  adapter_ref: string;
+  legacy_element: string;
+  target_element: string;
+  decision: string;
+  rationale: string;
+  decided_by_name: string | null;
+  recorded_at: DateTime;
+}
+
+export interface ConceptPrecedents {
+  ontology_version: string;
+  concept: string;
+  precedents: ConceptPrecedent[];
+  note: string | null;
+  elapsed_ms?: number;
 }

@@ -1,0 +1,99 @@
+apiVersion: astra.packs/v1
+type: target_adapter
+name: prosuite-base-target
+version: 1.0.0
+title: Insurity Pro Suite Base target adapter
+description: >-
+  What the platform knows about loading into an Insurity Pro Suite Base hosted tenant, and the product's limits
+  that planning and design must respect.
+
+  STATUS: unvalidated. Constraints come from the product experts' notes in the baseline POV, summarised in the
+  ConceptOne to Pro Suite fit assessment (17 Nov 2026), and are marked "reported" until Insurity confirms them in
+  writing. The REST API's token endpoint, load endpoints and rate limits are not yet documented to us, so they are
+  left unset and loads show as Blocked. Baseline metadata is loaded separately (astra.baseline/v1) once Insurity
+  provides it.
+publisher: Artizent
+licence: proprietary
+content:
+  contract: astra.adapters/v1
+  validated_against_real_target: false
+  product:
+    name: Insurity Pro Suite Base
+    versions: ["unconfirmed"]
+  load:
+    method: rest_api
+    auth: oauth2_client_credentials
+    scopes: []
+    endpoints: []
+    approved_tools: []
+    rate_limit:
+      requests_per_minute: 60
+      burst: 1
+      source: {reference: "Conservative default until Insurity documents the Pro Suite API rate limits (open question in the fit assessment, section 2.5)"}
+      recorded_on: 2026-11-18
+  constraints:
+    - id: PSB-NO-DB-WRITES
+      kind: database_access
+      title: No direct database access to the hosted tenant
+      statement: >-
+        Data and integrations reach a Pro Suite Base tenant only through its REST APIs with OAuth2, read-only DBQuery,
+        webhooks or Integration Service vendors. No migration task may write to, or call, the tenant database directly.
+      applies_to: [pc.policy, pc.claim, pc.invoice, core.party, core.document]
+      source: {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026, section 2.2 (SME notes via the baseline POV)"}
+      recorded_on: 2026-11-17
+      confidence: reported
+    - id: PSB-HOSTED-SQL-TENANT
+      kind: provisioning
+      title: One Insurity-hosted SQL Server database per tenant
+      statement: >-
+        Each customer gets one SQL Server database hosted by Insurity. Plans must include requesting the tenant and
+        sandbox, with the lead time Insurity commits to, before any load rehearsal.
+      value: {lead_time_days: null}
+      source: {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026, sections 2.2 and 4 (point 6)"}
+      recorded_on: 2026-11-17
+      confidence: reported
+    - id: PSB-PDF-ONLY-FORMS
+      kind: forms
+      title: Forms are PDF-only
+      statement: Forms in Pro Suite Base are PDF-only; every legacy form design must become a PDF form and pass a parity check against its approved copy.
+      applies_to: [core.document]
+      source: {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026, section 2.2 (SME notes)"}
+      recorded_on: 2026-11-17
+      confidence: reported
+    - id: PSB-DESKTOP-WORKFLOW-RETIRED
+      kind: workflow
+      title: Some desktop workflow objects retire
+      statement: >-
+        Business users move to the browser; the desktop client stays for configuration and claims. Desktop-only
+        workflow objects must be redesigned for the browser or retired.
+      source: {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026, sections 2.2 and 3 (configuration stream)"}
+      recorded_on: 2026-11-17
+      confidence: reported
+    - id: PSB-UX-DESIGNER-PAGES
+      kind: other
+      title: Web pages are built in UX Designer
+      statement: Customer-specific screens must be rebuilt as UX Designer pages; legacy screen customisations do not carry over.
+      source: {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026, section 2.2 (SME notes)"}
+      recorded_on: 2026-11-17
+      confidence: reported
+    - id: PSB-SSO-MFA
+      kind: identity
+      title: Users sign in with single sign-on and MFA
+      statement: Database logins per user are replaced by single sign-on with multi-factor authentication; user and security profile migration must map to identity-provider accounts.
+      source: {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026, sections 2.2 and 3 (users stream)"}
+      recorded_on: 2026-11-17
+      confidence: reported
+    - id: PSB-APPROVED-LOAD-TOOLS
+      kind: load_tool
+      title: Only Insurity-approved bulk load tools
+      statement: Bulk loads may use only tools Insurity approves for partners. Until Insurity names them, bulk load tasks stay blocked and loads go through the documented APIs only.
+      source: {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026, section 9 (open question: which bulk load tools may partners use)"}
+      recorded_on: 2026-11-17
+      confidence: assumed
+    - id: PSB-CHANGE-WINDOWS
+      kind: change_window
+      title: Hosted change windows apply
+      statement: Loads and configuration changes to a hosted tenant happen only inside the change windows Insurity sets for the tenant.
+      source: {reference: "Fit assessment, section 4 (Insurity dependencies have no service levels yet); windows to be confirmed"}
+      recorded_on: 2026-11-17
+      confidence: assumed

@@ -84,7 +84,7 @@ export function JobProgress({
         </p>
       ) : null}
       {job.isError && !data ? <FormError error={job.error} /> : null}
-      {cancellable && status === 'queued' ? (
+      {cancellable && data?.can_cancel === true && status === 'queued' ? (
         <div>
           <Button
             size="sm"

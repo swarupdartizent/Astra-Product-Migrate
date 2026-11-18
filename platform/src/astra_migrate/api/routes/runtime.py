@@ -183,6 +183,7 @@ class ReviewOut(BaseModel):
     resolved_at: datetime | None
     created_at: datetime
     can_resolve: bool
+    cannot_resolve_reason: str | None = None
     flagged_text: str | None = None
 
 
@@ -203,7 +204,8 @@ def _review_out(s: Session, principal: Any, t: Tenant, r: ReviewItem, with_text:
                      requested_by_type=str(r.requested_by.get("type", "")), agent_run_id=r.agent_run_id,
                      status=r.status, resolution=r.resolution, resolution_note=r.resolution_note,
                      resolved_by=by.display_name if by else None, resolved_at=r.resolved_at,
-                     created_at=r.created_at, can_resolve=_can_resolve(principal, t, r)[0], flagged_text=text)
+                     created_at=r.created_at, can_resolve=_can_resolve(principal, t, r)[0],
+                     cannot_resolve_reason=_can_resolve(principal, t, r)[1] or None, flagged_text=text)
 
 
 def _can_resolve(principal: Any, t: Tenant, r: ReviewItem) -> tuple[bool, str]:

@@ -45,6 +45,11 @@ class P(StrEnum):
     AGENT_PIN = "agent:pin"
     REVIEW_RESOLVE = "review:resolve"
     STAGE_MANAGE = "stage:manage"
+    SOURCE_MANAGE = "source:manage"
+    TRAP_CURATE = "trap:curate"
+    BASELINE_MANAGE = "baseline:manage"
+    TARGET_LOAD = "target:load"
+    GOLDEN_RUN = "golden:run"
 
 
 @dataclass(frozen=True)
@@ -69,13 +74,13 @@ ROLES: dict[str, RoleDef] = {r.key: r for r in [
        set(P), {"platform"}),
     _r("platform_engineer", "Platform engineer", "Builds and operates the platform; reads traces and cost.",
        {P.TENANT_READ, P.OBSERVABILITY_READ, P.AUDIT_READ, P.MODEL_MANAGE, P.AGENT_MANAGE}, {"platform"}),
-    _r("pack_developer", "Pack developer", "Builds adapters and packs.", {P.TENANT_READ, P.PACK_PUBLISH},
-       {"platform"}),
+    _r("pack_developer", "Pack developer", "Builds adapters and packs.",
+       {P.TENANT_READ, P.PACK_PUBLISH, P.TRAP_CURATE, P.BASELINE_MANAGE, P.GOLDEN_RUN}, {"platform"}),
     _r("ontology_curator", "Ontology and pack curator", "Maintains the ontology, domain packs and shared skills.",
-       {P.TENANT_READ, P.PACK_PUBLISH, P.TEMPLATE_MANAGE}, {"platform"}),
+       {P.TENANT_READ, P.PACK_PUBLISH, P.TEMPLATE_MANAGE, P.TRAP_CURATE, P.GOLDEN_RUN}, {"platform"}),
     _r("compliance_curator", "Compliance curator", "Maintains compliance packs and control rules.",
        {P.TENANT_READ, P.AUDIT_READ, P.PACK_PUBLISH, P.PACK_REVIEW, P.DECIDE_CONFLICT, P.APPROVE_LOOSENING,
-        P.REVIEW_RESOLVE},
+        P.REVIEW_RESOLVE, P.GOLDEN_RUN},
        {"platform", "programme", "tenant", "project"}),
     _r("auditor", "Auditor", "Checks evidence, the audit log and the proof pack.",
        {P.TENANT_READ, P.AUDIT_READ, P.AUDIT_EXPORT, P.AUDIT_VERIFY, P.ACCESS_READ}),
@@ -88,11 +93,12 @@ ROLES: dict[str, RoleDef] = {r.key: r for r in [
     _r("migration_lead", "Migration lead", "Runs a customer migration from set-up to sign-off.",
        {P.TENANT_READ, P.ACCESS_READ, P.SECRETS_READ, P.SECRETS_MANAGE, P.AUDIT_READ, P.OBSERVABILITY_READ,
         P.PROJECT_CREATE, P.BLUEPRINT_EDIT, P.BLUEPRINT_APPROVE, P.DECIDE_CONFLICT, P.AGENT_RUN, P.AGENT_PIN,
-        P.REVIEW_RESOLVE, P.STAGE_MANAGE}),
+        P.REVIEW_RESOLVE, P.STAGE_MANAGE, P.SOURCE_MANAGE, P.TARGET_LOAD}),
     _r("data_sme", "Data subject expert", "Reviews data, mappings, code lists and data quality.",
-       {P.TENANT_READ}),
+       {P.TENANT_READ, P.REVIEW_RESOLVE, P.SOURCE_MANAGE}),
     _r("solution_architect", "Solution architect", "Owns target design, customizations, integrations and gaps.",
-       {P.TENANT_READ, P.SECRETS_READ, P.BLUEPRINT_EDIT, P.REVIEW_RESOLVE}),
+       {P.TENANT_READ, P.SECRETS_READ, P.BLUEPRINT_EDIT, P.REVIEW_RESOLVE, P.SOURCE_MANAGE, P.TRAP_CURATE,
+        P.BASELINE_MANAGE}),
     _r("customer_data_owner", "Customer data owner", "Makes business data decisions and signs off reconciliation.",
        {P.TENANT_READ, P.AUDIT_READ, P.BLUEPRINT_APPROVE, P.REVIEW_RESOLVE}, {"tenant", "project"}),
     _r("customer_it_security_lead", "Customer IT security lead", "Owns the customer's security set-up.",
@@ -105,9 +111,9 @@ ROLES: dict[str, RoleDef] = {r.key: r for r in [
     _r("commercial_manager", "Commercial manager", "Prices work and tracks milestone billing.",
        {P.TENANT_READ}, {"platform", "programme", "partner"}),
     _r("reviewer", "Reviewer", "Approves, rejects or changes proposals in the review workbench.",
-       {P.TENANT_READ}),
+       {P.TENANT_READ, P.REVIEW_RESOLVE}),
     _r("test_engineer", "Test engineer", "Owns tests, parity checks and golden datasets.",
-       {P.TENANT_READ}),
+       {P.TENANT_READ, P.REVIEW_RESOLVE, P.GOLDEN_RUN}),
 ]}
 
 ADMIN_ROLE = "platform_admin"

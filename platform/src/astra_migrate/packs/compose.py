@@ -20,7 +20,7 @@ from typing import Any, Literal
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from astra_migrate.packs.schema import PLACEMENT, Control, Manifest, Rule, Setting
+from astra_migrate.packs.schema import PLACEMENT, Control, Manifest, Rule, Setting, Source
 
 Scalar = int | float | bool | str
 
@@ -158,6 +158,15 @@ def compose(manifests: list[Manifest]) -> Composition:
             comp.controls.append(PlacedControl(f"{m.name}:{c.id}", m.ref, c))
         for r in m.adds.rules:
             comp.rules.append((m.ref, r))
+        # A target adapter's recorded constraints become rules for planning and design (E05.F3.S3).
+        if m.type.value == "target_adapter":
+            for con in m.content.get("constraints") or []:
+                comp.rules.append((m.ref, Rule(
+                    id=f"TGT-{con['id']}", statement=con["statement"], applies_to=list(con.get("applies_to") or []),
+                    severity="blocking",
+                    sources=[Source(reference=f"{con['source']['reference']} (recorded {con['recorded_on']}, "
+                                              f"{con.get('confidence', 'reported')})",
+                                    url=con["source"].get("url"))])))
         for s in m.adds.settings:
             cs = comp.settings.get(s.key)
             if cs is None:

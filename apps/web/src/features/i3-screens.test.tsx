@@ -50,6 +50,7 @@ function job(over: Partial<Job>): Job {
     status: 'running',
     progress: 40,
     progress_message: 'Building the database',
+    can_cancel: false,
     result: null,
     error: null,
     attempts: 1,

@@ -119,13 +119,22 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | The other agents in the specification are registered as their tools arrive (only the Orchestrator's tools exist now) | I5 onwards |
 | Agent governance records and review decisions in the proof pack (E02.F3.S1, E03.F2.S3) | I11 |
 | Model prices are kept by administrators on each provider; there is no automatic price feed | Later |
-| API gaps found while building the I3 screens: no `can_cancel` on jobs, no reason when a review item cannot be resolved, no allowed stage moves before trying, `/jobs` paging, untyped governance and transcript payloads | I4 |
+| API gaps from the I3 screens still open: allowed stage moves before trying, `/jobs` paging, untyped governance and transcript payloads (`can_cancel` and the reason a review item cannot be resolved were added in I4) | I5 |
+| The reference source adapter is proven only on the synthetic golden estate; its entity tables and SQL Anywhere queries must be confirmed on a real ConceptOne estate | Needs a ConceptOne reference database |
+| SQL Anywhere: the driver is written but needs an engine and SAP client libraries to run | Needs SQL Anywhere |
+| Pro Suite Base loads are Blocked: token endpoint, load endpoints, rate limits and approved bulk tools are unknown; only a synthetic baseline exists | Needs Insurity API docs, sandbox and baseline |
+| The five compliance packs are not published: each needs a named compliance specialist's review | Needs named reviewers |
+| Ontology embeddings are lexical (no meaning beyond shared wording); a model-based embedder can replace them | Later |
+| Dependencies hidden in dynamic SQL are not in the catalogue; the Code Reader must find them from code text | I5 |
+| API gaps from the I4 screens: no source-adapter detail endpoint, untyped run summaries and ontology responses, no permission hints on target connections and golden runs, extract documents capped at 500 without paging, loads have no record beyond the call log, and no up-front "loads blocked" flag on target connections | I5 |
+| `npm audit` reports high findings in development tooling only (via picomatch); production dependencies have none | Next dependency update |
+| I4 screens are verified by unit tests and by end-to-end tests against recorded API responses; a signed-in walk-through on the live stack needs the administrator's authenticator sign-in | Next demo |
 | I3 screens are verified by unit tests and by end-to-end tests against recorded API responses; a signed-in walk-through on the live stack needs the administrator's authenticator sign-in | Next demo |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
 | Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |
 | Loosening approvals and conflict decisions in the proof pack (E03.F2.S3) | I11 |
-| A pack CLI and SDK templates for partners (E04.F3.S1, R3); packs are uploaded through the API until then | I4 / R3 |
+| SDK templates for partners (E04.F3.S1); the pack CLI (validate, bundle, upload) exists since I4 | R3 |
 | Live verification against Microsoft Entra ID and Okta (E01.F2.S1) | Needs a test tenant |
 
 ## 8. Working rhythm

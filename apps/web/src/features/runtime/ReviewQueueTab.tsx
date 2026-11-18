@@ -245,8 +245,8 @@ function ReviewSheet({
               <ResolveForm project={project} item={r} />
             ) : (
               <Callout tone="info">
-                Only the {r.owner_role_label} role{r.owner_user ? ` or ${r.owner_user}` : ''} can
-                resolve this item.
+                {r.cannot_resolve_reason ??
+                  `Only the ${r.owner_role_label} role${r.owner_user ? ` or ${r.owner_user}` : ''} can resolve this item.`}
               </Callout>
             )
           ) : null}

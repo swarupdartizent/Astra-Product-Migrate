@@ -19,8 +19,9 @@ Prerequisites: Docker Desktop, Python 3.13, Node 24.
 py -3.13 tools/dev.py up
 ```
 
-This starts two regional Postgres servers, OpenBao (secrets and per-tenant keys), Keycloak (OIDC) and Jaeger,
-and generates every secret into `.local/` (gitignored). It is idempotent; run it again after a reboot to unseal
+This starts two regional Postgres servers, OpenBao (secrets and per-tenant keys), Keycloak (OIDC), Jaeger and
+SQL Server 2022 Developer Edition (for golden estates and source databases; Microsoft's licence was accepted when
+it was added), and generates every secret into `.local/` (gitignored). It is idempotent; run it again after a reboot to unseal
 the vault.
 
 ```bash
@@ -58,12 +59,26 @@ Agents call models only through the model gateway, and no key is built in. To tu
 
 Until a provider is configured, model test cases and agent runs show as *Blocked* with the reason.
 
+### Packs and adapters
+
+Packs live in `packs/` (one folder each). Check them offline, then upload as drafts (or use the Packs screen):
+
+```bash
+cd platform && .venv/Scripts/python -m astra_migrate.packs.cli validate ../packs/*
+```
+
+Source adapters follow the adapter contract (`docs/adapter-contract.md`). A source adapter ships golden datasets:
+synthetic estates with known answers that run on the local SQL Server (Packs > Golden datasets). Domain and adapter
+packs publish only after a golden run with their exact contents passed. The reference case's packs and their own
+tests are described in `programmes/conceptone-prosuite/README.md`.
+
 | Service | URL |
 |---|---|
 | Web app | http://localhost:5273 |
 | API docs (OpenAPI) | http://localhost:8000/api/v1/docs |
 | Keycloak | http://localhost:18080 |
 | Jaeger (traces) | http://localhost:16686 |
+| SQL Server (golden estates) | 127.0.0.1:11433 |
 
 ## Tests
 

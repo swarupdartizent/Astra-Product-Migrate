@@ -1,0 +1,58 @@
+apiVersion: astra.packs/v1
+type: compliance
+name: soc1-ssae18
+version: 1.0.0
+title: SOC 1 (SSAE 18) for a vendor-hosted target
+description: >-
+  When the target product is hosted by its vendor, controls over financial reporting partly move to that vendor.
+  This pack makes the migration collect the vendor's SOC 1 report, map the complementary user entity controls to
+  the customer, and stop cutover until that is done.
+publisher: Artizent
+licence: proprietary
+standards:
+  - AICPA SSAE No. 18, AT-C section 320 (reporting on an examination of controls at a service organization)
+disclaimer: >-
+  This pack supports, but does not certify, SOC 1 reliance. The customer's auditors decide whether they can rely on
+  the service organization's report.
+adds:
+  controls:
+    - id: SOC1-REPORT-01
+      type: evidence
+      title: Vendor SOC 1 Type 2 report obtained
+      rule: >-
+        Obtain the hosting vendor's current SOC 1 Type 2 report covering the target service, and a bridge letter for
+        any gap between the report period and go-live.
+      evidence_required: The SOC 1 Type 2 report, its period, the bridge letter, and who reviewed them.
+      sources:
+        - {reference: "AICPA SSAE No. 18, AT-C section 320"}
+    - id: SOC1-CUEC-01
+      type: approval
+      title: Complementary user entity controls assigned
+      rule: >-
+        Every complementary user entity control listed in the vendor's report is mapped to a customer control with a
+        named owner, and the mapping is approved by the customer's IT security lead and finance control owner.
+      evidence_required: CUEC mapping with owners and the two approvals.
+      parameters: {applies_to: [cuec_mapping], approver_roles: [customer_it_security_lead, customer_data_owner]}
+      compliance_critical: true
+      two_person_approval: true
+      sources:
+        - {reference: "AICPA SSAE No. 18, AT-C section 320 (complementary user entity controls)"}
+    - id: SOC1-SUBSERVICE-01
+      type: evidence
+      title: Subservice organizations identified
+      rule: Subservice organizations carved out of the vendor's report (for example the cloud provider) are listed with their own reports.
+      evidence_required: List of subservice organizations and the reports obtained for each.
+      sources:
+        - {reference: "AICPA SSAE No. 18, AT-C section 320 (carve-out and inclusive methods)"}
+    - id: SOC1-GATE-01
+      type: gate
+      gate: cutover
+      title: No cutover before the SOC 1 review is complete
+      rule: Go-live waits until the report is reviewed, exceptions are assessed, and complementary controls are in place.
+      evidence_required: Review memo with exceptions assessed and the approved CUEC mapping.
+      compliance_critical: true
+      sources:
+        - {reference: "AICPA SSAE No. 18, AT-C section 320"}
+tests:
+  - {name: Report is evidence, kind: control_type, id: SOC1-REPORT-01, expect: evidence}
+  - {name: Cutover waits for the review, kind: control_type, id: SOC1-GATE-01, expect: gate}

@@ -1,0 +1,425 @@
+apiVersion: astra.packs/v1
+type: source_adapter
+name: conceptone-source
+version: 1.0.0
+title: ConceptOne source adapter
+description: >-
+  Reads an Insurity ConceptOne estate on Microsoft SQL Server or SAP SQL Anywhere with a read-only account:
+  the object inventory (tables, user-defined tables, views, procedures, functions, triggers, validation rules,
+  workflows, security profiles and External Programs), entity data with deltas, File Cabinet documents with their
+  entity links, and the known traps from earlier work.
+
+  STATUS: unvalidated. The SQL Server catalogue queries use SQL Server's own system views and are exercised on
+  the synthetic golden estate. The table and column names of business entities and configuration objects follow
+  the synthetic estate, because no real ConceptOne database has been available. They must be confirmed against a
+  real estate (sample or Insurity reference database) before customer use. The SQL Anywhere queries have not run
+  against a SQL Anywhere engine.
+publisher: Artizent
+licence: proprietary
+content:
+  contract: astra.adapters/v1
+  validated_against_real_estate: false
+  product:
+    name: Insurity ConceptOne
+    versions: ["unconfirmed (all versions on SQL Server or SQL Anywhere)"]
+  engines:
+    - {engine: sqlserver, min_version: "11.0", notes: "SQL Server support was added to ConceptOne in June 2013"}
+    - {engine: sqlanywhere, notes: "SAP SQL Anywhere (not Sybase ASE). Needs SAP's client libraries on the node."}
+  object_types:
+    - key: table
+      label: Product tables
+      queries:
+        sqlserver: >-
+          SELECT t.name AS name, SCHEMA_NAME(t.schema_id) AS [schema],
+                 USER_NAME(COALESCE(t.principal_id, s.principal_id)) AS owner, t.modify_date AS modified_at,
+                 (SELECT c.name AS n, TYPE_NAME(c.user_type_id) AS t, c.max_length AS l, c.is_nullable AS nl
+                    FROM sys.columns c WHERE c.object_id = t.object_id ORDER BY c.column_id FOR JSON PATH) AS detail
+          FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id
+          WHERE t.is_ms_shipped = 0 AND t.name NOT LIKE 'usr[_]%'
+        sqlanywhere: >-
+          SELECT t.table_name AS name, u.user_name AS "schema", u.user_name AS owner, t.last_modified_at AS modified_at
+          FROM SYS.SYSTAB t JOIN SYS.SYSUSER u ON u.user_id = t.creator
+          WHERE t.table_type_str = 'BASE' AND u.user_name NOT IN ('SYS', 'dbo', 'rs_systabgroup', 'SA_DEBUG')
+            AND t.table_name NOT LIKE 'usr\_%' ESCAPE '\'
+    - key: user_defined_table
+      label: User-defined tables
+      queries:
+        sqlserver: >-
+          SELECT t.name AS name, SCHEMA_NAME(t.schema_id) AS [schema],
+                 USER_NAME(COALESCE(t.principal_id, s.principal_id)) AS owner, t.modify_date AS modified_at,
+                 (SELECT c.name AS n, TYPE_NAME(c.user_type_id) AS t FROM sys.columns c
+                   WHERE c.object_id = t.object_id ORDER BY c.column_id FOR JSON PATH) AS detail
+          FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id
+          WHERE t.is_ms_shipped = 0 AND t.name LIKE 'usr[_]%'
+        sqlanywhere: >-
+          SELECT t.table_name AS name, u.user_name AS "schema", u.user_name AS owner, t.last_modified_at AS modified_at
+          FROM SYS.SYSTAB t JOIN SYS.SYSUSER u ON u.user_id = t.creator
+          WHERE t.table_type_str = 'BASE' AND t.table_name LIKE 'usr\_%' ESCAPE '\'
+    - key: view
+      label: Views
+      code: true
+      queries:
+        sqlserver: >-
+          SELECT v.name AS name, SCHEMA_NAME(v.schema_id) AS [schema],
+                 USER_NAME(COALESCE(v.principal_id, s.principal_id)) AS owner, v.modify_date AS modified_at,
+                 OBJECT_DEFINITION(v.object_id) AS definition
+          FROM sys.views v JOIN sys.schemas s ON s.schema_id = v.schema_id WHERE v.is_ms_shipped = 0
+        sqlanywhere: >-
+          SELECT t.table_name AS name, u.user_name AS "schema", u.user_name AS owner, t.last_modified_at AS modified_at,
+                 v.view_def AS definition
+          FROM SYS.SYSTAB t JOIN SYS.SYSUSER u ON u.user_id = t.creator JOIN SYS.SYSVIEW v ON v.view_object_id = t.object_id
+          WHERE t.table_type_str = 'VIEW' AND u.user_name NOT IN ('SYS', 'dbo', 'rs_systabgroup', 'SA_DEBUG')
+      dependencies:
+        sqlserver: >-
+          SELECT SCHEMA_NAME(v.schema_id) + '.' + v.name AS name,
+                 COALESCE(d.referenced_schema_name, 'dbo') + '.' + d.referenced_entity_name AS depends_on
+          FROM sys.sql_expression_dependencies d JOIN sys.views v ON v.object_id = d.referencing_id
+    - key: procedure
+      label: Stored procedures
+      code: true
+      queries:
+        sqlserver: >-
+          SELECT p.name AS name, SCHEMA_NAME(p.schema_id) AS [schema],
+                 USER_NAME(COALESCE(p.principal_id, s.principal_id)) AS owner, p.modify_date AS modified_at,
+                 OBJECT_DEFINITION(p.object_id) AS definition
+          FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.is_ms_shipped = 0
+        sqlanywhere: >-
+          SELECT p.proc_name AS name, u.user_name AS "schema", u.user_name AS owner, NULL AS modified_at,
+                 p.proc_defn AS definition
+          FROM SYS.SYSPROCEDURE p JOIN SYS.SYSUSER u ON u.user_id = p.creator
+          WHERE u.user_name NOT IN ('SYS', 'dbo', 'rs_systabgroup', 'SA_DEBUG')
+      dependencies:
+        sqlserver: >-
+          SELECT SCHEMA_NAME(p.schema_id) + '.' + p.name AS name,
+                 COALESCE(d.referenced_schema_name, 'dbo') + '.' + d.referenced_entity_name AS depends_on
+          FROM sys.sql_expression_dependencies d JOIN sys.procedures p ON p.object_id = d.referencing_id
+    - key: function
+      label: Functions
+      code: true
+      queries:
+        sqlserver: >-
+          SELECT o.name AS name, SCHEMA_NAME(o.schema_id) AS [schema],
+                 USER_NAME(COALESCE(o.principal_id, s.principal_id)) AS owner, o.modify_date AS modified_at,
+                 OBJECT_DEFINITION(o.object_id) AS definition
+          FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
+          WHERE o.type IN ('FN', 'IF', 'TF') AND o.is_ms_shipped = 0
+        sqlanywhere: >-
+          SELECT p.proc_name AS name, u.user_name AS "schema", u.user_name AS owner, NULL AS modified_at,
+                 p.proc_defn AS definition
+          FROM SYS.SYSPROCEDURE p JOIN SYS.SYSUSER u ON u.user_id = p.creator
+          WHERE p.proc_defn LIKE 'create function%' AND u.user_name NOT IN ('SYS', 'dbo', 'rs_systabgroup', 'SA_DEBUG')
+      dependencies:
+        sqlserver: >-
+          SELECT SCHEMA_NAME(o.schema_id) + '.' + o.name AS name,
+                 COALESCE(d.referenced_schema_name, 'dbo') + '.' + d.referenced_entity_name AS depends_on
+          FROM sys.sql_expression_dependencies d JOIN sys.objects o ON o.object_id = d.referencing_id
+          WHERE o.type IN ('FN', 'IF', 'TF')
+    - key: trigger
+      label: Triggers
+      code: true
+      queries:
+        sqlserver: >-
+          SELECT tr.name AS name, SCHEMA_NAME(t.schema_id) AS [schema],
+                 USER_NAME(COALESCE(t.principal_id, s.principal_id)) AS owner, tr.modify_date AS modified_at,
+                 OBJECT_DEFINITION(tr.object_id) AS definition, t.name AS on_table
+          FROM sys.triggers tr JOIN sys.tables t ON t.object_id = tr.parent_id
+          JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE tr.is_ms_shipped = 0
+        sqlanywhere: >-
+          SELECT tr.trigger_name AS name, u.user_name AS "schema", u.user_name AS owner, NULL AS modified_at,
+                 tr.trigger_defn AS definition, t.table_name AS on_table
+          FROM SYS.SYSTRIGGER tr JOIN SYS.SYSTAB t ON t.table_id = tr.table_id JOIN SYS.SYSUSER u ON u.user_id = t.creator
+          WHERE tr.trigger_name IS NOT NULL
+      dependencies:
+        sqlserver: >-
+          SELECT SCHEMA_NAME(t.schema_id) + '.' + tr.name AS name,
+                 COALESCE(d.referenced_schema_name, 'dbo') + '.' + d.referenced_entity_name AS depends_on
+          FROM sys.sql_expression_dependencies d JOIN sys.triggers tr ON tr.object_id = d.referencing_id
+          JOIN sys.tables t ON t.object_id = tr.parent_id
+          WHERE d.referenced_entity_name NOT IN ('inserted', 'deleted')
+    - key: validation_rule
+      label: Validation rules
+      queries:
+        sqlserver: >-
+          SELECT RuleName AS name, ModifiedBy AS owner, ModifiedOn AS modified_at, TableName AS on_table,
+                 Expression AS expression, Message AS message FROM dbo.ValidationRule
+        sqlanywhere: >-
+          SELECT RuleName AS name, ModifiedBy AS owner, ModifiedOn AS modified_at, TableName AS on_table,
+                 Expression AS expression, Message AS message FROM ValidationRule
+    - key: workflow
+      label: Workflows
+      queries:
+        sqlserver: >-
+          SELECT w.Name AS name, w.ModifiedBy AS owner, w.ModifiedOn AS modified_at, w.TriggerEvent AS trigger_event,
+                 w.IsDesktopOnly AS desktop_only,
+                 (SELECT COUNT(*) FROM dbo.WorkflowStep st WHERE st.WorkflowID = w.WorkflowID) AS steps
+          FROM dbo.WorkflowDefinition w
+        sqlanywhere: >-
+          SELECT w.Name AS name, w.ModifiedBy AS owner, w.ModifiedOn AS modified_at, w.TriggerEvent AS trigger_event,
+                 w.IsDesktopOnly AS desktop_only FROM WorkflowDefinition w
+    - key: security_profile
+      label: Security profiles
+      queries:
+        sqlserver: >-
+          SELECT p.Name AS name, p.ModifiedBy AS owner, p.ModifiedOn AS modified_at,
+                 (SELECT r.RightCode AS r, r.Allowed AS a FROM dbo.SecurityProfileRight r
+                   WHERE r.ProfileID = p.ProfileID ORDER BY r.RightCode FOR JSON PATH) AS detail
+          FROM dbo.SecurityProfile p
+        sqlanywhere: >-
+          SELECT p.Name AS name, p.ModifiedBy AS owner, p.ModifiedOn AS modified_at FROM SecurityProfile p
+    - key: external_program
+      label: External Programs
+      interface: true
+      queries:
+        sqlserver: >-
+          SELECT Name AS name, ModifiedBy AS owner, ModifiedOn AS modified_at, CommandLine AS command_line,
+                 TriggerEvent AS trigger_event, ConnectsToDatabase AS connects_to_database, Endpoint AS endpoint
+          FROM dbo.ExternalProgram
+        sqlanywhere: >-
+          SELECT Name AS name, ModifiedBy AS owner, ModifiedOn AS modified_at, CommandLine AS command_line,
+                 TriggerEvent AS trigger_event, ConnectsToDatabase AS connects_to_database, Endpoint AS endpoint
+          FROM ExternalProgram
+  entities:
+    - name: book
+      table: dbo.Book
+      key: [BookID]
+      delta_column: ModifiedOn
+      concept: pc.book
+      attributes: {code: Code, name: Name, modified_at: ModifiedOn}
+    - name: carrier
+      table: dbo.Carrier
+      key: [CarrierID]
+      delta_column: ModifiedOn
+      concept: pc.carrier
+      attributes: {name: Name, naic_code: NAICCode, modified_at: ModifiedOn}
+    - name: party
+      table: dbo.Entity
+      key: [EntityID]
+      delta_column: ModifiedOn
+      concept: core.party
+      attributes: {name: Name, tax_id: TaxID, jurisdiction: State, party_type: EntityType, modified_at: ModifiedOn}
+    - name: producer
+      table: dbo.Producer
+      key: [ProducerID]
+      delta_column: ModifiedOn
+      concept: pc.producer
+      attributes: {license_number: LicenseNo, modified_at: ModifiedOn}
+      relations:
+        party: {entity: party, column: EntityID, concept_relation: party}
+    - name: policy
+      table: dbo.Policy
+      key: [PolicyID]
+      delta_column: ModifiedOn
+      concept: pc.policy
+      attributes:
+        policy_number: PolicyNumber
+        effective_date: EffDate
+        expiration_date: ExpDate
+        written_premium: WrittenPremium
+        state: State
+        line_of_business: LOBCode
+        bill_type: BillType
+        status: Status
+        modified_at: ModifiedOn
+      relations:
+        insured: {entity: party, column: InsuredID, concept_relation: insured}
+        producer: {entity: producer, column: ProducerID, concept_relation: producer}
+        book: {entity: book, column: BookID, concept_relation: book}
+    - name: carrier_split
+      table: dbo.CarrierSplit
+      key: [SplitID]
+      delta_column: ModifiedOn
+      concept: pc.carrier_split
+      attributes: {share_pct: SharePct, premium_share: PremiumShare, modified_at: ModifiedOn}
+      relations:
+        policy: {entity: policy, column: PolicyID, concept_relation: policy}
+        carrier: {entity: carrier, column: CarrierID, concept_relation: carrier}
+    - name: invoice
+      table: dbo.Invoice
+      key: [InvoiceID]
+      delta_column: ModifiedOn
+      concept: pc.invoice
+      attributes: {invoice_date: InvoiceDate, total_amount: TotalAmount, modified_at: ModifiedOn}
+      relations:
+        policy: {entity: policy, column: PolicyID, concept_relation: policy}
+    - name: invoice_line
+      table: dbo.InvoiceLine
+      key: [LineID]
+      delta_column: ModifiedOn
+      concept: pc.invoice_line
+      attributes: {line_type: LineType, amount: Amount, modified_at: ModifiedOn}
+      relations:
+        invoice: {entity: invoice, column: InvoiceID, concept_relation: invoice}
+    - name: commission
+      table: dbo.Commission
+      key: [CommissionID]
+      delta_column: ModifiedOn
+      concept: pc.commission
+      attributes: {rate: Rate, amount: Amount, modified_at: ModifiedOn}
+      relations:
+        policy: {entity: policy, column: PolicyID, concept_relation: policy}
+        producer: {entity: producer, column: ProducerID, concept_relation: producer}
+    - name: commission_split
+      table: dbo.CommissionSplit
+      key: [CommSplitID]
+      delta_column: ModifiedOn
+      concept: pc.commission_split
+      attributes: {amount: Amount, modified_at: ModifiedOn}
+      relations:
+        commission: {entity: commission, column: CommissionID, concept_relation: commission}
+        sub_producer: {entity: producer, column: SubProducerID, concept_relation: sub_producer}
+    - name: claim
+      table: dbo.Claim
+      key: [ClaimID]
+      delta_column: ModifiedOn
+      concept: pc.claim
+      attributes:
+        claim_number: ClaimNumber
+        loss_date: LossDate
+        reported_date: ReportedDate
+        reserve_amount: ReserveAmount
+        status: Status
+        modified_at: ModifiedOn
+      relations:
+        policy: {entity: policy, column: PolicyID, concept_relation: policy}
+    - name: bordereau
+      table: dbo.Bordereau
+      key: [BordereauID]
+      delta_column: ModifiedOn
+      concept: pc.bordereau
+      attributes: {kind: Kind, period_end: PeriodEnd, total_premium: TotalPremium, modified_at: ModifiedOn}
+      relations:
+        carrier: {entity: carrier, column: CarrierID, concept_relation: carrier}
+    - name: premium_finance
+      table: dbo.PremiumFinance
+      key: [FinanceID]
+      delta_column: ModifiedOn
+      concept: pc.premium_finance_agreement
+      attributes: {finance_company_name: FinanceCoName, amount_financed: AmountFinanced, modified_at: ModifiedOn}
+      relations:
+        policy: {entity: policy, column: PolicyID, concept_relation: policy}
+  documents:
+    table: dbo.FileCabinet
+    key: DocID
+    name_column: DocName
+    content_column: Content
+    created_column: CreatedOn
+    delta_column: ModifiedOn
+    link_type_column: LinkType
+    link_key_column: LinkKey
+    link_types: {P: policy, C: claim, E: party}
+  traps:
+    - id: C1-UDT-NO-PRIMARY-KEY
+      title: User-defined table without a primary key
+      description: >-
+        A customer-created user-defined table has no primary key. Its rows cannot be matched reliably in deltas,
+        reconciliation or the target's extension tables.
+      severity: medium
+      stream: customizations
+      advice: Agree a key with the customer before extraction, or move the table as a full snapshot each time.
+      detect:
+        kind: query
+        queries:
+          sqlserver: >-
+            SELECT SCHEMA_NAME(t.schema_id) + '.' + t.name AS hit FROM sys.tables t
+            WHERE t.name LIKE 'usr[_]%' AND NOT EXISTS (
+              SELECT 1 FROM sys.key_constraints k WHERE k.parent_object_id = t.object_id AND k.type = 'PK')
+      sources:
+        - {reference: "Synthetic golden estate v1 (illustrative trap; confirm on real estates)"}
+    - id: C1-EXTPROG-DIRECT-DB
+      title: External Program that connects straight to the database
+      description: >-
+        An External Program opens its own database connection. The hosted target allows no direct database calls,
+        so the interface must be rebuilt on the target's APIs or read-only query service.
+      severity: high
+      stream: integrations
+      advice: Rebuild the interface on the target's REST APIs, read-only queries or webhooks, and retire the program.
+      detect:
+        kind: query
+        queries:
+          sqlserver: "SELECT Name AS hit FROM dbo.ExternalProgram WHERE ConnectsToDatabase = 1"
+      sources:
+        - {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026: integrations stream (SME notes, unvalidated)"}
+    - id: C1-HIDDEN-LINKED-SERVER
+      title: Code that writes to another server through a linked server
+      description: >-
+        A procedure or trigger names a four-part object (server.database.schema.object). This is an interface that
+        usually appears in no integration list and breaks when the database moves to a hosted tenant.
+      severity: high
+      stream: integrations
+      advice: Add the interface to the integration register and design its replacement before cutover planning.
+      detect:
+        kind: object_exists
+        object_type: procedure
+        definition_pattern: '\b[A-Za-z_]\w*\.[A-Za-z_]\w*\.[A-Za-z_]\w*\.[A-Za-z_]\w*\b'
+      sources:
+        - {reference: "Synthetic golden estate v1 (illustrative trap; confirm on real estates)"}
+    - id: C1-TRIGGER-BUSINESS-RULE
+      title: Business rule enforced only in a trigger
+      description: >-
+        A trigger raises an error to stop a change. The rule lives only in database code and will be lost unless it
+        is re-created in the target's supported extension points.
+      severity: high
+      stream: customizations
+      advice: Record the rule in the knowledge graph and plan its re-creation with the target's rules or extensions.
+      detect:
+        kind: object_exists
+        object_type: trigger
+        definition_pattern: '\b(RAISERROR|THROW)\b'
+      sources:
+        - {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026: customizations stream (SME notes, unvalidated)"}
+    - id: C1-DESKTOP-ONLY-WORKFLOW
+      title: Workflow that runs only in the desktop client
+      description: >-
+        Some desktop workflow objects are reported to retire in the browser-based target. Workflows marked
+        desktop-only need a redesign or a Digital Worker.
+      severity: medium
+      stream: configuration
+      advice: Review each desktop-only workflow with the customer; redesign it on the target or retire it.
+      detect:
+        kind: query
+        queries:
+          sqlserver: "SELECT Name AS hit FROM dbo.WorkflowDefinition WHERE IsDesktopOnly = 1"
+      sources:
+        - {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026: configuration stream (SME notes, unvalidated)"}
+    - id: C1-DOC-ORPHAN-LINK
+      title: File Cabinet document linked to a record that does not exist
+      description: >-
+        A document's entity link points to a policy, claim or party that is missing. Users will not find it after
+        migration unless the link is repaired.
+      severity: medium
+      stream: documents
+      advice: List the documents for the customer, repair links from document content where possible, archive the rest.
+      detect:
+        kind: query
+        queries:
+          sqlserver: >-
+            SELECT CAST(f.DocID AS varchar(20)) + ' ' + f.DocName AS hit FROM dbo.FileCabinet f
+            WHERE (f.LinkType = 'P' AND NOT EXISTS (SELECT 1 FROM dbo.Policy p WHERE p.PolicyID = f.LinkKey))
+               OR (f.LinkType = 'C' AND NOT EXISTS (SELECT 1 FROM dbo.Claim c WHERE c.ClaimID = f.LinkKey))
+               OR (f.LinkType = 'E' AND NOT EXISTS (SELECT 1 FROM dbo.Entity e WHERE e.EntityID = f.LinkKey))
+      sources:
+        - {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026: documents stream"}
+    - id: C1-SQLANYWHERE-DIALECT
+      title: Procedure using SQL Anywhere-only language
+      description: >-
+        Code uses SQL Anywhere (Watcom-SQL) features such as ON EXCEPTION RESUME, the MESSAGE statement, LIST() or
+        NUMBER(*), which have no direct SQL Server equivalent and need conversion.
+      severity: high
+      stream: platform
+      advice: Add the procedure to the dialect conversion work list (platform and hosting stream).
+      detect:
+        kind: object_exists
+        object_type: procedure
+        definition_pattern: '\b(ON\s+EXCEPTION\s+RESUME|MESSAGE\s+''|LIST\s*\(|NUMBER\s*\(\s*\*\s*\))'
+      sources:
+        - {reference: "ConceptOne to Pro Suite fit assessment, 17 Nov 2026: platform and hosting stream"}
+  golden_datasets:
+    - name: synthetic-v1
+      path: golden/synthetic-v1
+      engine: sqlserver
+      description: Synthetic estate with seeded errors, hidden rules and undocumented interfaces.
+tests:
+  - name: Passes its own synthetic golden dataset
+    kind: golden_dataset
+    dataset: "conceptone-source@1.0.0:synthetic-v1"
+    packs: ["core-ontology@1.0.0", "pc-insurance@1.0.0"]

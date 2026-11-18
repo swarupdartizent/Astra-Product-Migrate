@@ -146,6 +146,20 @@ class Rule(Strict):
     applies_to: list[str] = Field(default_factory=list, description="Concept or element names")
     severity: Literal["blocking", "warning"] = "blocking"
     sources: list[Source] = Field(default_factory=list)
+    check: dict[str, Any] | None = Field(
+        default=None, description="Optional executable check (see astra_migrate.rules.checks); "
+                                  "runs read-only against an estate through an adapter's concept bindings")
+
+    @model_validator(mode="after")
+    def _check_shape(self) -> Rule:
+        if self.check is not None:
+            from astra_migrate.rules.checks import parse_check
+
+            try:
+                parse_check(self.check)
+            except ValueError as e:
+                raise ValueError(f"{self.id}: {e}") from e
+        return self
 
 
 class Adds(Strict):
@@ -163,15 +177,18 @@ class PackTestCase(Strict):
       setting_value:    setting `key` must equal `expect`
       composes_with:    composing this pack with `packs` (name@version, from the registry) must succeed
                         and yield `expect_conflicts` conflicts
+      golden_dataset:   a golden run of `dataset` (adapter@version:name) with this pack and `packs`, at their
+                        current contents, must have passed
     """
 
     name: str = Field(min_length=3)
-    kind: Literal["contains_control", "control_type", "setting_value", "composes_with"]
+    kind: Literal["contains_control", "control_type", "setting_value", "composes_with", "golden_dataset"]
     id: str | None = None
     key: str | None = None
     expect: Any = None
     packs: list[str] = Field(default_factory=list)
     expect_conflicts: int | None = None
+    dataset: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9-]*@\d+\.\d+\.\d+:[a-z][a-z0-9-]*$")
 
 
 class Manifest(Strict):

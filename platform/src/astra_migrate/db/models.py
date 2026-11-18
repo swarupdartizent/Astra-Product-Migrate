@@ -643,6 +643,169 @@ class ReviewItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class SourceConnection(Base):
+    """A read-only connection from a tenant to a legacy estate, through a source adapter pack (E05.F2.S1).
+    The password is a connector secret reference (`secret://name`); its value stays in the vault."""
+
+    __tablename__ = "source_connections"
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_source_connection_name"),
+                      CheckConstraint("engine in ('sqlserver', 'sqlanywhere')", name="ck_source_engine"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"))
+    name: Mapped[str] = mapped_column(String(100))
+    adapter: Mapped[str] = mapped_column(String(100))  # pack ref name@version
+    engine: Mapped[str] = mapped_column(String(20))
+    host: Mapped[str] = mapped_column(String(255))
+    port: Mapped[int] = mapped_column(Integer)
+    database: Mapped[str] = mapped_column(String(128))
+    username: Mapped[str] = mapped_column(String(128))
+    password_ref: Mapped[str] = mapped_column(String(100))
+    encrypt: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_check: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+ADAPTER_RUN_KINDS = ("check", "harvest", "extract")
+
+
+class AdapterRun(Base):
+    """Metadata of one adapter operation. Object names, rows and documents stay in the tenant database."""
+
+    __tablename__ = "adapter_runs"
+    __table_args__ = (
+        CheckConstraint(f"kind in {ADAPTER_RUN_KINDS!r}", name="ck_adapter_run_kind"),
+        CheckConstraint("status in ('queued', 'running', 'succeeded', 'failed', 'blocked', 'cancelled')",
+                        name="ck_adapter_run_status"),
+        Index("ix_adapter_run_conn", "connection_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    connection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("source_connections.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(20))
+    mode: Mapped[str | None] = mapped_column(String(10))  # full | delta for extract
+    adapter: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    job_id: Mapped[uuid.UUID | None] = mapped_column()
+    requested_by: Mapped[dict[str, Any]] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CuratedTrap(Base):
+    """A trap added by a curator for an adapter (all versions), on top of the traps the pack ships (E05.F2.S4)."""
+
+    __tablename__ = "curated_traps"
+    __table_args__ = (UniqueConstraint("adapter_name", "trap_id", name="uq_curated_trap"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    adapter_name: Mapped[str] = mapped_column(String(64))
+    trap_id: Mapped[str] = mapped_column(String(64))
+    definition: Mapped[dict[str, Any]] = mapped_column()
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    reason: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TargetBaseline(Base):
+    """Named, versioned baseline metadata of a target product, as provided by its vendor (E05.F3.S1)."""
+
+    __tablename__ = "target_baselines"
+    __table_args__ = (UniqueConstraint("adapter_name", "name", name="uq_target_baseline"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    adapter_name: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(100))
+    product_version: Mapped[str] = mapped_column(String(60))
+    provided_by: Mapped[str] = mapped_column(String(200))
+    provided_on: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    content: Mapped[dict[str, Any]] = mapped_column()
+    digest: Mapped[str] = mapped_column(String(64))
+    object_count: Mapped[int] = mapped_column(Integer)
+    synthetic: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ProjectBaseline(Base):
+    """A project is pinned to exactly one target baseline version."""
+
+    __tablename__ = "project_baselines"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
+    baseline_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("target_baselines.id", ondelete="RESTRICT"))
+    reason: Mapped[str] = mapped_column(Text)
+    pinned_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    pinned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TargetConnection(Base):
+    """A target system's API endpoint for loads. Credentials are connector secret references."""
+
+    __tablename__ = "target_connections"
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_target_connection_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    name: Mapped[str] = mapped_column(String(100))
+    adapter: Mapped[str] = mapped_column(String(100))
+    base_url: Mapped[str] = mapped_column(String(500))
+    client_id: Mapped[str] = mapped_column(String(200))
+    client_secret_ref: Mapped[str] = mapped_column(String(100))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class LoadCall(Base):
+    """Every call made to load data into a target, with its result (E05.F3.S2). Append-only."""
+
+    __tablename__ = "load_calls"
+    __table_args__ = (Index("ix_load_call_conn", "connection_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    tenant_id: Mapped[uuid.UUID] = mapped_column()
+    connection_id: Mapped[uuid.UUID] = mapped_column()
+    adapter: Mapped[str] = mapped_column(String(100))
+    entity: Mapped[str | None] = mapped_column(String(64))
+    method: Mapped[str] = mapped_column(String(10))
+    path: Mapped[str] = mapped_column(String(500))
+    status_code: Mapped[int | None] = mapped_column(Integer)
+    outcome: Mapped[str] = mapped_column(String(20))  # ok | rejected | rate_limited | error
+    records: Mapped[int] = mapped_column(Integer, default=0)
+    waited_ms: Mapped[float] = mapped_column(Float, default=0)
+    latency_ms: Mapped[float] = mapped_column(Float, default=0)
+    rate_limit_remaining: Mapped[str | None] = mapped_column(String(40))
+    error: Mapped[str | None] = mapped_column(Text)
+    trace_id: Mapped[str | None] = mapped_column(String(32))
+
+
+class GoldenRun(Base):
+    """One run of a golden dataset with exact pack versions and digests (E22.F1.S1)."""
+
+    __tablename__ = "golden_runs"
+    __table_args__ = (Index("ix_golden_run_dataset", "dataset", "started_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    dataset: Mapped[str] = mapped_column(String(200))  # adapter ref : dataset name
+    packs: Mapped[dict[str, Any]] = mapped_column()  # {ref: digest}
+    status: Mapped[str] = mapped_column(String(20), default="queued")  # queued|running|passed|failed|blocked|error
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    scorecard: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    keep: Mapped[bool] = mapped_column(Boolean, default=False)
+    job_id: Mapped[uuid.UUID | None] = mapped_column()
+    started_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 STAGE_STATUSES = ("not_started", "blocked", "in_progress", "done")
 
 

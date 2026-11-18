@@ -9,6 +9,8 @@ export const TENANT_TABS = [
   'projects',
   'policy',
   'secrets',
+  'sources',
+  'targets',
   'region',
   'danger',
 ] as const;

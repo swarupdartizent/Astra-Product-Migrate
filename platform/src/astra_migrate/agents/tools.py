@@ -259,6 +259,55 @@ def assign_task(s: Session, env: ToolEnv, inp: AssignTaskIn) -> dict[str, Any]:
     return {"run_id": str(child), "agent": inp.agent, "version": pin.version, "status": "queued"}
 
 
+# ---------------------------------------------------------------------- ontology (E06.F1.S1)
+
+class FindConceptIn(_In):
+    phrase: str = Field(min_length=1, max_length=200, description="Word or phrase to look up")
+
+
+class ConceptIn(_In):
+    concept_id: str = Field(min_length=3, max_length=120, description="Concept id, like namespace.name")
+
+
+def _onto(fn: Callable[..., dict[str, Any]], *args: Any) -> dict[str, Any]:
+    from astra_migrate.ontology.service import OntologyError
+
+    try:
+        return fn(*args)
+    except OntologyError as e:
+        raise ToolError(str(e)) from e
+
+
+def find_concept(s: Session, env: ToolEnv, inp: FindConceptIn) -> dict[str, Any]:
+    from astra_migrate.ontology import service
+
+    return _onto(service.find_concept, s, inp.phrase, None, 5)
+
+
+def get_concept(s: Session, env: ToolEnv, inp: ConceptIn) -> dict[str, Any]:
+    from astra_migrate.ontology import service
+
+    return _onto(service.get_concept, s, inp.concept_id)
+
+
+def get_constraints(s: Session, env: ToolEnv, inp: ConceptIn) -> dict[str, Any]:
+    from astra_migrate.ontology import service
+
+    return _onto(service.get_constraints, s, inp.concept_id)
+
+
+def get_vendor_binding(s: Session, env: ToolEnv, inp: ConceptIn) -> dict[str, Any]:
+    from astra_migrate.ontology import service
+
+    return _onto(service.get_vendor_binding, s, inp.concept_id)
+
+
+def get_precedents(s: Session, env: ToolEnv, inp: ConceptIn) -> dict[str, Any]:
+    from astra_migrate.ontology import service
+
+    return _onto(service.get_precedents, s, inp.concept_id)
+
+
 # ====================================================================== catalogue
 
 CATALOGUE: dict[str, ToolSpec] = {t.name: t for t in [
@@ -283,6 +332,22 @@ CATALOGUE: dict[str, ToolSpec] = {t.name: t for t in [
     ToolSpec("assign_task",
              "Assign a task to another agent pinned on this project. The task runs as its own agent run.",
              Effect.ASSIGN_TASK, AssignTaskIn, assign_task),
+    ToolSpec("find_concept",
+             "Find ontology concepts matching a word or phrase. Returns concept ids, labels, definitions and the "
+             "ontology version the answer came from.",
+             Effect.READ_METADATA, FindConceptIn, find_concept),
+    ToolSpec("get_concept",
+             "Get one ontology concept with its parents, attributes, relations and code lists.",
+             Effect.READ_METADATA, ConceptIn, get_concept),
+    ToolSpec("get_constraints",
+             "Get the rules that apply to a concept: domain rules and recorded target product constraints.",
+             Effect.READ_METADATA, ConceptIn, get_constraints),
+    ToolSpec("get_vendor_binding",
+             "Get how source adapters bind a concept to product tables and columns.",
+             Effect.READ_METADATA, ConceptIn, get_vendor_binding),
+    ToolSpec("get_precedents",
+             "Get earlier mapping decisions people recorded for a concept.",
+             Effect.READ_METADATA, ConceptIn, get_precedents),
 ]}
 
 

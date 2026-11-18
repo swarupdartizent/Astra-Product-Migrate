@@ -13,7 +13,21 @@ import { AgentsPage } from '@/features/agents/AgentsPage';
 import { AgentVersionPage } from '@/features/agents/AgentVersionPage';
 import { AGENT_TABS, VERSION_TABS, type AgentsTab, type VersionTab } from '@/features/agents/model';
 import { RegisterAgentPage } from '@/features/agents/RegisterAgentPage';
+import { AdapterDetailPage } from '@/features/adapters/AdapterDetailPage';
+import { AdaptersPage } from '@/features/adapters/AdaptersPage';
+import {
+  ADAPTER_DETAIL_TABS,
+  ADAPTERS_TABS,
+  type AdapterDetailTab,
+  type AdaptersTab,
+} from '@/features/adapters/model';
 import { AuditPage } from '@/features/audit/AuditPage';
+import { BaselineDetailPage, BaselinesPage } from '@/features/baselines/BaselinesPage';
+import { GoldenPage } from '@/features/golden/GoldenPage';
+import { ConceptPage } from '@/features/ontology/ConceptPage';
+import { OntologyPage } from '@/features/ontology/OntologyPage';
+import { CONCEPT_TABS, parsePacksParam, type ConceptTab } from '@/features/ontology/tabs';
+import { AdapterRunPage } from '@/features/sources/AdapterRunPage';
 import { ModelsPage } from '@/features/models/ModelsPage';
 import { MODEL_TABS, type ModelTab } from '@/features/models/tabs';
 import { ProjectPage } from '@/features/blueprints/ProjectPage';
@@ -252,6 +266,95 @@ const agentVersionRoute = createRoute({
   },
 });
 
+const adaptersRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/adapters',
+  validateSearch: (search: Record<string, unknown>): { tab?: AdaptersTab } =>
+    ADAPTERS_TABS.includes(search.tab as AdaptersTab) ? { tab: search.tab as AdaptersTab } : {},
+  component: function AdaptersRoute() {
+    const { tab } = adaptersRoute.useSearch();
+    return <AdaptersPage tab={tab ?? 'adapters'} />;
+  },
+});
+
+const adapterDetailRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/adapters/$name/$version',
+  validateSearch: (search: Record<string, unknown>): { tab?: AdapterDetailTab } =>
+    ADAPTER_DETAIL_TABS.includes(search.tab as AdapterDetailTab)
+      ? { tab: search.tab as AdapterDetailTab }
+      : {},
+  component: function AdapterDetailRoute() {
+    const { name, version } = adapterDetailRoute.useParams();
+    const { tab } = adapterDetailRoute.useSearch();
+    return <AdapterDetailPage name={name} version={version} tab={tab ?? 'overview'} />;
+  },
+});
+
+const goldenRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/golden',
+  validateSearch: (search: Record<string, unknown>): { dataset?: string } =>
+    typeof search.dataset === 'string' && search.dataset ? { dataset: search.dataset } : {},
+  component: function GoldenRoute() {
+    const { dataset } = goldenRoute.useSearch();
+    return <GoldenPage dataset={dataset ?? null} />;
+  },
+});
+
+const adapterRunRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/adapter-runs/$runId',
+  component: function AdapterRunRoute() {
+    const { runId } = adapterRunRoute.useParams();
+    return <AdapterRunPage runId={runId} />;
+  },
+});
+
+const baselinesRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/baselines',
+  component: BaselinesPage,
+});
+
+const baselineDetailRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/baselines/$baselineId',
+  component: function BaselineDetailRoute() {
+    const { baselineId } = baselineDetailRoute.useParams();
+    return <BaselineDetailPage baselineId={baselineId} />;
+  },
+});
+
+const ontologyRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/ontology',
+  validateSearch: (search: Record<string, unknown>): { packs?: string } =>
+    typeof search.packs === 'string' && search.packs ? { packs: search.packs } : {},
+  component: function OntologyRoute() {
+    const { packs } = ontologyRoute.useSearch();
+    return <OntologyPage packs={parsePacksParam(packs)} />;
+  },
+});
+
+const conceptRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/ontology/$conceptId',
+  validateSearch: (search: Record<string, unknown>): { packs?: string; tab?: ConceptTab } => {
+    const out: { packs?: string; tab?: ConceptTab } = {};
+    if (typeof search.packs === 'string' && search.packs) out.packs = search.packs;
+    if (CONCEPT_TABS.includes(search.tab as ConceptTab)) out.tab = search.tab as ConceptTab;
+    return out;
+  },
+  component: function ConceptRoute() {
+    const { conceptId } = conceptRoute.useParams();
+    const { packs, tab } = conceptRoute.useSearch();
+    return (
+      <ConceptPage conceptId={conceptId} packs={parsePacksParam(packs)} tab={tab ?? 'overview'} />
+    );
+  },
+});
+
 export const routeTree = rootRoute.addChildren([
   signInRoute,
   authCallbackRoute,
@@ -273,6 +376,14 @@ export const routeTree = rootRoute.addChildren([
     agentsRoute,
     registerAgentRoute,
     agentVersionRoute,
+    adaptersRoute,
+    adapterDetailRoute,
+    goldenRoute,
+    adapterRunRoute,
+    baselinesRoute,
+    baselineDetailRoute,
+    ontologyRoute,
+    conceptRoute,
   ]),
 ]);
 

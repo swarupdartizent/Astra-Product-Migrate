@@ -1,0 +1,90 @@
+apiVersion: astra.packs/v1
+type: compliance
+name: sox-itgc
+version: 1.0.0
+title: SOX and IT general controls for migrations
+description: >-
+  Carries a customer's financial-reporting controls through a migration: segregation of duties on approvals,
+  change control on every transformation, reconciliation sign-off, controlled access to production data and
+  evidence for auditors.
+publisher: Artizent
+licence: proprietary
+standards:
+  - Sarbanes-Oxley Act of 2002, sections 302 and 404
+  - PCAOB Auditing Standard AS 2201
+  - COSO Internal Control - Integrated Framework (2013)
+  - COBIT 2019
+disclaimer: >-
+  This pack supports, but does not certify, compliance with the Sarbanes-Oxley Act. It does not replace the
+  customer's own control owners, internal audit or external auditors, who decide whether controls are effective.
+adds:
+  controls:
+    - id: SOX-SOD-01
+      type: approval
+      title: Segregation of duties on transformation approvals
+      rule: >-
+        A mapping, transformation or conversion that changes financial data is approved by a person other than its
+        author, and by two people where it changes ledger, premium, tax or commission amounts.
+      evidence_required: Approval records showing author and approvers are different named people, with timestamps.
+      parameters: {applies_to: [mapping, transformation, conversion_script], min_approvers: 2}
+      compliance_critical: true
+      two_person_approval: true
+      sources:
+        - {reference: "COSO 2013, Principle 10 (control activities, including segregation of duties)"}
+        - {reference: "PCAOB AS 2201, paragraphs on IT general controls and segregation of duties"}
+    - id: SOX-CM-01
+      type: gate
+      gate: build_rehearse
+      title: Change control on migration code
+      rule: >-
+        Every transformation and conversion script used in a rehearsal or cutover is version-controlled, tested and
+        approved; the exact approved version is the one that runs.
+      evidence_required: Version history, test results and approval of each script, and run logs naming the version run.
+      sources:
+        - {reference: "IT general controls: program change management (PCAOB AS 2201; COBIT 2019 BAI06 Managed IT Changes)"}
+    - id: SOX-REC-01
+      type: gate
+      gate: cutover
+      title: Financial reconciliation signed off before cutover
+      rule: >-
+        Ledger balances, receivables, payables, premium, taxes, fees and commissions reconcile between source and
+        target, and the customer data owner signs the reconciliation before go-live.
+      evidence_required: Reconciliation reports with totals per entity and period, break log, and the signed sign-off.
+      compliance_critical: true
+      sources:
+        - {reference: "Sarbanes-Oxley Act of 2002, section 404 (management assessment of internal control over financial reporting)"}
+    - id: SOX-ACC-01
+      type: data_handling
+      title: Controlled access to production financial data
+      rule: >-
+        Only named people with an approved need can read production financial data during the migration; access is
+        reviewed at each gate and removed at decommission.
+      evidence_required: Access list per environment, approval of each grant, and access review records.
+      sources:
+        - {reference: "IT general controls: access to programs and data (PCAOB AS 2201; COBIT 2019 DSS05)"}
+    - id: SOX-LOG-01
+      type: evidence
+      title: Complete audit trail of migration actions
+      rule: Every action by a person or an agent on migration data and configuration is recorded in a write-once log.
+      evidence_required: Export of the write-once audit log with a passed integrity check for the migration period.
+      sources:
+        - {reference: "IT general controls: computer operations and logging (COBIT 2019 DSS01, DSS06)"}
+    - id: SOX-EVD-01
+      type: evidence
+      title: Evidence pack for auditors
+      rule: Reconciliations, approvals, test results and change records are collected in the proof pack for each gate.
+      evidence_required: The proof pack for the project, with an index of every control and its evidence.
+      sources:
+        - {reference: "PCAOB AS 2201 (evidence of control operation)"}
+  settings:
+    - key: evidence.retention_years
+      value: 7
+      stricter: higher
+      unit: years
+      description: How long migration evidence is kept after go-live.
+      sources:
+        - {reference: "SEC Regulation S-X Rule 2-06 (auditors retain audit records for seven years)"}
+tests:
+  - {name: Has the segregation of duties control, kind: contains_control, id: SOX-SOD-01}
+  - {name: Reconciliation is a cutover gate, kind: control_type, id: SOX-REC-01, expect: gate}
+  - {name: Evidence kept seven years, kind: setting_value, key: evidence.retention_years, expect: 7}

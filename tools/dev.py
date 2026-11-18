@@ -114,9 +114,15 @@ def write_env_files() -> None:
     secret("pg_root_password")
     COMPOSE_ENV.write_text(
         f"KEYCLOAK_DB_PASSWORD={secret('keycloak_db_password')}\n"
-        f"KEYCLOAK_ADMIN_PASSWORD={secret('keycloak_admin_password')}\n",
+        f"KEYCLOAK_ADMIN_PASSWORD={secret('keycloak_admin_password')}\n"
+        f"MSSQL_SA_PASSWORD={mssql_sa_password()}\n",
         encoding="utf-8",
     )
+
+
+def mssql_sa_password() -> str:
+    # SQL Server requires upper, lower, digit and symbol characters.
+    return "Sa1!" + secret("mssql_sa_password")
 
 
 def bootstrap_postgres() -> None:
@@ -138,6 +144,8 @@ def bootstrap_postgres() -> None:
             psql("pg-a", f"CREATE DATABASE {dbname} OWNER astra_control_owner")
         psql("pg-a", f"REVOKE ALL ON DATABASE {dbname} FROM PUBLIC", db="postgres")
         psql("pg-a", f"GRANT CONNECT ON DATABASE {dbname} TO astra_control_app", db="postgres")
+        # Vector index for the ontology service (pgvector ships in the image; creating it needs a superuser).
+        psql("pg-a", "CREATE EXTENSION IF NOT EXISTS vector", db=dbname)
 
     # Tenant provisioner: may create databases and roles on each regional server, nothing else.
     prov_pw = secret("pg_provisioner_password")
@@ -288,6 +296,8 @@ def write_api_env() -> None:
         "ASTRA_BOOTSTRAP_ADMIN_EMAILS=admin@astra.local",
         "ASTRA_OTLP_ENDPOINT=http://127.0.0.1:14318",
         "ASTRA_REGIONS_FILE=infra/local/regions.yaml",
+        # Local only: builds synthetic golden estates on the local SQL Server. Never set in Azure.
+        f"ASTRA_GOLDEN_SQLSERVER_ADMIN=sa:{mssql_sa_password()}@127.0.0.1:11433",
         "",
     ]), encoding="utf-8")
     # Test-only settings: a separate control database, and the database superuser for tamper tests.
@@ -295,6 +305,7 @@ def write_api_env() -> None:
         f"ASTRA_CONTROL_DB_URL=postgresql+psycopg://astra_control_app:{secret('pg_control_app_password')}@127.0.0.1:15432/astra_control_test",
         f"ASTRA_CONTROL_DB_OWNER_URL=postgresql+psycopg://astra_control_owner:{secret('pg_control_owner_password')}@127.0.0.1:15432/astra_control_test",
         f"ASTRA_TEST_ROOT_DB_URL=postgresql+psycopg://astra_root:{secret('pg_root_password')}@127.0.0.1:15432/astra_control_test",
+        f"ASTRA_GOLDEN_SQLSERVER_ADMIN=sa:{mssql_sa_password()}@127.0.0.1:11433",
         "",
     ]), encoding="utf-8")
     log("wrote .local/api.env and .local/test.env")
@@ -304,8 +315,10 @@ def cmd_up() -> None:
     if not shutil.which("docker"):
         raise SystemExit("docker is required")
     write_env_files()
-    compose("up", "-d", "pg-a", "pg-b", "openbao", "jaeger")
+    compose("up", "-d", "pg-a", "pg-b", "openbao", "jaeger", "mssql")
     bootstrap_postgres()
+    wait_for("sql server", lambda: "healthy" in compose("ps", "--format", "{{.Health}}", "mssql", capture=True).stdout,
+             timeout=300)
     bootstrap_openbao()
     compose("up", "-d", "keycloak")
     bootstrap_keycloak()

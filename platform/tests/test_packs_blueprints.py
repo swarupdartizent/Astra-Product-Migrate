@@ -36,6 +36,21 @@ def manifest(name: str, ptype: str, version: str = "1.0.0", **kw: Any) -> dict[s
     }
     if ptype == "compliance":
         m["disclaimer"] = "Supports, but does not certify, compliance. Test fixture."
+    # Adapter packs must follow the adapter contract (I4); fixtures carry the smallest valid content.
+    if ptype == "source_adapter":
+        m["content"] = {"contract": "astra.adapters/v1", "product": {"name": "Fixture", "versions": ["1"]},
+                        "engines": [{"engine": "sqlserver"}],
+                        "object_types": [{"key": "table", "label": "Tables",
+                                          "queries": {"sqlserver": "SELECT name FROM sys.tables"}}]}
+    if ptype == "target_adapter":
+        m["content"] = {"contract": "astra.adapters/v1", "product": {"name": "Fixture", "versions": ["1"]},
+                        "load": {"method": "rest_api", "auth": "oauth2_client_credentials",
+                                 "rate_limit": {"requests_per_minute": 60, "source": {"reference": "fixture"},
+                                                "recorded_on": "2026-11-18"}},
+                        "constraints": [{"id": "FX-NO-DB", "kind": "database_access", "title": "No database writes",
+                                         "statement": "Loads go through the API only.",
+                                         "source": {"reference": "fixture"}, "recorded_on": "2026-11-18",
+                                         "confidence": "confirmed"}]}
     m.update(kw)
     return m
 
