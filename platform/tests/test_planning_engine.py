@@ -236,7 +236,7 @@ def test_exports_keep_task_ids_and_actuals_flow_back() -> None:
     assert "table:dbo.a|map|1" in exports.ado_csv(tasks, "Area\\Mig")
     ado = b"Work Item Type,Title,Astra ID,Completed Work\nTask,x,table:dbo.a|map|1,3.5\nTask,y,other,1\n"
     assert exports.parse_actuals(ado) == [("other", 1.0), ("table:dbo.a|map|1", 3.5)]
-    jira = "Summary,Astra ID,Time Spent\nx,table:dbo.a|map|1,5400\n".encode()
+    jira = b"Summary,Astra ID,Time Spent\nx,table:dbo.a|map|1,5400\n"
     assert exports.parse_actuals(jira) == [("table:dbo.a|map|1", 1.5)]
     with pytest.raises(exports.ImportError_, match="task id column"):
         exports.parse_actuals(b"a,b\n1,2\n")
