@@ -10,5 +10,6 @@ export const PROJECT_TABS = [
   'delta',
   'conversion',
   'checklist',
+  'plan',
 ] as const;
 export type ProjectTab = (typeof PROJECT_TABS)[number];

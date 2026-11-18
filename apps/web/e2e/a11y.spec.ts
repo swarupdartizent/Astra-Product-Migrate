@@ -57,6 +57,8 @@ for (const path of [
   '/tenants/00000000-0000-4000-8000-000000000000?tab=sources',
   '/projects/00000000-0000-4000-8000-000000000000?tab=discovery',
   '/discovery-runs/00000000-0000-4000-8000-000000000000?tab=graph',
+  '/projects/00000000-0000-4000-8000-000000000000?tab=plan',
+  '/presales',
 ]) {
   test(`deep link ${path} while signed out goes to sign-in and keeps the destination`, async ({
     page,

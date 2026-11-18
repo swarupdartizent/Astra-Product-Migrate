@@ -29,6 +29,7 @@ import { OntologyPage } from '@/features/ontology/OntologyPage';
 import { CONCEPT_TABS, parsePacksParam, type ConceptTab } from '@/features/ontology/tabs';
 import { AdapterRunPage } from '@/features/sources/AdapterRunPage';
 import { DiscoveryRunPage } from '@/features/discovery/DiscoveryRunPage';
+import { PresalesPage } from '@/features/presales/PresalesPage';
 import { RUN_TABS, type RunTab } from '@/features/discovery/model';
 import { ModelsPage } from '@/features/models/ModelsPage';
 import { MODEL_TABS, type ModelTab } from '@/features/models/tabs';
@@ -387,6 +388,17 @@ const discoveryRunRoute = createRoute({
   },
 });
 
+const presalesRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/presales',
+  validateSearch: (search: Record<string, unknown>): { estimate?: string } =>
+    typeof search.estimate === 'string' && search.estimate ? { estimate: search.estimate } : {},
+  component: function PresalesRoute() {
+    const { estimate } = presalesRoute.useSearch();
+    return <PresalesPage estimateId={estimate ?? null} />;
+  },
+});
+
 export const routeTree = rootRoute.addChildren([
   signInRoute,
   authCallbackRoute,
@@ -417,6 +429,7 @@ export const routeTree = rootRoute.addChildren([
     ontologyRoute,
     conceptRoute,
     discoveryRunRoute,
+    presalesRoute,
   ]),
 ]);
 

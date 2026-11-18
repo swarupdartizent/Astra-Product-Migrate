@@ -19,6 +19,7 @@ import { DiscoveryTab } from '../discovery/DiscoveryTab';
 import { DeltaTab } from '../delta/DeltaTab';
 import { ConversionTab } from '../conversion/ConversionTab';
 import { ChecklistTab } from '../checklist/ChecklistTab';
+import { PlanTab } from '../plan/PlanTab';
 
 export interface ProjectPageProps {
   projectId: string;
@@ -126,6 +127,7 @@ function ProjectWorkspace({
           <Tab value="delta">Version delta</Tab>
           <Tab value="conversion">Conversion</Tab>
           <Tab value="checklist">Hosting checklist</Tab>
+          <Tab value="plan">Plan</Tab>
         </TabsList>
         <TabPanel value="editor">
           {latest && base.isPending ? (
@@ -178,6 +180,9 @@ function ProjectWorkspace({
         </TabPanel>
         <TabPanel value="checklist">
           <ChecklistTab project={project} />
+        </TabPanel>
+        <TabPanel value="plan">
+          <PlanTab project={project} />
         </TabPanel>
       </Tabs>
     </>

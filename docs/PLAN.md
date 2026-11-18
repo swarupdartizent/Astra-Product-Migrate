@@ -135,6 +135,8 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | The generic estimation pack is uncalibrated planning assumptions; estimates become evidence-based only as actual effort flows back (three past tasks per rule) | With delivered work |
 | Jira and Azure DevOps exchange is through their CSV import and export formats; live two-way API sync needs credentials for each tool | Needs Jira/ADO credentials |
 | Risks found by agents use the same proposal flow as the planner's, but no agent raises risks yet | Needs a model key |
+| API gaps from the I7 screens: untyped planning responses; owner pickers need access:read (`/users`); no permission hints for pre-sales, vendor changes or gaps; no lightweight scope-key list for pins; dependency removal reason sent as a query parameter; overview does not flag a baseline waiting for approval; plan sub-tabs not deep-linkable | I8 |
+| I7 screens are verified by unit tests and end-to-end tests against recorded API responses, not yet signed in on the live stack | Next demo |
 | The wave solver places scope items, not individual tasks, and does not model calendar time inside a wave | Later |
 | SQL Anywhere conversion is proven on synthetic Watcom-SQL objects compiled and tested on SQL Server; reading code from a live SQL Anywhere estate waits for an engine | Needs SQL Anywhere |
 | The version delta compares tables by columns and code by normalized hash; configuration items are not yet in the delta, and the 60% same-family threshold is untuned | With a real target baseline |

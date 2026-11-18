@@ -1,6 +1,7 @@
 import type { LinkProps } from '@tanstack/react-router';
 import {
   Activity,
+  Calculator,
   Database,
   FlaskConical,
   Network,
@@ -155,6 +156,17 @@ export const navItems: readonly NavItem[] = [
     permission: null,
     group: 'configuration',
     keywords: ['blueprint', 'starter'],
+  },
+  {
+    id: 'presales',
+    to: '/presales',
+    label: 'Pre-sales estimates',
+    description:
+      'Size a migration from a questionnaire before any discovery: an estimate, not a plan.',
+    icon: Calculator,
+    permission: 'presales:estimate',
+    group: 'platform',
+    keywords: ['sizing', 'questionnaire', 'estimate', 'sales'],
   },
   {
     id: 'agents',

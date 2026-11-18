@@ -23,6 +23,7 @@ import {
   toast,
   type DataTableColumn,
 } from '@/ui';
+import { VendorChangesSheet } from './VendorChangesSheet';
 import s from '../shared.module.css';
 
 const col = createDataTableColumns<Programme>();
@@ -71,6 +72,7 @@ function validateName(name: string): string | undefined {
 }
 
 function ProgrammesView() {
+  const [vendorFor, setVendorFor] = useState<Programme | null>(null);
   useDocumentTitle('Programmes');
   const programmes = useProgrammes();
   const { can } = usePermissions();
@@ -78,11 +80,31 @@ function ProgrammesView() {
   const [creating, setCreating] = useState(false);
   const [addingTo, setAddingTo] = useState<Programme | null>(null);
 
+  const vendorColumn = col.display({
+    id: 'vendor',
+    header: () => <span className="sr-only">Vendor changes</span>,
+    size: 150,
+    enableSorting: false,
+    enableResizing: false,
+    cell: (info) => (
+      <span className={s.rowActions}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setVendorFor(info.row.original)}
+          aria-label={`Vendor changes for ${info.row.original.name}`}
+        >
+          Vendor changes
+        </Button>
+      </span>
+    ),
+  });
   const columns = useMemo<DataTableColumn<Programme>[]>(
     () =>
       canManage
         ? [
             ...baseColumns,
+            vendorColumn,
             col.display({
               id: 'actions',
               header: () => <span className="sr-only">Actions</span>,
@@ -104,7 +126,8 @@ function ProgrammesView() {
               ),
             }),
           ]
-        : baseColumns,
+        : [...baseColumns, vendorColumn],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- vendorColumn only calls a state setter
     [canManage],
   );
 
@@ -161,6 +184,9 @@ function ProgrammesView() {
         </CardBody>
       </Card>
       {creating ? <CreateProgrammeDialog onClose={() => setCreating(false)} /> : null}
+      {vendorFor ? (
+        <VendorChangesSheet programme={vendorFor} onClose={() => setVendorFor(null)} />
+      ) : null}
       {addingTo ? (
         <AddPartnerDialog programme={addingTo} onClose={() => setAddingTo(null)} />
       ) : null}

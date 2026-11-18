@@ -1,0 +1,133 @@
+.chipRow {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+}
+
+.evidence {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.loadGrid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.loadGrid th,
+.loadGrid td {
+  padding: var(--space-1-5) var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+  text-align: left;
+  vertical-align: top;
+}
+
+.loadGrid thead th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.loadCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  min-width: 7rem;
+}
+
+.loadCell[data-over='true'] {
+  color: var(--color-danger-text);
+  font-weight: 600;
+}
+
+.bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-bg-muted);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.loadCell[data-over='true'] .barFill {
+  background: var(--color-danger-solid);
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-3);
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.option[data-ok='true'] {
+  border-top-color: var(--color-success-solid);
+}
+
+.option[data-ok='false'] {
+  border-top-color: var(--color-warning-solid);
+}
+
+.option[data-chosen='true'] {
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.estimate {
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--color-warning-solid);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.depthColumns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(12rem, 1fr);
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+}
+
+.depthColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.depthColumn h4 {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.depthNode {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.depthNode[data-cycle='true'] {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+}
