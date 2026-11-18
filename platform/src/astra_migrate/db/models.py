@@ -1080,3 +1080,63 @@ class PresalesEstimate(Base):
     result: Mapped[dict[str, Any]] = mapped_column()
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DesignRun(Base):
+    """One design pass (I9): proposals for mappings, configuration, forms, code, integrations, reports, pages and
+    security profiles. The items themselves live in the tenant database."""
+
+    __tablename__ = "design_runs"
+    __table_args__ = (CheckConstraint(RUN_STATUSES, name="ck_design_run_status"),
+                      Index("ix_design_run_project", "project_id", "created_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    connection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("source_connections.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    job_id: Mapped[uuid.UUID | None] = mapped_column()
+    requested_by: Mapped[dict[str, Any]] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+BUILD_KINDS = ("transformation", "code_object")
+BUILD_STATUSES = ("generated", "tests_failed", "tests_passed", "approved", "superseded")
+
+
+class BuildArtifact(Base):
+    """A versioned piece of generated code (transformation code or modernized customer code). It is approved only
+    when the tests of exactly this version passed, by a person (enforced in the database); only approved artifacts
+    may run."""
+
+    __tablename__ = "build_artifacts"
+    __table_args__ = (
+        UniqueConstraint("project_id", "kind", "name", "version", name="uq_build_artifact_version"),
+        CheckConstraint(f"kind in {BUILD_KINDS!r}", name="ck_build_kind"),
+        CheckConstraint(f"status in {BUILD_STATUSES!r}", name="ck_build_status"),
+        CheckConstraint("status <> 'approved' OR (tests_digest = digest AND approved_by IS NOT NULL)",
+                        name="ck_build_approved_needs_passing_tests"),
+        CheckConstraint("status not in ('tests_passed', 'approved') OR tests_digest = digest",
+                        name="ck_build_passed_is_this_version"),
+        Index("ix_build_project", "project_id", "kind", "name"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(20))
+    name: Mapped[str] = mapped_column(String(300))
+    version: Mapped[int] = mapped_column(Integer)
+    digest: Mapped[str] = mapped_column(String(64))
+    inputs_digest: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20), default="generated")
+    tests_digest: Mapped[str | None] = mapped_column(String(64))
+    test_summary: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    created_by: Mapped[dict[str, Any]] = mapped_column()
+    approved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    approval_note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

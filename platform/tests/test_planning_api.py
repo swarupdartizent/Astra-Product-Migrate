@@ -58,8 +58,15 @@ def compliance_manifest() -> dict[str, Any]:
                  "sources": [{"reference": "fixture"}]}]}}
 
 
+_SETUP: dict[str, Any] = {}
+
+
 @pytest.fixture(scope="module")
 def setup(client: Any, admin: H) -> dict[str, Any]:
+    """Shared by every module that imports it (the design tests too): the packs and the golden estate are created
+    once per session."""
+    if _SETUP:
+        return _SETUP
     if client.get(f"/api/v1/packs/{domain_manifest()['name']}/1.0.0", headers=admin).status_code == 404:
         client.post("/api/v1/packs", headers=admin, json=bundle(domain_manifest()))
     m = disc_adapter()
@@ -74,7 +81,8 @@ def setup(client: Any, admin: H) -> dict[str, Any]:
     _ensure_published(client, admin, "generic-estimation", "1.0.0", _pack_files("generic-estimation"))
     # compliance packs stay drafts until a named specialist reviews them; planning reads them as pinned
     assert client.post("/api/v1/packs", headers=admin, json=bundle(compliance_manifest())).status_code == 201
-    return {"database": run["scorecard"]["database"]}
+    _SETUP["database"] = run["scorecard"]["database"]
+    return _SETUP
 
 
 def _blueprint(strategy: str) -> dict[str, Any]:

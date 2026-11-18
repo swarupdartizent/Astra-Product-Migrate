@@ -8,6 +8,7 @@ import logging
 import os
 import time
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -160,12 +161,16 @@ def test_secret_api_requires_permission(client: Any, tenant_factory: Any, user_f
 
 def test_requests_are_traced_with_tenant_and_reported(client: Any, admin: dict[str, str],
                                                       tenant_factory: Any) -> None:
+    # only this test's window: the shared test database keeps every earlier tenant, and the summary returns the
+    # 200 groups with the most time
+    since = (datetime.now(UTC) - timedelta(minutes=2)).isoformat()
     t = tenant_factory()
     client.get(f"/api/v1/tenants/{t['id']}", headers=admin)
     deadline = time.time() + 10
     rows: list[dict[str, Any]] = []
     while time.time() < deadline:
-        rows = client.get("/api/v1/observability/summary", headers=admin, params={"group_by": "tenant"}).json()
+        rows = client.get("/api/v1/observability/summary", headers=admin,
+                          params={"group_by": "tenant", "since": since}).json()
         if any(r["key"] == t["id"] for r in rows):
             break
         time.sleep(0.5)

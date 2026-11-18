@@ -51,6 +51,7 @@ Golden runs also try a write with the adapter's login and record that the engine
 | `load` | `rest_api` or `vendor_tool`, OAuth2 client credentials, token path, endpoints per entity, approved tools and the rate limit with its source. Unknown endpoints stay unset, and loads show as Blocked. |
 | `constraints` | Each with `kind`, a statement planners follow, `applies_to` concepts, `source`, `recorded_on` and `confidence` (confirmed, reported, assumed). A `database_access` constraint is required. |
 | baselines | Vendor baseline metadata in `astra.baseline/v1`, stored by name and never changed. A project is pinned to one baseline. |
+| `design` (optional, I9) | What design and build need: approved `mechanisms` (with directions), the `report_access` mechanism, `retirements` with replacements, `naming` rules for customer objects, `configuration_areas`, the `forms` format and the `pages` builder, each with a source and confidence. Missing parts block their design streams. See [design.md](design.md). |
 
 ## Golden datasets
 

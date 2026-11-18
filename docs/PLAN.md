@@ -155,6 +155,14 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Review items raised before I8 have no stream, segment, pattern key or evidence links, and count as medium risk with no compliance impact | Not planned (development data only) |
 | API gaps from the I8 screens: conversion evidence links carry no object type (same-named objects of different types cannot be told apart); queue rows do not say whether the caller already approved or is the named reviewer; pattern groups have no readable label; the plan workbench does not return the maximum task hours; the Review Assistant's answer is reachable only through the run transcript | I9 |
 | I8 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack; plan drag-and-drop has no automated test (the keyboard move does) | Next demo |
+| The reference target adapter has no design section yet (mechanisms, naming rules, configuration areas, forms, page builder), so its design streams show as blocked; the fit assessment's reported facts go into its next version, and confirmed values need Insurity documentation | Next reference target adapter version |
+| Configuration, forms and integrations are designed and tested, but applying them to the target (configuration API or import, form upload) happens with loads | I10 |
+| Report parity and form parity in the validation workbench (I9 checks form parity against the golden copy and compiles and runs reports) | I10 |
+| Page drafts are per entity from mappings; drafting from legacy screens needs adapters to supply screen layout metadata | With a real estate |
+| The data dictionary does not report keys or decimal precision: customer tables need their key declared, and decimals are staged as decimal(38,10) | Next adapter contract version |
+| Code-list value mappings (source code to target code) are not proposed yet; mappings are column-level | I10 |
+| The Configuration Translator, Code Modernizer, Integration Rebuilder and Target Designer agents are not registered; proposals come from deterministic rules | Needs a model key |
+| I9 screens are not built yet | I9 (screens) |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
 | Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |

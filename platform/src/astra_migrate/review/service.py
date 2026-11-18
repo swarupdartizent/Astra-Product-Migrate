@@ -227,6 +227,10 @@ def decide(s: Session, principal: Any, t: Tenant, r: ReviewItem, action: str, op
         raise ReviewError(422, "Unknown action.", "action")
     r.resolution_note, r.resolved_by, r.resolved_at = note, uid, now
     s.flush()
+    if (r.context or {}).get("design"):
+        from astra_migrate.design.service import on_review
+
+        on_review(s, t, r)
     _audit(s, principal, t, r, f"review.{result.recorded}",
            {"option": r.resolution, "note": note, "changed_value": r.changed_value, "outcome": r.outcome,
             "approvals": [str(a.user_id) for a in approvals(s, r)], "follow_up_run": str(r.follow_up_run_id)

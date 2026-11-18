@@ -124,6 +124,28 @@ class TargetClient:
                 waited_ms=round(waited, 2), latency_ms=round(latency, 2), rate_limit_remaining=remaining,
                 error=error, trace_id=format(ctx.trace_id, "032x") if ctx.is_valid else None))
 
+    def call(self, method: str, path: str, body: Any = None, label: str = "test") -> tuple[int | None, Any, str | None]:
+        """One authenticated call for an end-to-end test, logged like every other call. Returns
+        (status, parsed body, error)."""
+        waited = self.limiter.acquire()
+        t0 = time.perf_counter()
+        try:
+            r = self.http.request(method, path, json=body, headers={"Authorization": f"Bearer {self._token()}"})
+        except httpx.HTTPError as e:
+            self._log(entity=label, method=method, path=path, status=None, outcome="error", records=0,
+                      waited=waited, latency=(time.perf_counter() - t0) * 1000, remaining=None,
+                      error=type(e).__name__)
+            return None, None, f"The target could not be reached: {type(e).__name__}"
+        ok = 200 <= r.status_code < 300
+        self._log(entity=label, method=method, path=path, status=r.status_code, outcome="ok" if ok else "rejected",
+                  records=0, waited=waited, latency=(time.perf_counter() - t0) * 1000,
+                  remaining=r.headers.get("x-ratelimit-remaining"), error=None if ok else r.text[:500])
+        try:
+            parsed: Any = r.json()
+        except ValueError:
+            parsed = r.text[:2000]
+        return r.status_code, parsed, None
+
     def load(self, entity: str, records: list[dict[str, Any]]) -> LoadResult:
         ep = next((e for e in self.content.load.endpoints if e.entity == entity), None)
         if ep is None:

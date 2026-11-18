@@ -61,6 +61,8 @@ class Table:
     schema: str
     name: str
     columns: list[tuple[str, str]]  # (name, SQL Server type)
+    not_null: frozenset[str] = frozenset()
+    primary_key: tuple[str, ...] = ()
 
 
 def q(ident: str) -> str:
@@ -183,7 +185,9 @@ class Workbench:
             if key in seen or not t.columns:
                 continue
             seen.add(key)
-            cols = ", ".join(f"{q(c)} {typ} NULL" for c, typ in t.columns)
+            cols = ", ".join(f"{q(c)} {typ} {'NOT NULL' if c in t.not_null else 'NULL'}" for c, typ in t.columns)
+            if t.primary_key:
+                cols += f", PRIMARY KEY ({', '.join(q(c) for c in t.primary_key)})"
             self._exec(cur, f"CREATE TABLE {q(t.schema)}.{q(t.name)} ({cols})")
 
     def _unresolved(self, cur: Any, qualified: str) -> list[str]:
@@ -205,6 +209,29 @@ class Workbench:
             return Compile(True, None, self._unresolved(cur, qualified))
         except pymssql.Error as e:
             return Compile(False, f"The workbench schema could not be built: {_message(e)}")
+        finally:
+            cur.close()
+            self.conn.rollback()
+
+    def scenario(self, tables: list[Table], steps: list[tuple[str, tuple[Any, ...] | None]],
+                 checks: list[tuple[str, str]]) -> tuple[str | None, list[tuple[str, Any]]]:
+        """Build the tables, run the steps, then run each check query (one scalar each), all in one transaction
+        that is rolled back. Returns (the first error, or None) and the check values."""
+        import pymssql
+
+        cur = self.conn.cursor()
+        try:
+            self._schema(cur, tables)
+            for sql, params in steps:
+                self._exec(cur, sql, params)
+            values: list[tuple[str, Any]] = []
+            for name, sql in checks:
+                cur.execute(sql)
+                row = cur.fetchone()
+                values.append((name, _plain(row[0]) if row else None))
+            return None, values
+        except pymssql.Error as e:
+            return _message(e), []
         finally:
             cur.close()
             self.conn.rollback()

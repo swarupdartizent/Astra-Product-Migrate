@@ -338,6 +338,107 @@ class Load(_M):
     approved_tools: list[str] = Field(default_factory=list, description="Vendor-approved bulk tools, if any")
 
 
+Confidence = Literal["confirmed", "reported", "assumed"]
+
+
+class Mechanism(_M):
+    """An approved way for other systems to reach the target (I9 design)."""
+
+    key: Annotated[str, Field(pattern=KEY)]
+    kind: Literal["rest_api", "read_query", "webhook", "integration_vendor", "file_exchange"]
+    label: str = Field(min_length=2)
+    directions: list[Literal["inbound", "outbound", "read"]] = Field(
+        min_length=1, description="inbound: other systems change target data; outbound: the target notifies them; "
+                                  "read: other systems read target data")
+    notes: str = ""
+    source: SourceRef
+    confidence: Confidence
+
+
+class Retirement(_M):
+    """Source objects the target does not support, with the proposed replacement."""
+
+    object_type: Annotated[str, Field(pattern=KEY)] = Field(description="Source object type or configuration kind")
+    when: dict[str, Any] = Field(default_factory=dict, description="Detail fields that must equal these values")
+    name_pattern: str | None = Field(default=None, description="Regular expression on the object name")
+    replacement: str = Field(min_length=10)
+    source: SourceRef
+    confidence: Confidence
+
+    @field_validator("name_pattern")
+    @classmethod
+    def _regex(cls, v: str | None) -> str | None:
+        if v is not None:
+            re.compile(v)
+        return v
+
+
+class Naming(_M):
+    """How customer objects are named and owned in the target."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
+    schema_: Annotated[str, Field(pattern=IDENT)] = Field(alias="schema", description="Owning schema")
+    prefix: str = Field(default="", pattern=r"^[A-Za-z0-9_]*$")
+    case: Literal["pascal", "snake", "upper_snake", "as_is"] = "as_is"
+    max_length: int = Field(default=128, ge=8, le=128)
+    source: SourceRef
+    confidence: Confidence
+
+
+class ConfigurationArea(_M):
+    """Where a kind of source configuration is rebuilt in the target."""
+
+    key: Annotated[str, Field(pattern=KEY)]
+    label: str = Field(min_length=2)
+    source_kinds: list[Annotated[str, Field(pattern=KEY)]] = Field(min_length=1)
+    method: Literal["api", "import_file", "manual"]
+    notes: str = ""
+
+
+class FormFormat(_M):
+    format: Literal["pdf"]
+    source_kinds: list[Annotated[str, Field(pattern=KEY)]] = Field(
+        min_length=1, description="Source configuration kinds that are form designs")
+    already_when: dict[str, Any] = Field(
+        default_factory=dict, description="Definition fields showing a form is already in the target format")
+    notes: str = ""
+    source: SourceRef
+    confidence: Confidence
+
+
+class PageBuilder(_M):
+    name: str = Field(min_length=2, description="The target's tool for building web pages")
+    notes: str = ""
+    source: SourceRef
+    confidence: Confidence
+
+
+class TargetDesign(_M):
+    """What design and build (I9) need to know about the target. Every part is optional: what is missing is reported
+    as blocked, never guessed."""
+
+    mechanisms: list[Mechanism] = Field(default_factory=list)
+    report_access: Annotated[str, Field(pattern=KEY)] | None = Field(
+        default=None, description="The mechanism reports and extracts are rebuilt on")
+    retirements: list[Retirement] = Field(default_factory=list)
+    naming: Naming | None = None
+    configuration_areas: list[ConfigurationArea] = Field(default_factory=list)
+    forms: FormFormat | None = None
+    pages: PageBuilder | None = None
+
+    @model_validator(mode="after")
+    def _refs(self) -> TargetDesign:
+        keys = [m.key for m in self.mechanisms]
+        if len(keys) != len(set(keys)):
+            raise ValueError("mechanism keys must be unique")
+        if self.report_access and self.report_access not in keys:
+            raise ValueError("report_access must name one of the mechanisms")
+        kinds = [k for a in self.configuration_areas for k in a.source_kinds]
+        if len(kinds) != len(set(kinds)):
+            raise ValueError("a source configuration kind belongs to one configuration area only")
+        return self
+
+
 class TargetAdapterContent(_M):
     contract: Literal["astra.adapters/v1"]
     product: Product
@@ -345,6 +446,7 @@ class TargetAdapterContent(_M):
     constraints: list[Constraint] = Field(min_length=1)
     baseline_format: Literal["astra.baseline/v1"] = "astra.baseline/v1"
     validated_against_real_target: bool = False
+    design: TargetDesign | None = None
 
     @field_validator("constraints")
     @classmethod

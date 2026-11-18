@@ -1269,8 +1269,9 @@
       ],
       "release": "R1",
       "spec": "DB-01",
-      "status": "todo",
-      "increment": "I9"
+      "status": "done",
+      "increment": "I9",
+      "note": "Mapping proposals with evidence, precedents and a documented confidence; below 0.8 and no-target columns go to the data SME in the review queue, whose decision updates the register."
     },
     {
       "id": "E12.F2.S1",
@@ -1285,8 +1286,9 @@
       ],
       "release": "R1",
       "spec": "Configuration Translator",
-      "status": "todo",
-      "increment": "I9"
+      "status": "done",
+      "increment": "I9",
+      "note": "Configuration items record source and target area, key, method and translated definition; retirements from the target adapter are flagged with the proposed replacement. Applying to the target happens with loads (I10)."
     },
     {
       "id": "E12.F2.S2",
@@ -1300,8 +1302,9 @@
       ],
       "release": "R1",
       "spec": "PT-02",
-      "status": "todo",
-      "increment": "I9"
+      "status": "done",
+      "increment": "I9",
+      "note": "Forms are approved only after the converted PDF passes parity (pages, sizes, text, fields) against the approved golden copy."
     },
     {
       "id": "E12.F2.S3",
@@ -1316,8 +1319,9 @@
       ],
       "release": "R1",
       "spec": "DB-02",
-      "status": "todo",
-      "increment": "I9"
+      "status": "done",
+      "increment": "I9",
+      "note": "Customer tables and converted code renamed by the target's naming rules; generated code is tested on the SQL Server workbench (compile, key, recorded cases, at least one) and approved per version."
     },
     {
       "id": "E12.F3.S1",
@@ -1332,8 +1336,9 @@
       ],
       "release": "R1",
       "spec": "Integration Rebuilder",
-      "status": "todo",
-      "increment": "I9"
+      "status": "done",
+      "increment": "I9",
+      "note": "Each discovered interface gets a target design on an approved mechanism by direction; approval needs an end-to-end test definition, run against a target connection."
     },
     {
       "id": "E12.F3.S2",
@@ -1347,8 +1352,9 @@
       ],
       "release": "R1",
       "spec": "Integration Rebuilder",
-      "status": "todo",
-      "increment": "I9"
+      "status": "done",
+      "increment": "I9",
+      "note": "Desktop-only links matching a target retirement go to review: approved retirement or browser replacement."
     },
     {
       "id": "E12.F3.S3",
@@ -1362,8 +1368,9 @@
       ],
       "release": "R1",
       "spec": "PT-03",
-      "status": "todo",
-      "increment": "I9"
+      "status": "done",
+      "increment": "I9",
+      "note": "Views rebuilt as read-only procedures on the report access mechanism with mapped names, compiled and run on the workbench. Report parity runs with validation (I10)."
     },
     {
       "id": "E12.F3.S4",
@@ -1378,8 +1385,9 @@
       ],
       "release": "R1",
       "spec": "Target Designer",
-      "status": "todo",
-      "increment": "I9"
+      "status": "done",
+      "increment": "I9",
+      "note": "Page drafts per entity from its mappings need designer approval; every security profile needs an access decision for every new object before approval. Legacy screen layouts need adapter metadata."
     },
     {
       "id": "E12.F4.S1",
@@ -1394,8 +1402,9 @@
       ],
       "release": "R1",
       "spec": "DB-02",
-      "status": "todo",
-      "increment": "I9"
+      "status": "done",
+      "increment": "I9",
+      "note": "Transformation procedures from approved mappings, versioned by digest, tested on SQL Server with real extract rows and edge rows; only approved versions whose tests passed can run (database)."
     },
     {
       "id": "E13.F1.S1",
