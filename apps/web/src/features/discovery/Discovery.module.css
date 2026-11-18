@@ -1,0 +1,250 @@
+.sectionTitle {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.plainList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.inlineIcon {
+  display: inline;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+/* ---------- Phases and streams ---------- */
+
+.streamGrid,
+.phaseGrid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-2);
+}
+
+.streamCell,
+.phaseCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.streamCell[data-status='covered'],
+.phaseCell[data-status='done'] {
+  border-left-color: var(--color-success-solid);
+}
+
+.streamCell[data-status='partial'],
+.phaseCell[data-status='partial'] {
+  border-left-color: var(--color-warning-solid);
+}
+
+.streamCell[data-status='gap'],
+.phaseCell[data-status='failed'] {
+  border-left-color: var(--color-danger-solid);
+}
+
+.streamHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* ---------- Gaps ---------- */
+
+.gapList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.gap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.gap[data-state='open-blocking'] {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+}
+
+.gap[data-state='waived'] {
+  background: var(--color-bg-subtle);
+}
+
+/* ---------- Metrics ---------- */
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--space-2);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.metricValue {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricLabel {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* ---------- Configuration comparison ---------- */
+
+.compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-2);
+}
+
+.compareCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.compareCell[data-variant='1'] {
+  border-top-color: var(--color-success-solid);
+}
+
+.compareCell[data-variant='2'] {
+  border-top-color: var(--color-warning-solid);
+}
+
+.compareCell[data-variant='3'],
+.compareCell[data-variant='4'],
+.compareCell[data-variant='5'] {
+  border-top-color: var(--color-accent);
+}
+
+.compareCell[data-missing='true'] {
+  border-style: dashed;
+  border-top-color: var(--color-danger-solid);
+  background: var(--color-bg-subtle);
+}
+
+/* ---------- Graph ---------- */
+
+.graphLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 64rem) {
+  .graphLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.edgeGroup {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-left: var(--space-3);
+}
+
+.neighbourhood {
+  width: 100%;
+  max-width: 36rem;
+  height: auto;
+}
+
+.neighbourhood text {
+  font-size: 11px;
+  fill: var(--color-text);
+}
+
+.neighbourhood line {
+  stroke: var(--color-border-strong);
+}
+
+.nodeCentre {
+  fill: var(--color-accent-subtle);
+  stroke: var(--color-accent);
+}
+
+.nodeOther {
+  fill: var(--color-bg-muted);
+  stroke: var(--color-border-strong);
+}
+
+.fileInput {
+  font-size: var(--text-sm);
+}
+
+.fileInput:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------- Document sizing ---------- */
+
+.docTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.docTable th,
+.docTable td {
+  padding: var(--space-1-5) var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+  text-align: left;
+}
+
+.docTable thead th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.groupRow {
+  background: var(--color-bg-subtle);
+}
+
+.groupRow th {
+  font-weight: 600;
+}
+
+.docTable .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

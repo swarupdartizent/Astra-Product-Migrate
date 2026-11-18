@@ -15,6 +15,7 @@ import { PlanningGatePill } from './PlanningGatePill';
 import { PROJECT_TABS, type ProjectTab } from './tabs';
 import { VersionsTab } from './VersionsTab';
 import { ProjectBaselineTab } from '../baselines/ProjectBaselineTab';
+import { DiscoveryTab } from '../discovery/DiscoveryTab';
 
 export interface ProjectPageProps {
   projectId: string;
@@ -118,6 +119,7 @@ function ProjectWorkspace({
           <Tab value="agents">Agents</Tab>
           <Tab value="reviews">Review queue</Tab>
           <Tab value="baseline">Target baseline</Tab>
+          <Tab value="discovery">Discovery</Tab>
         </TabsList>
         <TabPanel value="editor">
           {latest && base.isPending ? (
@@ -158,6 +160,9 @@ function ProjectWorkspace({
         </TabPanel>
         <TabPanel value="baseline">
           <ProjectBaselineTab project={project} />
+        </TabPanel>
+        <TabPanel value="discovery">
+          <DiscoveryTab project={project} />
         </TabPanel>
       </Tabs>
     </>

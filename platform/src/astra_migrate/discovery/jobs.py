@@ -37,14 +37,25 @@ from astra_migrate.tenancy.service import migrate_tenant_schema, tenant_connecti
 from astra_migrate.vault import get_vault
 
 
+def _plain(o: Any) -> Any:
+    """Dataclasses to plain data, including their computed properties (digests, null rates, fields)."""
+    if dataclasses.is_dataclass(o) and not isinstance(o, type):
+        out = {f.name: _plain(getattr(o, f.name)) for f in dataclasses.fields(o)}
+        for name, attr in vars(type(o)).items():
+            if isinstance(attr, property):
+                out[name] = _plain(getattr(o, name))
+        return out
+    if isinstance(o, dict):
+        return {str(k): _plain(v) for k, v in o.items()}
+    if isinstance(o, list | tuple | set):
+        return [_plain(v) for v in o]
+    if isinstance(o, datetime):
+        return o.isoformat()
+    return o
+
+
 def _json(obj: Any) -> str:
-    def default(o: Any) -> Any:
-        if dataclasses.is_dataclass(o) and not isinstance(o, type):
-            return dataclasses.asdict(o)
-        if isinstance(o, datetime):
-            return o.isoformat()
-        return str(o)
-    return json.dumps(obj, default=default)
+    return json.dumps(_plain(obj), default=str)
 
 
 # ------------------------------------------------------------------ activity imports

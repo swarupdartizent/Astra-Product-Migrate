@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Inbox } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import {
@@ -232,6 +233,17 @@ function ReviewSheet({
               </span>
               <PlainText label="Flagged legacy text">{r.flagged_text}</PlainText>
             </section>
+          ) : null}
+          {typeof r.context.discovery_run_id === 'string' ? (
+            <p>
+              <Link
+                to="/discovery-runs/$runId"
+                params={{ runId: r.context.discovery_run_id }}
+                search={{ tab: 'usage' }}
+              >
+                Open the elements flagged for retirement review
+              </Link>
+            </p>
           ) : null}
           {Object.keys(r.context).length > 0 ? (
             <CodeBlock

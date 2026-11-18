@@ -109,6 +109,8 @@ e2e/                    Playwright specs (axe accessibility smoke tests)
 | `/golden?dataset=`                              | any signed-in user                                        | Golden datasets, expected answers, runs (`golden:run`) and the scorecard; Blocked runs show their reason                                                                                                |
 | `/baselines`, `/baselines/$id`                  | any signed-in user                                        | Immutable target baselines (synthetic ones marked); add with `baseline:manage`; paged objects and columns                                                                                               |
 | `/ontology?packs=`, `/ontology/$conceptId?tab=` | any signed-in user                                        | Concept browse and search (exact/similar, score), concept detail, constraints, bindings, precedents; always shows `ontology_version`                                                                    |
+| `/projects/$projectId?tab=discovery`            | project read                                              | Discovery runs (start with `source:manage`), the current coverage report: nine streams, gaps, waivers (reason >= 15) and accept/reject (`can_decide`, note >= 10; a 409 lists open gaps)                |
+| `/discovery-runs/$runId?tab=&node=&unused=`     | project read                                              | Phases and summary; profile, usage (flagged for retirement review), rules, interfaces, configuration differences between scopes, documents, dictionary; knowledge graph explorer                        |
 
 Per-tenant actions are gated by `Tenant.permissions` (the permissions the caller holds on that
 tenant), not by the global `/me` list: policy edits need `tenant:update_policy`, secrets need
@@ -156,6 +158,19 @@ e.g. the multi-factor step-up).
 - Every ontology answer shows its `ontology_version`; the pack picker scopes all calls
   (`packs=` repeated), defaulting to the latest published domain packs.
 - Hooks live in `src/api/{adapters,targets,ontology}.ts`.
+
+### Discovery and the knowledge graph
+
+- Activity imports (logins and queries, JSONL or CSV, up to 25 MB) are on each source
+  connection's card; the dialog explains the format. 422 messages on `content_base64` are shown
+  under the file field.
+- Result sections are only fetched for a succeeded run; Blocked and failed runs show the API's
+  `status_detail`, and partial phases show their detail.
+- Null rates are computed as nulls / rows; value shapes (for example 99-9999999) never hold values.
+- Configuration differences show every scope side by side with its definition as plain text;
+  scopes that agree share a variant number, missing scopes are marked.
+- Unused elements are "flagged for retirement review", never retired; the review item links to
+  the run's usage tab. The stage strip links the discovery stage to the coverage report.
 
 ### Blueprint workspace
 

@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Bot, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { useMoveStage, useStages } from '@/api/runtime';
@@ -62,6 +63,16 @@ export function StageStrip({ project }: { project: Project }) {
               </div>
               <StatusPill tone={status.tone}>{status.label}</StatusPill>
               {st.note ? <p className={styles.stageNote}>{st.note}</p> : null}
+              {st.stage === 'discovery' ? (
+                <Link
+                  to="/projects/$projectId"
+                  params={{ projectId: project.id }}
+                  search={{ tab: 'discovery' }}
+                  className={styles.stageMeta}
+                >
+                  Coverage report
+                </Link>
+              ) : null}
               {st.updated_by ? (
                 <p className={styles.stageMeta}>
                   {st.updated_by_type === 'agent' ? (

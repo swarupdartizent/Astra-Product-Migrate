@@ -130,6 +130,7 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Process mining (DS-04) and agentification candidates are not started; coverage reports show them as gaps | Agentification increment |
 | Screens are not linked to rules: no adapter supplies screen metadata yet | With a real estate |
 | Server-wide usage statistics (index usage, sessions) are not read; usage comes from imported records | Later |
+| API gaps from the I5 screens: untyped discovery result schemas, no `can_start`/`can_waive` hints, results refused for runs that failed late, no single coverage-report GET, graph edge paging and filtered counts, no delete for activity imports | I6 |
 | API gaps from the I4 screens: no source-adapter detail endpoint, untyped run summaries and ontology responses, no permission hints on target connections and golden runs, extract documents capped at 500 without paging, loads have no record beyond the call log, and no up-front "loads blocked" flag on target connections | I5 |
 | `npm audit` reports high findings in development tooling only (via picomatch); production dependencies have none | Next dependency update |
 | I4 screens are verified by unit tests and by end-to-end tests against recorded API responses; a signed-in walk-through on the live stack needs the administrator's authenticator sign-in | Next demo |

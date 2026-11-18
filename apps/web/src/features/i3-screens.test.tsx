@@ -264,7 +264,7 @@ describe('StageStrip', () => {
         409,
         'application/problem+json',
       );
-    renderWithProviders(<StageStrip project={project} />);
+    renderWithRouter(<StageStrip project={project} />);
     expect(await screen.findByText(/Coordinator/)).toHaveTextContent('Coordinator (agent)');
     await userEvent.click(screen.getByRole('button', { name: 'Change Discovery status' }));
     const dialog = await screen.findByRole('dialog');

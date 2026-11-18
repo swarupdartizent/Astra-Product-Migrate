@@ -28,6 +28,8 @@ import { ConceptPage } from '@/features/ontology/ConceptPage';
 import { OntologyPage } from '@/features/ontology/OntologyPage';
 import { CONCEPT_TABS, parsePacksParam, type ConceptTab } from '@/features/ontology/tabs';
 import { AdapterRunPage } from '@/features/sources/AdapterRunPage';
+import { DiscoveryRunPage } from '@/features/discovery/DiscoveryRunPage';
+import { RUN_TABS, type RunTab } from '@/features/discovery/model';
 import { ModelsPage } from '@/features/models/ModelsPage';
 import { MODEL_TABS, type ModelTab } from '@/features/models/tabs';
 import { ProjectPage } from '@/features/blueprints/ProjectPage';
@@ -355,6 +357,36 @@ const conceptRoute = createRoute({
   },
 });
 
+interface DiscoveryRunSearch {
+  tab?: RunTab;
+  node?: string;
+  unused?: boolean;
+}
+
+const discoveryRunRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/discovery-runs/$runId',
+  validateSearch: (search: Record<string, unknown>): DiscoveryRunSearch => {
+    const out: DiscoveryRunSearch = {};
+    if (RUN_TABS.includes(search.tab as RunTab)) out.tab = search.tab as RunTab;
+    if (typeof search.node === 'string' && search.node) out.node = search.node;
+    if (search.unused === true || search.unused === 'true') out.unused = true;
+    return out;
+  },
+  component: function DiscoveryRunRoute() {
+    const { runId } = discoveryRunRoute.useParams();
+    const { tab, node, unused } = discoveryRunRoute.useSearch();
+    return (
+      <DiscoveryRunPage
+        runId={runId}
+        tab={tab ?? 'summary'}
+        node={node ?? null}
+        unused={unused === true}
+      />
+    );
+  },
+});
+
 export const routeTree = rootRoute.addChildren([
   signInRoute,
   authCallbackRoute,
@@ -384,6 +416,7 @@ export const routeTree = rootRoute.addChildren([
     baselineDetailRoute,
     ontologyRoute,
     conceptRoute,
+    discoveryRunRoute,
   ]),
 ]);
 

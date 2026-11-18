@@ -6,5 +6,6 @@ export const PROJECT_TABS = [
   'agents',
   'reviews',
   'baseline',
+  'discovery',
 ] as const;
 export type ProjectTab = (typeof PROJECT_TABS)[number];

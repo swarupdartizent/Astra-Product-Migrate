@@ -40,6 +40,7 @@ import {
 } from '@/ui';
 import s from '../shared.module.css';
 import { validateConnection, type ConnForm } from './model';
+import { ActivityImports } from '../discovery/ActivityImports';
 import { adapterRunStatus, RUN_KIND_LABELS } from '../adapters/model';
 
 export function SourcesTab({ tenant }: { tenant: Tenant }) {
@@ -188,6 +189,7 @@ function ConnectionCard({
             </ul>
           )}
         </section>
+        <ActivityImports connection={c} />
       </CardBody>
       {c.can_manage ? (
         <CardFooter>
