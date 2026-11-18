@@ -18,12 +18,14 @@ import type {
   PlanDiff,
   PlanGap,
   PlanOverview,
+  PlanWorkbench,
   PresalesEstimate,
   PresalesIn,
   Risk,
   RiskIn,
   RiskPatch,
   Runbook,
+  ScopeKey,
   ScopeGenerated,
   ScopePage,
   ScopeQuery,
@@ -34,6 +36,8 @@ import type {
   WaveIn,
   WavePlan,
   WavesView,
+  WorkbenchEdit,
+  WorkbenchEditResult,
 } from './planning-types';
 
 const enc = encodeURIComponent;
@@ -44,6 +48,8 @@ export const planKeys = {
   overview: (id: string) => ['plan', id, 'overview'] as const,
   scope: (id: string, q: ScopeQuery) => ['plan', id, 'scope', q] as const,
   deps: (id: string) => ['plan', id, 'deps'] as const,
+  scopeKeys: (id: string, q: string) => ['plan', id, 'scope-keys', q] as const,
+  workbench: (id: string) => ['plan', id, 'workbench'] as const,
   tasks: (id: string, q: TaskQuery) => ['plan', id, 'tasks', q] as const,
   estimates: (id: string) => ['plan', id, 'estimates'] as const,
   controls: (id: string) => ['plan', id, 'controls'] as const,
@@ -125,9 +131,49 @@ export function useAddDependency(projectId: string) {
 export function useRemoveDependency(projectId: string) {
   const inv = useInvalidatePlan(projectId);
   return useMutation({
-    mutationFn: ({ key, reason }: { key: string; reason: string }) =>
-      api.delete<DependencyView>(withQuery(`${base(projectId)}/dependencies`, { key, reason })),
+    // The reason goes in the body, so it is not kept in URLs and access logs.
+    mutationFn: (body: { key: string; reason: string }) =>
+      api.post<DependencyView>(`${base(projectId)}/dependencies/remove`, body),
     onSuccess: inv,
+  });
+}
+
+/** A short list of scope items for pickers (pins, dependencies). */
+export function useScopeKeys(projectId: string, q: string, enabled = true) {
+  return useQuery({
+    queryKey: planKeys.scopeKeys(projectId, q),
+    queryFn: ({ signal }) =>
+      api.get<ScopeKey[]>(withQuery(`${base(projectId)}/scope/keys`, { q, limit: 50 }), {
+        signal,
+      }),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+}
+
+// ---------- Planning workbench ----------
+
+export function usePlanWorkbench(projectId: string) {
+  return useQuery({
+    queryKey: planKeys.workbench(projectId),
+    queryFn: ({ signal }) => api.get<PlanWorkbench>(`${base(projectId)}/workbench`, { signal }),
+  });
+}
+
+/** Applies the edits in one transaction and re-runs the solver; nothing is saved if one fails. */
+export function useApplyWorkbenchEdits(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (edits: WorkbenchEdit[]) =>
+      api.post<WorkbenchEditResult>(`${base(projectId)}/workbench/edits`, { edits }),
+    onSuccess: (out) => {
+      const { applied: _a, solve_error: _e, solved_at: _s, ...view } = out;
+      qc.setQueryData<PlanWorkbench>(planKeys.workbench(projectId), view);
+      return qc.invalidateQueries({
+        queryKey: planKeys.project(projectId),
+        predicate: (query) => query.queryKey[2] !== 'workbench',
+      });
+    },
   });
 }
 

@@ -34,7 +34,7 @@ import { RUN_TABS, type RunTab } from '@/features/discovery/model';
 import { ModelsPage } from '@/features/models/ModelsPage';
 import { MODEL_TABS, type ModelTab } from '@/features/models/tabs';
 import { ProjectPage } from '@/features/blueprints/ProjectPage';
-import { PROJECT_TABS, type ProjectTab } from '@/features/blueprints/tabs';
+import { parseProjectSearch, type ProjectSearch } from '@/features/blueprints/tabs';
 import { ComposePage } from '@/features/packs/ComposePage';
 import { PackDetailPage } from '@/features/packs/PackDetailPage';
 import { PackLibraryPage } from '@/features/packs/PackLibraryPage';
@@ -201,25 +201,14 @@ const packDetailRoute = createRoute({
   },
 });
 
-interface ProjectSearch {
-  tab?: ProjectTab;
-  version?: number;
-}
-
 const projectRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: '/projects/$projectId',
-  validateSearch: (search: Record<string, unknown>): ProjectSearch => {
-    const out: ProjectSearch = {};
-    if (PROJECT_TABS.includes(search.tab as ProjectTab)) out.tab = search.tab as ProjectTab;
-    const v = Number(search.version);
-    if (Number.isInteger(v) && v > 0) out.version = v;
-    return out;
-  },
+  validateSearch: (search: Record<string, unknown>): ProjectSearch => parseProjectSearch(search),
   component: function ProjectRoute() {
     const { projectId } = projectRoute.useParams();
-    const { tab, version } = projectRoute.useSearch();
-    return <ProjectPage projectId={projectId} tab={tab ?? 'editor'} version={version ?? null} />;
+    const search = projectRoute.useSearch();
+    return <ProjectPage projectId={projectId} search={search} />;
   },
 });
 

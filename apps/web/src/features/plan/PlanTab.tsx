@@ -39,10 +39,26 @@ import { RisksView } from './RisksView';
 import { ScopeView } from './ScopeView';
 import { TasksView } from './TasksView';
 import { WavesView } from './WavesView';
+import { WorkbenchView } from './WorkbenchView';
 
-/** The project's plan: scope, dependencies, tasks, controls, waves, risks, cutover, baselines, gaps. */
-export function PlanTab({ project }: { project: Project }) {
-  const [section, setSection] = useState<PlanSection>('overview');
+/**
+ * The project's plan: overview, the planning workbench, scope, dependencies, tasks, controls,
+ * waves, risks, cutover, baselines, gaps. The workbench comes second: the overview stays the
+ * landing summary for every reader, and the workbench is where the plan is worked on day to day.
+ * The section is in the URL when the page passes `section` and `onSection`.
+ */
+export function PlanTab({
+  project,
+  section: controlled,
+  onSection,
+}: {
+  project: Project;
+  section?: PlanSection;
+  onSection?: (s: PlanSection) => void;
+}) {
+  const [local, setLocal] = useState<PlanSection>('overview');
+  const section = controlled ?? local;
+  const setSection = onSection ?? setLocal;
   const overview = usePlanOverview(project.id);
   const canManage = overview.data?.can_manage ?? false;
   const canApprove = overview.data?.ready ? overview.data.can_approve : false;
@@ -56,7 +72,10 @@ export function PlanTab({ project }: { project: Project }) {
         ))}
       </TabsList>
       <TabPanel value="overview">
-        <OverviewView project={project} />
+        <OverviewView project={project} onSection={setSection} />
+      </TabPanel>
+      <TabPanel value="workbench">
+        <WorkbenchView project={project} />
       </TabPanel>
       <TabPanel value="scope">
         <ScopeView project={project} canManage={canManage} />
@@ -89,7 +108,13 @@ export function PlanTab({ project }: { project: Project }) {
   );
 }
 
-function OverviewView({ project }: { project: Project }) {
+function OverviewView({
+  project,
+  onSection,
+}: {
+  project: Project;
+  onSection: (s: PlanSection) => void;
+}) {
   const q = usePlanOverview(project.id);
   if (q.isPending) return <Skeleton height="12rem" />;
   if (q.isError) {
@@ -112,6 +137,34 @@ function OverviewView({ project }: { project: Project }) {
   const counts = Object.entries(o.counts);
   return (
     <div className={s.stack}>
+      {o.baseline_awaiting_approval ? (
+        <Callout
+          tone="warning"
+          title={`Baseline ${String(o.latest_baseline?.number ?? '')} is waiting for approval`}
+          action={
+            o.can_approve_waiting ? (
+              <Link
+                to="/projects/$projectId"
+                params={{ projectId: project.id }}
+                search={{ tab: 'plan', section: 'baselines' }}
+                onClick={(e) => {
+                  // Inside the project page, switch section in place (the link stays shareable).
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                  e.preventDefault();
+                  onSection('baselines');
+                }}
+              >
+                Review and approve it
+              </Link>
+            ) : null
+          }
+        >
+          {o.latest_baseline?.proposed_by ? `${o.latest_baseline.proposed_by} proposed it. ` : ''}
+          {o.can_approve_waiting
+            ? 'You can approve it.'
+            : 'A person with plan approval, other than its proposer, approves it.'}
+        </Callout>
+      ) : null}
       {o.notes.length > 0 || o.missing_packs.length > 0 ? (
         <Callout tone="warning" title="Read the plan with this in mind">
           <ul className={styles.plainList}>

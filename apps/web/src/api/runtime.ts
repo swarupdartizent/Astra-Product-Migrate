@@ -1,26 +1,30 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectKeys } from './blueprints';
 import { api, withQuery } from './client';
 import type {
   AgentPin,
   AgentRun,
   AgentRunDetail,
+  AssistantRun,
+  ReviewDecideIn,
+  ReviewDecideOut,
   ProjectStage,
-  ResolveIn,
   ReviewItem,
+  ReviewQueue,
+  ReviewQueueQuery,
+  ReviewWorkbench,
   StageStatus,
 } from './types';
-
-export type ReviewStatusFilter = 'open' | 'resolved' | 'dismissed' | 'all';
 
 export const runtimeKeys = {
   all: ['runtime'] as const,
   pins: (projectId: string) => ['runtime', 'pins', projectId] as const,
   runs: (projectId: string) => ['runtime', 'runs', projectId] as const,
   run: (runId: string) => ['runtime', 'run', runId] as const,
-  reviews: (projectId: string, status: ReviewStatusFilter) =>
-    ['runtime', 'reviews', projectId, status] as const,
-  review: (id: string) => ['runtime', 'review', id] as const,
+  reviews: (projectId: string) => ['runtime', 'reviews', projectId] as const,
+  queue: (projectId: string, q: ReviewQueueQuery) =>
+    ['runtime', 'reviews', projectId, 'queue', q] as const,
+  workbench: (id: string) => ['runtime', 'review', id, 'workbench'] as const,
   stages: (projectId: string) => ['runtime', 'stages', projectId] as const,
 };
 
@@ -79,36 +83,75 @@ export function useStartAgentRun(projectId: string) {
   });
 }
 
-export function useReviews(projectId: string, status: ReviewStatusFilter) {
+// ---------- Review workbench (I8) ----------
+
+export function useReviewQueue(projectId: string, q: ReviewQueueQuery) {
   return useQuery({
-    queryKey: runtimeKeys.reviews(projectId, status),
+    queryKey: runtimeKeys.queue(projectId, q),
     queryFn: ({ signal }) =>
-      api.get<ReviewItem[]>(withQuery(`/projects/${enc(projectId)}/reviews`, { status }), {
+      api.get<ReviewQueue>(withQuery(`/projects/${enc(projectId)}/review-queue`, { ...q }), {
         signal,
       }),
+    placeholderData: keepPreviousData,
   });
 }
 
-export function useReviewItem(id: string | null) {
+const ASSISTANT_ACTIVE = ['queued', 'running'];
+
+export function useReviewWorkbench(id: string | null) {
   return useQuery({
-    queryKey: runtimeKeys.review(id ?? ''),
-    queryFn: ({ signal }) => api.get<ReviewItem>(`/review-items/${enc(id ?? '')}`, { signal }),
+    queryKey: runtimeKeys.workbench(id ?? ''),
+    queryFn: ({ signal }) =>
+      api.get<ReviewWorkbench>(`/review-items/${enc(id ?? '')}/workbench`, { signal }),
     enabled: id !== null,
+    // Follow Review Assistant runs until they finish.
+    refetchInterval: (query) =>
+      (query.state.data?.assistant_runs ?? []).some((r) =>
+        ASSISTANT_ACTIVE.includes(r.status ?? ''),
+      )
+        ? 3000
+        : false,
   });
 }
 
-export function useResolveReview(projectId: string) {
+/** After any change to an item: refresh its workbench and every queue page of the project. */
+function useInvalidateReview(projectId: string) {
+  const qc = useQueryClient();
+  return (id: string) =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: runtimeKeys.workbench(id) }),
+      qc.invalidateQueries({ queryKey: runtimeKeys.reviews(projectId) }),
+    ]);
+}
+
+export function useDecideReview(projectId: string) {
+  const inv = useInvalidateReview(projectId);
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ReviewDecideIn }) =>
+      api.post<ReviewDecideOut>(`/review-items/${enc(id)}/decide`, body),
+    onSuccess: (_out, { id }) => inv(id),
+  });
+}
+
+export function useAssignReviewer(projectId: string) {
+  const inv = useInvalidateReview(projectId);
+  return useMutation({
+    mutationFn: ({ id, userId }: { id: string; userId: string | null }) =>
+      api.put<ReviewItem>(`/review-items/${enc(id)}/reviewer`, { user_id: userId }),
+    onSuccess: (_item, { id }) => inv(id),
+  });
+}
+
+export function useAskAssistant(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: ResolveIn }) =>
-      api.post<ReviewItem>(`/review-items/${enc(id)}/resolve`, body),
-    onSuccess: (item) => {
-      qc.setQueryData(runtimeKeys.review(item.id), (prev: ReviewItem | undefined) => ({
-        ...item,
-        flagged_text: item.flagged_text ?? prev?.flagged_text ?? null,
-      }));
-      return qc.invalidateQueries({ queryKey: ['runtime', 'reviews', projectId] });
-    },
+    mutationFn: ({ id, question }: { id: string; question: string }) =>
+      api.post<AssistantRun>(`/review-items/${enc(id)}/ask`, { question }),
+    onSuccess: (_run, { id }) =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: runtimeKeys.workbench(id) }),
+        qc.invalidateQueries({ queryKey: runtimeKeys.runs(projectId) }),
+      ]),
   });
 }
 

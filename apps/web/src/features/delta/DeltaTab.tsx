@@ -57,12 +57,21 @@ import {
 
 const ALL = '__all__';
 
-export function DeltaTab({ project }: { project: Project }) {
+export function DeltaTab({
+  project,
+  initialRun = null,
+}: {
+  project: Project;
+  /** Open this run (an evidence link from the review workbench). */
+  initialRun?: string | null;
+}) {
   const runs = useDeltaRuns(project.id);
   const qc = useQueryClient();
   const canRun = project.permissions.includes('source:manage');
   const [starting, setStarting] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialRun);
+  const linkedMissing =
+    initialRun !== null && runs.data !== undefined && !runs.data.some((r) => r.id === initialRun);
   const active = runs.data?.find((r) => r.status === 'queued' || r.status === 'running');
   const current = runs.data?.find((r) => r.id === selected) ?? runs.data?.[0] ?? null;
 
@@ -95,6 +104,12 @@ export function DeltaTab({ project }: { project: Project }) {
               cancellable
               onFinished={() => void qc.invalidateQueries({ queryKey: upgradeKeys.all })}
             />
+          ) : null}
+          {linkedMissing ? (
+            <Callout tone="warning">
+              The linked version delta run is not among this project’s recent runs. The newest run
+              is shown instead.
+            </Callout>
           ) : null}
           {runs.isPending ? (
             <Skeleton height="4rem" />

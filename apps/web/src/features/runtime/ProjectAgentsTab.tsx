@@ -43,14 +43,21 @@ import { formatTokens, formatUsd } from '../models/model';
 import { actorLabel, runStatus, timeline } from './model';
 import styles from './Runtime.module.css';
 
-export function ProjectAgentsTab({ project }: { project: Project }) {
+export function ProjectAgentsTab({
+  project,
+  initialRun = null,
+}: {
+  project: Project;
+  /** Open this run's transcript (a link from the review workbench). */
+  initialRun?: string | null;
+}) {
   const pins = usePins(project.id);
   const runs = useAgentRuns(project.id);
   const canPin = project.permissions.includes('agent:pin');
   const canRun = project.permissions.includes('agent:run');
   const [pinning, setPinning] = useState<AgentPin | null>(null);
   const [running, setRunning] = useState<AgentPin | null>(null);
-  const [openRun, setOpenRun] = useState<string | null>(null);
+  const [openRun, setOpenRun] = useState<string | null>(initialRun);
 
   const pinColumns = useMemo(() => {
     const col = createDataTableColumns<AgentPin>();

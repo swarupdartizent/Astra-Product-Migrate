@@ -30,6 +30,7 @@ import s from '../shared.module.css';
 import styles from '../discovery/Discovery.module.css';
 import { humanize, loadRatio, validateWave, type WaveForm } from './model';
 import plan from './Plan.module.css';
+import { ScopeKeyPicker } from './PlanShared';
 
 const NONE = '__none__';
 
@@ -407,7 +408,7 @@ function PinDialog({
   const [submitted, setSubmitted] = useState(false);
   const pinErrors: FieldErrors<'scope_key' | 'wave'> = key.trim()
     ? {}
-    : { scope_key: 'Enter the scope item key.' };
+    : { scope_key: 'Choose the scope item.' };
   const errors = mergeFieldErrors(pinErrors, pin.error, submitted);
   return (
     <FormDialog
@@ -435,14 +436,14 @@ function PinDialog({
         );
       }}
     >
-      <Field
-        label="Scope item key"
-        help="For example table:dbo.policy (from the scope register)."
+      <ScopeKeyPicker
+        projectId={project.id}
+        label="Scope item"
+        value={key}
+        onChange={setKey}
         error={errors.scope_key}
         required
-      >
-        <Input mono value={key} onChange={(e) => setKey(e.target.value)} />
-      </Field>
+      />
       <Field label="Wave" error={errors.wave}>
         <Select
           options={[

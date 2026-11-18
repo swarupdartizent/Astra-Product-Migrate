@@ -43,6 +43,8 @@ export function runStatus(status: string) {
 export const REVIEW_STATUS: Record<string, { label: string; tone: Tone }> = {
   open: { label: 'Open', tone: 'warning' },
   resolved: { label: 'Resolved', tone: 'success' },
+  rejected: { label: 'Rejected', tone: 'danger' },
+  changes_requested: { label: 'Changes requested', tone: 'info' },
   dismissed: { label: 'Dismissed', tone: 'neutral' },
 };
 
@@ -145,20 +147,4 @@ export function timeline(events: readonly RunEvent[]): TimelineEntry[] {
         return { ...base, title: e.kind, text: null, data: p, tone: 'neutral' };
     }
   });
-}
-
-/** Resolve needs an option; dismiss needs a note of 10+ characters. */
-export function validateResolve(
-  action: 'resolve' | 'dismiss',
-  resolution: string,
-  note: string,
-  options: readonly string[],
-): { resolution?: string; note?: string } {
-  const errors: { resolution?: string; note?: string } = {};
-  if (action === 'resolve' && !options.includes(resolution))
-    errors.resolution = 'Choose one of the options.';
-  if (action === 'dismiss' && note.trim().length < 10) {
-    errors.note = `Say why the item is dismissed (at least 10 characters, ${note.trim().length} so far).`;
-  }
-  return errors;
 }

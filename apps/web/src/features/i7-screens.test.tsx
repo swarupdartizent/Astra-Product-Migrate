@@ -190,6 +190,8 @@ describe('PlanTab overview', () => {
       cutover_choice: null,
       latest_baseline: null,
       approved_baseline_id: null,
+      baseline_awaiting_approval: false,
+      can_approve_waiting: false,
       can_manage: true,
       can_approve: false,
     };

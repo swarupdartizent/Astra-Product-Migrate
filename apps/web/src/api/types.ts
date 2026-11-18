@@ -1111,6 +1111,24 @@ export interface AgentRunDetail extends AgentRun {
   events: RunEvent[];
 }
 
+export type ReviewRisk = 'low' | 'medium' | 'high' | 'critical';
+export type ReviewCompliance = 'none' | 'relevant' | 'critical';
+
+/** A link from a review item to the object it is about. `ref` holds the ids the kind needs. */
+export interface ReviewEvidence {
+  label: string;
+  /** conversion_object | conversion_run | delta_run | discovery_run | agent_run */
+  kind: string;
+  ref: Record<string, string>;
+}
+
+export interface ReviewApproval {
+  user: string | null;
+  option: string;
+  note: string | null;
+  at: DateTime | null;
+}
+
 export interface ReviewItem {
   id: Uuid;
   project_id: Uuid;
@@ -1125,7 +1143,7 @@ export interface ReviewItem {
   requested_by: string;
   requested_by_type: string;
   agent_run_id: Uuid | null;
-  /** "open" | "resolved" | "dismissed" */
+  /** open | resolved | rejected | changes_requested | dismissed */
   status: string;
   resolution: string | null;
   resolution_note: string | null;
@@ -1133,16 +1151,158 @@ export interface ReviewItem {
   resolved_at: DateTime | null;
   created_at: DateTime;
   can_resolve: boolean;
-  /** Why the caller cannot resolve the item, when can_resolve is false. */
+  /** Why the caller cannot decide the item, when can_resolve is false. */
   cannot_resolve_reason?: string | null;
-  /** Screening flags only, on GET /review-items/{id}: the legacy text, hidden characters revealed. */
+  /** Screening flags only, on single-item reads: the legacy text, hidden characters revealed. */
   flagged_text?: string | null;
+  // ---- review workbench (I8) ----
+  stream: string | null;
+  segment: string | null;
+  /** conversion_script | mapping | retirement | pattern | screening | decision | … */
+  subject_type: string;
+  risk: ReviewRisk | (string & {});
+  /** 0 to 1, stated by agents; rules leave it empty. */
+  confidence: number | null;
+  compliance: ReviewCompliance | (string & {});
+  compliance_controls: string[];
+  required_approvals: number;
+  approvals: ReviewApproval[];
+  owner_user_id: Uuid | null;
+  /** The agent that raised the item, when an agent did. */
+  agent: string | null;
+  pattern_key: string | null;
+  evidence: ReviewEvidence[];
+  /** approved | rejected | changed | dismissed */
+  outcome: string | null;
+  changed_value: string | null;
+  follow_up_run_id: Uuid | null;
+  priority: number;
+  priority_reasons: string[];
+  can_assign_reviewer: boolean;
 }
 
-export interface ResolveIn {
-  action: 'resolve' | 'dismiss';
-  resolution?: string | null;
-  note?: string;
+export type ReviewStatusFilter =
+  'open' | 'decided' | 'all' | 'resolved' | 'rejected' | 'changes_requested' | 'dismissed';
+
+export const REVIEW_FACETS = [
+  'stream',
+  'segment',
+  'agent',
+  'kind',
+  'risk',
+  'compliance',
+  'owner_role',
+] as const;
+export type ReviewFacet = (typeof REVIEW_FACETS)[number];
+
+export interface ReviewQueueQuery {
+  status: ReviewStatusFilter;
+  stream?: string;
+  segment?: string;
+  agent?: string;
+  kind?: string;
+  risk?: string;
+  compliance?: string;
+  owner_role?: string;
+  pattern_key?: string;
+  mine?: boolean;
+  q?: string;
+  offset: number;
+  limit: number;
+}
+
+export interface ReviewPatternGroup {
+  pattern_key: string;
+  count: number;
+  example_title: string;
+}
+
+export interface ReviewQueue {
+  items: ReviewItem[];
+  total: number;
+  /** Counts per facet value, for the chosen status before the other filters. */
+  facets: Partial<Record<ReviewFacet, Record<string, number>>>;
+  /** Pattern keys shared by more than one item. */
+  groups: ReviewPatternGroup[];
+  can_decide_any: boolean;
+}
+
+export type ReviewSamples =
+  | {
+      type: 'code';
+      object_type: string;
+      status: string;
+      source: string | null;
+      converted: string | null;
+      review: string[] | null;
+      warnings: string[] | null;
+      compile: Record<string, unknown> | null;
+    }
+  | { type: 'elements'; total: number; items: string[] }
+  | { type: 'text'; text: string };
+
+export interface ReviewPrecedent {
+  item_id: Uuid;
+  project_id: Uuid;
+  project_name: string | null;
+  same_project: boolean;
+  title: string;
+  outcome: string;
+  resolution: string | null;
+  changed_value: string | null;
+  note: string | null;
+  decided_by: string | null;
+  decided_at: DateTime | null;
+}
+
+export interface ReviewPrecedents {
+  pattern_key: string | null;
+  items: ReviewPrecedent[];
+  outcomes: Record<string, number>;
+}
+
+export interface AssistantRun {
+  run_id: Uuid;
+  question: string;
+  by: string;
+  at: DateTime;
+  status: string | null;
+  status_detail: string | null;
+}
+
+export interface ReviewAssistantState {
+  agent: string;
+  pinned_version: string | null;
+  can_ask: boolean;
+  unavailable_reason: string | null;
+}
+
+export interface ReviewWorkbench {
+  item: ReviewItem;
+  /** Built only from what was recorded with the item; no model is involved. */
+  why: string[];
+  /** Read from the tenant database at view time; never copied into the control plane. */
+  samples: ReviewSamples | null;
+  precedents: ReviewPrecedents;
+  assistant: ReviewAssistantState;
+  assistant_runs: AssistantRun[];
+  reviewers: { id: Uuid; name: string }[];
+}
+
+export type ReviewAction = 'approve' | 'reject' | 'change' | 'dismiss';
+
+export interface ReviewDecideIn {
+  action: ReviewAction;
+  option?: string | null;
+  note: string;
+  changed_value?: string | null;
+}
+
+export interface ReviewDecideOut {
+  /** approval_recorded | approved | rejected | changed | changes_requested | dismissed */
+  recorded: string;
+  follow_up_error: string | null;
+  item: ReviewItem;
 }
 
 export type StageStatus = 'not_started' | 'blocked' | 'in_progress' | 'done';

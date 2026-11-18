@@ -51,12 +51,24 @@ import { RecordedTests } from './RecordedTests';
 
 const ALL = '__all__';
 
-export function ConversionTab({ project }: { project: Project }) {
+export function ConversionTab({
+  project,
+  initialRun = null,
+  initialObject = null,
+}: {
+  project: Project;
+  /** Open this run (an evidence link from the review workbench). */
+  initialRun?: string | null;
+  /** Filter the run's objects to this name and open it when it is the only match. */
+  initialObject?: string | null;
+}) {
   const runs = useConversionRuns(project.id);
   const qc = useQueryClient();
   const canRun = project.permissions.includes('source:manage');
   const [starting, setStarting] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialRun);
+  const linkedMissing =
+    initialRun !== null && runs.data !== undefined && !runs.data.some((r) => r.id === initialRun);
   const active = runs.data?.find((r) => r.status === 'queued' || r.status === 'running');
   const current = runs.data?.find((r) => r.id === selected) ?? runs.data?.[0] ?? null;
 
@@ -88,6 +100,12 @@ export function ConversionTab({ project }: { project: Project }) {
               cancellable
               onFinished={() => void qc.invalidateQueries({ queryKey: upgradeKeys.all })}
             />
+          ) : null}
+          {linkedMissing ? (
+            <Callout tone="warning">
+              The linked conversion run is not among this project’s recent runs. The newest run is
+              shown instead.
+            </Callout>
           ) : null}
           {runs.isPending ? (
             <Skeleton height="4rem" />
@@ -125,7 +143,12 @@ export function ConversionTab({ project }: { project: Project }) {
           )}
         </CardBody>
       </Card>
-      {current ? <ConversionRunView run={current} /> : null}
+      {current ? (
+        <ConversionRunView
+          run={current}
+          initialObject={current.id === initialRun ? initialObject : null}
+        />
+      ) : null}
       <RecordedTests project={project} />
       {starting ? (
         <StartConversionDialog project={project} onClose={() => setStarting(false)} />
@@ -191,7 +214,13 @@ function StartConversionDialog({ project, onClose }: { project: Project; onClose
   );
 }
 
-function ConversionRunView({ run: r }: { run: ConversionRun }) {
+function ConversionRunView({
+  run: r,
+  initialObject,
+}: {
+  run: ConversionRun;
+  initialObject: string | null;
+}) {
   const st = runStatus(r.status);
   const done = r.status === 'succeeded';
   const sm = r.summary;
@@ -239,7 +268,7 @@ function ConversionRunView({ run: r }: { run: ConversionRun }) {
                 they were not converted.
               </Callout>
             ) : null}
-            <ObjectsTable runId={r.id} />
+            <ObjectsTable runId={r.id} initialObject={initialObject} />
           </>
         ) : null}
       </CardBody>
@@ -247,9 +276,11 @@ function ConversionRunView({ run: r }: { run: ConversionRun }) {
   );
 }
 
-function ObjectsTable({ runId }: { runId: string }) {
+function ObjectsTable({ runId, initialObject }: { runId: string; initialObject: string | null }) {
   const [status, setStatus] = useState('');
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(initialObject ?? '');
+  // An evidence link names one object: open it once its row has loaded.
+  const [autoOpenDone, setAutoOpenDone] = useState(initialObject === null);
   const dq = useDebouncedValue(q.trim(), 300);
   const [offset, setOffset] = useState(0);
   const [open, setOpen] = useState<ConvertedObject | null>(null);
@@ -303,6 +334,11 @@ function ObjectsTable({ runId }: { runId: string }) {
     ]);
   }, []);
   const total = objects.data?.total ?? 0;
+  const linked =
+    !autoOpenDone && initialObject !== null
+      ? (objects.data?.items.find((o) => o.name === initialObject) ?? null)
+      : null;
+  const shown = open ?? linked;
   return (
     <section aria-labelledby={`objs-${runId}`}>
       <h3 id={`objs-${runId}`} className={styles.sectionTitle}>
@@ -378,7 +414,16 @@ function ObjectsTable({ runId }: { runId: string }) {
           </Button>
         </span>
       </div>
-      {open ? <ObjectSheet runId={runId} object={open} onClose={() => setOpen(null)} /> : null}
+      {shown ? (
+        <ObjectSheet
+          runId={runId}
+          object={shown}
+          onClose={() => {
+            setOpen(null);
+            setAutoOpenDone(true);
+          }}
+        />
+      ) : null}
     </section>
   );
 }

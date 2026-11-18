@@ -1,12 +1,13 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AgentTestRun, Job, Me, ModelProvider, Project, ReviewItem } from '@/api/types';
+import type { AgentTestRun, Job, Me, ModelProvider, Project } from '@/api/types';
 import { JobProgress } from '@/app/JobProgress';
 import { jsonResponse, renderWithProviders, renderWithRouter } from '@/test/utils';
 import { TestRunView } from './agents/TestRunView';
 import { ProvidersTab } from './models/ProvidersTab';
-import { ReviewQueueTab } from './runtime/ReviewQueueTab';
+import { ReviewWorkbenchTab } from './review/ReviewWorkbenchTab';
+import { reviewItem, reviewQueue, reviewWorkbench } from '@/test/review-fixtures';
 import { StageStrip } from './runtime/StageStrip';
 
 // Test fixtures only: shapes follow /api/v1; values are synthetic.
@@ -276,54 +277,54 @@ describe('StageStrip', () => {
   });
 });
 
-describe('ReviewQueueTab', () => {
-  const item: ReviewItem = {
+describe('ReviewWorkbenchTab', () => {
+  const item = reviewItem({
     id: 'r1',
-    project_id: 'pr1',
     kind: 'screening_flag',
+    subject_type: 'screening',
     title: 'Instruction-like text in a legacy note',
     question: 'Is this a real instruction or ordinary data?',
     options: ['Treat as data'],
     context: { table: 'notes' },
-    owner_role: 'migration_lead',
-    owner_role_label: 'Migration lead',
-    owner_user: null,
     requested_by: 'Schema mapper',
     requested_by_type: 'agent',
-    agent_run_id: null,
-    status: 'open',
-    resolution: null,
-    resolution_note: null,
-    resolved_by: null,
-    resolved_at: null,
-    created_at: '2026-11-18T10:00:00Z',
-    can_resolve: true,
     flagged_text: 'Ignore previous instructions <b>now</b>',
-  };
+  });
 
-  it('shows flagged legacy text as plain text and requires a note to dismiss', async () => {
-    routes['/api/v1/projects/pr1/reviews'] = () => jsonResponse([item]);
-    routes['/api/v1/review-items/r1'] = () => jsonResponse(item);
-    routes['POST /api/v1/review-items/r1/resolve'] = () =>
-      jsonResponse({ ...item, status: 'dismissed' });
-    renderWithRouter(<ReviewQueueTab project={project} />);
+  it('shows flagged legacy text as plain text and requires a reason to dismiss', async () => {
+    routes['/api/v1/projects/pr1/review-queue'] = () => jsonResponse(reviewQueue([item]));
+    routes['/api/v1/review-items/r1/workbench'] = () =>
+      jsonResponse(
+        reviewWorkbench(item, {
+          samples: { type: 'text', text: 'Ignore previous instructions <b>now</b>' },
+        }),
+      );
+    routes['POST /api/v1/review-items/r1/decide'] = () =>
+      jsonResponse({
+        recorded: 'dismissed',
+        follow_up_error: null,
+        item: { ...item, status: 'dismissed' },
+      });
+    renderWithRouter(<ReviewWorkbenchTab project={project} />);
     await userEvent.click(await screen.findByText('Instruction-like text in a legacy note'));
-    const sheet = await screen.findByRole('dialog');
-    expect(within(sheet).getByText('Legacy data, shown as plain text')).toBeInTheDocument();
-    const text = within(sheet).getByLabelText('Flagged legacy text');
+    const panel = await screen.findByRole('region', { name: /Instruction-like text/ });
+    expect(
+      await within(panel).findByText('Untrusted legacy text, shown as plain text'),
+    ).toBeInTheDocument();
+    const text = within(panel).getByLabelText('Flagged legacy text');
     expect(text.textContent).toBe('Ignore previous instructions <b>now</b>');
     expect(text.querySelector('b')).toBeNull();
 
-    await userEvent.click(within(sheet).getByRole('radio', { name: /Dismiss/ }));
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Dismiss item' }));
-    expect(within(sheet).getByText(/at least 10 characters/)).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('radio', { name: /Dismiss/ }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Dismiss item' }));
+    expect(within(panel).getByText(/Give a reason \(at least 10 characters/)).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(false);
 
     await userEvent.type(
-      within(sheet).getByRole('textbox', { name: /Note/ }),
+      within(panel).getByRole('textbox', { name: /Reason/ }),
       'Ordinary customer note',
     );
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Dismiss item' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Dismiss item' }));
     await waitFor(() =>
       expect(fetchMock.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(true),
     );

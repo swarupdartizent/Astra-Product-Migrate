@@ -153,6 +153,8 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Risk on items raised by platform rules is a fixed value per item type (for example high for triggers and procedures that need hand conversion); agents state their own risk and confidence | With delivered work |
 | Bulk approval of items sharing a pattern (E16.F1.S5, never for compliance-critical items) | R2 |
 | Review items raised before I8 have no stream, segment, pattern key or evidence links, and count as medium risk with no compliance impact | Not planned (development data only) |
+| API gaps from the I8 screens: conversion evidence links carry no object type (same-named objects of different types cannot be told apart); queue rows do not say whether the caller already approved or is the named reviewer; pattern groups have no readable label; the plan workbench does not return the maximum task hours; the Review Assistant's answer is reachable only through the run transcript | I9 |
+| I8 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack; plan drag-and-drop has no automated test (the keyboard move does) | Next demo |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
 | Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |

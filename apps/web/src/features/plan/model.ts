@@ -12,6 +12,7 @@ import type { Tone } from '@/ui';
 
 export const PLAN_SECTIONS = [
   'overview',
+  'workbench',
   'scope',
   'dependencies',
   'tasks',
@@ -26,6 +27,7 @@ export type PlanSection = (typeof PLAN_SECTIONS)[number];
 
 export const SECTION_LABELS: Record<PlanSection, string> = {
   overview: 'Overview',
+  workbench: 'Workbench',
   scope: 'Scope',
   dependencies: 'Dependencies',
   tasks: 'Tasks and estimates',

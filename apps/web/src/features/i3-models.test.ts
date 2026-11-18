@@ -10,7 +10,9 @@ import {
   validateAlias,
   validateProvider,
 } from './models/model';
-import { gateRefusal, timeline, validateResolve } from './runtime/model';
+import { validateDecision } from './review/model';
+import { gateRefusal, timeline } from './runtime/model';
+import { reviewItem } from '@/test/review-fixtures';
 
 describe('provider form', () => {
   const base = { ...providerToForm(null), name: 'Primary', kind: 'anthropic' as const };
@@ -133,13 +135,17 @@ describe('runtime', () => {
     expect(t[3]).toMatchObject({ title: 'Error (alias-missing)', tone: 'danger' });
   });
 
-  it('requires an option to resolve and a 10-character note to dismiss', () => {
-    expect(validateResolve('resolve', '', '', ['Keep', 'Drop'])).toEqual({
-      resolution: 'Choose one of the options.',
-    });
-    expect(validateResolve('resolve', 'Keep', '', ['Keep', 'Drop'])).toEqual({});
-    expect(validateResolve('dismiss', '', 'short', ['Keep']).note).toMatch(/at least 10/);
-    expect(validateResolve('dismiss', '', 'Not a real instruction', ['Keep'])).toEqual({});
+  it('requires an option to approve and a 10-character reason to dismiss', () => {
+    const item = reviewItem({ options: ['Keep', 'Drop'] });
+    const f = { action: 'approve' as const, option: '', note: '', changedValue: '' };
+    expect(validateDecision(f, item)).toEqual({ option: 'Choose one of the options.' });
+    expect(validateDecision({ ...f, option: 'Keep' }, item)).toEqual({});
+    expect(validateDecision({ ...f, action: 'dismiss', note: 'short' }, item).note).toMatch(
+      /at least 10/,
+    );
+    expect(
+      validateDecision({ ...f, action: 'dismiss', note: 'Not a real instruction' }, item),
+    ).toEqual({});
   });
 
   it('reads stage gate refusals', () => {

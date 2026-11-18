@@ -7,12 +7,14 @@ import { PageHeader, Skeleton, Tab, TabPanel, Tabs, TabsList } from '@/ui';
 import s from '../shared.module.css';
 import { BlueprintEditor } from './BlueprintEditor';
 import { ProjectAgentsTab } from '../runtime/ProjectAgentsTab';
-import { ReviewQueueTab } from '../runtime/ReviewQueueTab';
+import { ReviewWorkbenchTab } from '../review/ReviewWorkbenchTab';
+import type { ReviewSearch } from '../review/model';
+import type { PlanSection } from '../plan/model';
 import { StageStrip } from '../runtime/StageStrip';
 import { CompareTab } from './CompareTab';
 import { DecisionsTab } from './DecisionsTab';
 import { PlanningGatePill } from './PlanningGatePill';
-import { PROJECT_TABS, type ProjectTab } from './tabs';
+import { PROJECT_TABS, type ProjectSearch, type ProjectTab } from './tabs';
 import { VersionsTab } from './VersionsTab';
 import { ProjectBaselineTab } from '../baselines/ProjectBaselineTab';
 import { DiscoveryTab } from '../discovery/DiscoveryTab';
@@ -23,11 +25,10 @@ import { PlanTab } from '../plan/PlanTab';
 
 export interface ProjectPageProps {
   projectId: string;
-  tab: ProjectTab;
-  version: number | null;
+  search: ProjectSearch;
 }
 
-export function ProjectPage({ projectId, tab, version }: ProjectPageProps) {
+export function ProjectPage({ projectId, search }: ProjectPageProps) {
   const project = useProject(projectId);
   useDocumentTitle(project.data ? project.data.name : 'Project');
 
@@ -59,19 +60,13 @@ export function ProjectPage({ projectId, tab, version }: ProjectPageProps) {
       </>
     );
   }
-  return <ProjectWorkspace project={project.data} tab={tab} version={version} />;
+  return <ProjectWorkspace project={project.data} search={search} />;
 }
 
-function ProjectWorkspace({
-  project,
-  tab,
-  version,
-}: {
-  project: Project;
-  tab: ProjectTab;
-  version: number | null;
-}) {
+function ProjectWorkspace({ project, search }: { project: Project; search: ProjectSearch }) {
   const navigate = useNavigate();
+  const tab = search.tab ?? 'editor';
+  const version = search.version ?? null;
   const latest = project.latest_version;
   const base = useVersion(project.id, latest?.number ?? null);
   const go = (next: { tab: ProjectTab; version?: number }) =>
@@ -80,6 +75,29 @@ function ProjectWorkspace({
       params: { projectId: project.id },
       search:
         next.version !== undefined ? { tab: next.tab, version: next.version } : { tab: next.tab },
+      replace: true,
+    });
+  const {
+    tab: _tab,
+    version: _version,
+    section: _section,
+    run: _run,
+    object: _object,
+    agent_run: _agentRun,
+    ...reviewSearch
+  } = search;
+  const goReviews = (next: ReviewSearch, replace: boolean) =>
+    void navigate({
+      to: '/projects/$projectId',
+      params: { projectId: project.id },
+      search: { tab: 'reviews', ...next },
+      replace,
+    });
+  const goPlanSection = (section: PlanSection) =>
+    void navigate({
+      to: '/projects/$projectId',
+      params: { projectId: project.id },
+      search: { tab: 'plan', section },
       replace: true,
     });
 
@@ -161,10 +179,14 @@ function ProjectWorkspace({
           <DecisionsTab project={project} />
         </TabPanel>
         <TabPanel value="agents">
-          <ProjectAgentsTab project={project} />
+          <ProjectAgentsTab
+            key={search.agent_run ?? ''}
+            project={project}
+            initialRun={search.agent_run ?? null}
+          />
         </TabPanel>
         <TabPanel value="reviews">
-          <ReviewQueueTab project={project} />
+          <ReviewWorkbenchTab project={project} search={reviewSearch} onSearch={goReviews} />
         </TabPanel>
         <TabPanel value="baseline">
           <ProjectBaselineTab project={project} />
@@ -173,16 +195,25 @@ function ProjectWorkspace({
           <DiscoveryTab project={project} />
         </TabPanel>
         <TabPanel value="delta">
-          <DeltaTab project={project} />
+          <DeltaTab key={search.run ?? ''} project={project} initialRun={search.run ?? null} />
         </TabPanel>
         <TabPanel value="conversion">
-          <ConversionTab project={project} />
+          <ConversionTab
+            key={`${search.run ?? ''}:${search.object ?? ''}`}
+            project={project}
+            initialRun={search.run ?? null}
+            initialObject={search.object ?? null}
+          />
         </TabPanel>
         <TabPanel value="checklist">
           <ChecklistTab project={project} />
         </TabPanel>
         <TabPanel value="plan">
-          <PlanTab project={project} />
+          <PlanTab
+            project={project}
+            section={search.section ?? 'overview'}
+            onSection={goPlanSection}
+          />
         </TabPanel>
       </Tabs>
     </>

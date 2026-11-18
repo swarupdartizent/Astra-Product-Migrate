@@ -79,6 +79,10 @@ export type PlanOverview =
       cutover_choice: CutoverChoice | null;
       latest_baseline: PlanBaseline | null;
       approved_baseline_id: Uuid | null;
+      /** The newest baseline is proposed and waiting for a decision. */
+      baseline_awaiting_approval: boolean;
+      /** The caller may approve that waiting baseline (holds plan approval and did not propose it). */
+      can_approve_waiting: boolean;
       can_manage: boolean;
       can_approve: boolean;
     };
@@ -175,6 +179,19 @@ export interface TaskEvidence {
   note?: string;
 }
 
+/** A person's change to a generated task, kept with the generated values. */
+export interface TaskOverride {
+  role: string | null;
+  low: number | null;
+  likely: number | null;
+  high: number | null;
+  reason: string;
+  by: string;
+  by_id?: string;
+  at: DateTime;
+  original: { role: string; low: number | null; likely: number | null; high: number | null };
+}
+
 export interface PlanTask {
   key: string;
   scope: string;
@@ -195,6 +212,7 @@ export interface PlanTask {
   depends_on: string[];
   wave: string | null;
   control?: string;
+  override?: TaskOverride | null;
 }
 
 export interface TaskPage {
@@ -311,6 +329,93 @@ export interface WavePlan {
   }[];
   items?: number;
   solved_at?: DateTime;
+}
+
+// ---------- Planning workbench (E16.F2.S1) ----------
+
+export interface ScopeKey {
+  key: string;
+  element: string;
+  stream: string;
+  disposition: string;
+}
+
+export interface WorkbenchWave {
+  key: string;
+  name: string | null;
+  start: string | null;
+  end: string | null;
+  cutover: string | null;
+  capacity: Record<string, number>;
+  load: Record<string, { hours: number; capacity: number }>;
+  /** Scope keys the solver placed in the wave. */
+  items: string[];
+}
+
+export interface WorkbenchItem {
+  key: string;
+  element: string;
+  kind: string;
+  stream: string;
+  segment: string | null;
+  disposition: string;
+  status: string;
+  wave: string | null;
+  pinned_wave: string | null;
+  depth: number;
+  tasks: number;
+  overridden_tasks: number;
+  low: number;
+  likely: number;
+  high: number;
+  roles: Record<string, number>;
+  depends_on: string[];
+}
+
+export interface WorkbenchEdge {
+  key: string;
+  src: string;
+  dst: string;
+  source: string | null;
+  kinds: string[];
+  removed: { by: string; at: DateTime; reason: string } | null;
+}
+
+export interface PlanWorkbench {
+  waves: WorkbenchWave[];
+  items: WorkbenchItem[];
+  /** Items with estimated work that the solver has not placed. */
+  unplaced: string[];
+  /** Items with no estimated work. */
+  unestimated: string[];
+  edges: WorkbenchEdge[];
+  cycles: string[][];
+  plan: WavePlan | null;
+  /** Scope, edges, tasks, waves or pins changed after the last solve. */
+  stale: boolean;
+  roles: string[];
+  can_edit: boolean;
+}
+
+export type WorkbenchEdit =
+  | { op: 'move'; scope_key: string; wave: string | null }
+  | { op: 'add_dependency'; src: string; dst: string; reason: string }
+  | { op: 'remove_dependency'; key: string; reason: string }
+  | {
+      op: 'task';
+      key: string;
+      role?: string;
+      low?: number;
+      likely?: number;
+      high?: number;
+      reason: string;
+    };
+
+export interface WorkbenchEditResult extends PlanWorkbench {
+  applied: string[];
+  /** The edits were saved but the solver could not run. */
+  solve_error: string | null;
+  solved_at: DateTime;
 }
 
 export interface WavesView {

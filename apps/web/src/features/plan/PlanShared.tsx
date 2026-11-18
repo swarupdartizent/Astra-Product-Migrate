@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useUsers } from '@/api/access';
+import { useScopeKeys } from '@/api/planning';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { ApiErrorView } from '@/app/ApiErrorView';
 import { Button, Field, Input, Select } from '@/ui';
 import s from '../shared.module.css';
@@ -86,6 +88,61 @@ export function PersonPicker({
           options={options}
           value={value || NOBODY}
           onValueChange={(v) => onChange(v === NOBODY ? '' : v)}
+        />
+      </Field>
+    </div>
+  );
+}
+
+/**
+ * Scope item picker over GET /plan/scope/keys: type to search by key or element name, then
+ * choose from the first 50 matches.
+ */
+export function ScopeKeyPicker({
+  projectId,
+  label,
+  value,
+  onChange,
+  error,
+  help,
+  required = false,
+}: {
+  projectId: string;
+  label: string;
+  value: string;
+  onChange: (key: string) => void;
+  error?: string | undefined;
+  help?: string;
+  required?: boolean;
+}) {
+  const [q, setQ] = useState('');
+  const dq = useDebouncedValue(q.trim(), 250);
+  const keys = useScopeKeys(projectId, dq);
+  const rows = keys.data ?? [];
+  const options = [
+    ...(value && !rows.some((r) => r.key === value) ? [{ value, label: value }] : []),
+    ...rows.map((r) => ({ value: r.key, label: `${r.element} (${r.stream}, ${r.key})` })),
+  ];
+  return (
+    <div className={s.stackSm}>
+      <Field
+        label={`Find ${label.toLowerCase()}`}
+        help="Search by element name or scope key. The first 50 matches are listed."
+      >
+        <Input type="search" value={q} onChange={(e) => setQ(e.target.value)} />
+      </Field>
+      {keys.isError ? (
+        <ApiErrorView error={keys.error} title="Could not search the scope register" compact />
+      ) : null}
+      <Field label={label} error={error} help={help} required={required}>
+        <Select
+          options={options}
+          value={value}
+          onValueChange={onChange}
+          placeholder={
+            keys.isPending ? 'Loading…' : rows.length === 0 ? 'No matching items' : 'Choose an item'
+          }
+          disabled={options.length === 0}
         />
       </Field>
     </div>
