@@ -1052,8 +1052,9 @@
       ],
       "release": "R1",
       "spec": "PL-01",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Scope register: rule-based proposals with evidence for all six dispositions; people approve or change them with a reason. The Scope Analyst agent needs a model key."
     },
     {
       "id": "E11.F1.S2",
@@ -1068,8 +1069,9 @@
       ],
       "release": "R1",
       "spec": "PL-01",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Dependency graph from the knowledge graph across streams; people add and remove edges; cycles are errors."
     },
     {
       "id": "E11.F2.S1",
@@ -1084,8 +1086,9 @@
       ],
       "release": "R1",
       "spec": "PL-02",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Tasks per activity of pack estimation rules, split to the blueprint's maximum (40 h), with owner roles and dependencies."
     },
     {
       "id": "E11.F2.S2",
@@ -1100,8 +1103,9 @@
       ],
       "release": "R1",
       "spec": "PL-03",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Ranges with the rule, pack and past tasks used; roll-ups by stream, segment, wave and role."
     },
     {
       "id": "E11.F3.S1",
@@ -1115,8 +1119,9 @@
       ],
       "release": "R1",
       "spec": "PL-01",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Control matrix from the blueprint's compliance packs: control task, governed tasks and gates."
     },
     {
       "id": "E11.F3.S2",
@@ -1131,8 +1136,9 @@
       ],
       "release": "R1",
       "spec": "PL-04",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "OR-Tools CP-SAT wave solver: every broken constraint and the options; no work dropped."
     },
     {
       "id": "E11.F3.S3",
@@ -1146,8 +1152,9 @@
       ],
       "release": "R1",
       "spec": "PL-01",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Risk register; planner-found risks are proposals a person accepts."
     },
     {
       "id": "E11.F4.S1",
@@ -1162,8 +1169,9 @@
       ],
       "release": "R1",
       "spec": "CO-02",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Whole-estate, phased and parallel-run compared on duration, effort, risk and constraints; choice recorded with its reason."
     },
     {
       "id": "E11.F4.S2",
@@ -1178,8 +1186,9 @@
       ],
       "release": "R1",
       "spec": "Cutover Planner",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Timed runbook with go/no-go checks and rollback; rehearsal timings update it."
     },
     {
       "id": "E11.F5.S1",
@@ -1194,8 +1203,9 @@
       ],
       "release": "R1",
       "spec": "PL-05",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Plan baselines approved by a second person; re-plans diffed against the approved baseline."
     },
     {
       "id": "E11.F5.S2",
@@ -1210,8 +1220,9 @@
       ],
       "release": "R1",
       "spec": "PL-06",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Jira and Azure DevOps CSV exports with stable task ids; actual effort imported back and used for calibration. Live API sync needs credentials."
     },
     {
       "id": "E11.F5.S3",
@@ -1241,8 +1252,9 @@
       ],
       "release": "R1",
       "spec": "PL-07",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Pre-sales estimate from a questionnaire and an optional sample extract, labelled as an estimate with every assumption."
     },
     {
       "id": "E12.F1.S1",
@@ -1585,8 +1597,9 @@
       ],
       "release": "R1",
       "spec": "CO-03",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Coexistence rules per shared entity per phase; phased plans cannot be approved without them."
     },
     {
       "id": "E15.F1.S2",
@@ -1616,8 +1629,9 @@
       ],
       "release": "R1",
       "spec": "Coexistence",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "End dates and exit reconciliation per coexistence period, with at-risk warnings."
     },
     {
       "id": "E15.F2.S1",
@@ -1883,8 +1897,9 @@
       ],
       "release": "R1",
       "spec": "VG-01",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Gaps routed to configuration, customer extension, vendor product change or process change; no close without a route and an owner (API and database)."
     },
     {
       "id": "E19.F1.S2",
@@ -1898,8 +1913,9 @@
       ],
       "release": "R1",
       "spec": "VG-02",
-      "status": "todo",
-      "increment": "I7"
+      "status": "done",
+      "increment": "I7",
+      "note": "Vendor product changes as wave dependencies, ranked across a programme's customers; CSV export."
     },
     {
       "id": "E20.F1.S1",

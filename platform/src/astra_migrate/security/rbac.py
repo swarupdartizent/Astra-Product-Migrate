@@ -50,6 +50,8 @@ class P(StrEnum):
     BASELINE_MANAGE = "baseline:manage"
     TARGET_LOAD = "target:load"
     GOLDEN_RUN = "golden:run"
+    PRESALES = "presales:estimate"
+    PLAN_APPROVE = "plan:approve"
 
 
 @dataclass(frozen=True)
@@ -93,21 +95,21 @@ ROLES: dict[str, RoleDef] = {r.key: r for r in [
     _r("migration_lead", "Migration lead", "Runs a customer migration from set-up to sign-off.",
        {P.TENANT_READ, P.ACCESS_READ, P.SECRETS_READ, P.SECRETS_MANAGE, P.AUDIT_READ, P.OBSERVABILITY_READ,
         P.PROJECT_CREATE, P.BLUEPRINT_EDIT, P.BLUEPRINT_APPROVE, P.DECIDE_CONFLICT, P.AGENT_RUN, P.AGENT_PIN,
-        P.REVIEW_RESOLVE, P.STAGE_MANAGE, P.SOURCE_MANAGE, P.TARGET_LOAD}),
+        P.REVIEW_RESOLVE, P.STAGE_MANAGE, P.SOURCE_MANAGE, P.TARGET_LOAD, P.PRESALES, P.PLAN_APPROVE}),
     _r("data_sme", "Data subject expert", "Reviews data, mappings, code lists and data quality.",
        {P.TENANT_READ, P.REVIEW_RESOLVE, P.SOURCE_MANAGE}),
     _r("solution_architect", "Solution architect", "Owns target design, customizations, integrations and gaps.",
        {P.TENANT_READ, P.SECRETS_READ, P.BLUEPRINT_EDIT, P.REVIEW_RESOLVE, P.SOURCE_MANAGE, P.TRAP_CURATE,
         P.BASELINE_MANAGE}),
     _r("customer_data_owner", "Customer data owner", "Makes business data decisions and signs off reconciliation.",
-       {P.TENANT_READ, P.AUDIT_READ, P.BLUEPRINT_APPROVE, P.REVIEW_RESOLVE}, {"tenant", "project"}),
+       {P.TENANT_READ, P.AUDIT_READ, P.BLUEPRINT_APPROVE, P.REVIEW_RESOLVE, P.PLAN_APPROVE}, {"tenant", "project"}),
     _r("customer_it_security_lead", "Customer IT security lead", "Owns the customer's security set-up.",
        {P.TENANT_READ, P.TENANT_POLICY, P.ACCESS_READ, P.AUDIT_READ, P.AUDIT_EXPORT, P.SECRETS_READ,
         P.SECRETS_MANAGE, P.APPROVE_LOOSENING, P.REVIEW_RESOLVE}, {"tenant"}),
     _r("customer_operations_manager", "Operations manager (customer)", "Owns Digital Workers in production.",
        {P.TENANT_READ}, {"tenant", "project"}),
     _r("sales_engineer", "Sales engineer", "Runs pre-sales estimates and fleet scans.",
-       {P.TENANT_READ}, {"platform", "programme", "partner"}),
+       {P.TENANT_READ, P.PRESALES}, {"platform", "programme", "partner"}),
     _r("commercial_manager", "Commercial manager", "Prices work and tracks milestone billing.",
        {P.TENANT_READ}, {"platform", "programme", "partner"}),
     _r("reviewer", "Reviewer", "Approves, rejects or changes proposals in the review workbench.",

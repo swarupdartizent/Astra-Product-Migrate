@@ -973,3 +973,75 @@ class ChecklistItem(Base):
     updated_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PlanBaseline(Base):
+    """An approved (or proposed) version of a project's plan (E11.F5.S1). The snapshot lives in the tenant
+    database; this row holds its digest, summary, reason and decision. Only people decide (database trigger)."""
+
+    __tablename__ = "plan_baselines"
+    __table_args__ = (UniqueConstraint("project_id", "number", name="uq_plan_baseline_number"),
+                      CheckConstraint("status in ('proposed', 'approved', 'rejected', 'superseded')",
+                                      name="ck_plan_baseline_status"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    number: Mapped[int] = mapped_column(Integer)
+    digest: Mapped[str] = mapped_column(String(64))
+    summary: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    changes: Mapped[dict[str, Any]] = mapped_column(default=dict)  # diff counts against the approved baseline
+    reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="proposed")
+    proposed_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+GAP_ROUTES = ("configuration", "customer_extension", "vendor_product_change", "process_change")
+
+
+class Gap(Base):
+    """A difference the target does not cover (E19.F1). Vendor product changes become plan dependencies and are
+    ranked across a programme's customers by the migrations they block."""
+
+    __tablename__ = "gaps"
+    __table_args__ = (CheckConstraint(f"route is null or route in {GAP_ROUTES!r}", name="ck_gap_route"),
+                      CheckConstraint("status in ('open', 'closed')", name="ck_gap_status"),
+                      Index("ix_gap_project", "project_id", "status"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(300))
+    detail: Mapped[str] = mapped_column(Text, default="")
+    scope_key: Mapped[str | None] = mapped_column(String(400))
+    route: Mapped[str | None] = mapped_column(String(30))
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    product: Mapped[str | None] = mapped_column(String(100))  # target adapter name, for vendor changes
+    vendor_ref: Mapped[str | None] = mapped_column(String(100))  # the vendor's own reference, to group requests
+    blocks_waves: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    close_note: Mapped[str | None] = mapped_column(Text)
+    closed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PresalesEstimate(Base):
+    """A pre-sales sizing (E11.F5.S4). Clearly an estimate; kept so proposals can be traced to their inputs."""
+
+    __tablename__ = "presales_estimates"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(200))
+    programme_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("programmes.id", ondelete="RESTRICT"))
+    estimation_packs: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    questionnaire: Mapped[dict[str, Any]] = mapped_column()
+    sample: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    result: Mapped[dict[str, Any]] = mapped_column()
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

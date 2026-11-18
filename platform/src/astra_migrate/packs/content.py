@@ -41,6 +41,10 @@ def content_problems(m: Manifest, files: dict[str, bytes]) -> list[dict[str, str
             parse_target(m.content)
         elif m.type == PackType.DOMAIN and "ontology" in m.content:
             DomainContent.model_validate(m.content)
+        elif m.type == PackType.PATTERN and "estimation" in m.content:
+            from astra_migrate.planning.estimation import Estimation
+
+            Estimation.model_validate(m.content["estimation"])
     except ValidationError as e:
         return _errs("content", e)
     return []

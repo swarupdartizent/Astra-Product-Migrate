@@ -27,6 +27,7 @@ dependencies = [
   "openai==3.44.0",
   "pymssql==2.4.6",
   "sqlglot==30.29.0",
+  "ortools==9.12.4544",
 ]
 
 [dependency-groups]

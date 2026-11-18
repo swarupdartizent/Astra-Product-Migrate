@@ -114,12 +114,12 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 |---|---|
 | The Orchestrator's model test cases are *Blocked* until a model provider with a real key is configured; it cannot be released (and so cannot run) before that. Live tests (`tests/test_live_agents.py`) run only when `ANTHROPIC_API_KEY` is set | Needs the Anthropic key |
 | The Azure OpenAI and Claude-on-Foundry drivers are built and unit-checked but not yet called live | Needs Azure keys |
-| Model calls are checked against the region's provider list, but not yet against blueprint residency controls | I7 (control matrix) |
+| Model calls are checked against the region's provider list, but not yet against blueprint residency controls (the I7 control matrix lists residency controls; enforcing them on model calls is not done) | I9 (agents at scale) |
 | Stage gates for discovery, planning, execution, validation and cutover stay closed until the evidence those increments produce exists | I5, I7, I9–I11 |
 | The other agents in the specification are registered as their tools arrive (only the Orchestrator's tools exist now) | I5 onwards |
 | Agent governance records and review decisions in the proof pack (E02.F3.S1, E03.F2.S3) | I11 |
 | Model prices are kept by administrators on each provider; there is no automatic price feed | Later |
-| API gaps from the I3 screens still open: allowed stage moves before trying, `/jobs` paging, untyped governance and transcript payloads (`can_cancel` and the reason a review item cannot be resolved were added in I4) | I5 |
+| API gaps from the I3 screens still open: allowed stage moves before trying, `/jobs` paging, untyped governance and transcript payloads (`can_cancel` and the reason a review item cannot be resolved were added in I4) | I8 |
 | The reference source adapter is proven only on the synthetic golden estate; its entity tables and SQL Anywhere queries must be confirmed on a real ConceptOne estate | Needs a ConceptOne reference database |
 | SQL Anywhere: the driver is written but needs an engine and SAP client libraries to run | Needs SQL Anywhere |
 | Pro Suite Base loads are Blocked: token endpoint, load endpoints, rate limits and approved bulk tools are unknown; only a synthetic baseline exists | Needs Insurity API docs, sandbox and baseline |
@@ -130,7 +130,12 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Process mining (DS-04) and agentification candidates are not started; coverage reports show them as gaps | Agentification increment |
 | Screens are not linked to rules: no adapter supplies screen metadata yet | With a real estate |
 | Server-wide usage statistics (index usage, sessions) are not read; usage comes from imported records | Later |
-| API gaps from the I5 screens: untyped discovery result schemas, no `can_start`/`can_waive` hints, results refused for runs that failed late, no single coverage-report GET, graph edge paging and filtered counts, no delete for activity imports (not taken up in I6) | I7 |
+| API gaps from the I5 screens: untyped discovery result schemas, no `can_start`/`can_waive` hints, results refused for runs that failed late, no single coverage-report GET, graph edge paging and filtered counts, no delete for activity imports (not taken up in I6 or I7) | I8 |
+| The Scope Analyst and Cutover Planner agents are not registered; scope proposals and cutover figures come from deterministic rules and stated assumptions | Needs a model key |
+| The generic estimation pack is uncalibrated planning assumptions; estimates become evidence-based only as actual effort flows back (three past tasks per rule) | With delivered work |
+| Jira and Azure DevOps exchange is through their CSV import and export formats; live two-way API sync needs credentials for each tool | Needs Jira/ADO credentials |
+| Risks found by agents use the same proposal flow as the planner's, but no agent raises risks yet | Needs a model key |
+| The wave solver places scope items, not individual tasks, and does not model calendar time inside a wave | Later |
 | SQL Anywhere conversion is proven on synthetic Watcom-SQL objects compiled and tested on SQL Server; reading code from a live SQL Anywhere estate waits for an engine | Needs SQL Anywhere |
 | The version delta compares tables by columns and code by normalized hash; configuration items are not yet in the delta, and the 60% same-family threshold is untuned | With a real target baseline |
 | The reference source adapter does not yet use `compare_as`/`customization` for its customer extension tables (published 1.1.0 cannot change); until its next version, the delta lists those tables as not in scope | Next reference adapter version |

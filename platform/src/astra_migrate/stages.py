@@ -61,6 +61,11 @@ def _evidence(session: Session, project: Project, stage: str) -> bool:
 
         return session.scalar(select(CoverageReport.id).where(CoverageReport.project_id == project.id,
                                                               CoverageReport.status == "accepted")) is not None
+    if stage == "planning":
+        from astra_migrate.db.models import PlanBaseline
+
+        return session.scalar(select(PlanBaseline.id).where(PlanBaseline.project_id == project.id,
+                                                            PlanBaseline.status == "approved")) is not None
     return False
 
 

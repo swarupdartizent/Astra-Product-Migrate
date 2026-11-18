@@ -1,0 +1,190 @@
+apiVersion: astra.packs/v1
+type: pattern
+name: generic-estimation
+version: 1.0.0
+title: Generic migration estimation rules (uncalibrated)
+description: >-
+  Starting estimation rules for any product migration: hours per element, per column or per thousand rows for
+  each stream and disposition, split into activities with owner roles. They are planning assumptions, not
+  measurements. The planner marks every estimate made with them as uncalibrated until actual effort from delivered
+  tasks flows back and corrects them.
+publisher: Artizent
+licence: proprietary
+content:
+  estimation:
+    basis: >-
+      Planning assumptions written by Artizent for first plans, before any delivered work exists to measure. They
+      are not derived from measured projects. Replace them with a programme's own pack, or let actual effort from
+      Jira or Azure DevOps calibrate them (three or more past tasks per rule).
+    calibrated: false
+    rules:
+      - id: GEN-DATA-MIGRATE
+        stream: data
+        disposition: migrate
+        unit: column
+        fixed: {low: 2, likely: 4, high: 8}
+        per_unit: {low: 0.25, likely: 0.5, high: 1}
+        activities:
+          - {name: Map and design, role: data_sme, share: 0.4}
+          - {name: Build transformation, role: data_sme, share: 0.35}
+          - {name: Test and reconcile, role: test_engineer, share: 0.25}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-DOCS-MIGRATE
+        stream: data
+        disposition: migrate
+        kinds: [document_store]
+        unit: element
+        per_unit: {low: 16, likely: 32, high: 64}
+        activities:
+          - {name: Design document load, role: data_sme, share: 0.3}
+          - {name: Load and link documents, role: data_sme, share: 0.4}
+          - {name: Check links and bytes, role: test_engineer, share: 0.3}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-DATA-ARCHIVE
+        stream: data
+        disposition: archive
+        unit: element
+        per_unit: {low: 2, likely: 4, high: 8}
+        activities:
+          - {name: Agree retention and archive, role: customer_data_owner, share: 0.3}
+          - {name: Archive and verify, role: data_sme, share: 0.7}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-RETIRE
+        stream: data
+        disposition: retire
+        unit: element
+        per_unit: {low: 0.5, likely: 1, high: 2}
+        activities:
+          - {name: Confirm retirement, role: customer_data_owner, share: 1}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-CUST-RETIRE
+        stream: customizations
+        disposition: retire
+        unit: element
+        per_unit: {low: 0.5, likely: 1, high: 2}
+        activities:
+          - {name: Confirm retirement, role: solution_architect, share: 1}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-CUST-MIGRATE
+        stream: customizations
+        disposition: migrate
+        unit: column
+        fixed: {low: 2, likely: 4, high: 8}
+        per_unit: {low: 0.25, likely: 0.5, high: 1}
+        activities:
+          - {name: Map and design, role: data_sme, share: 0.4}
+          - {name: Build transformation, role: data_sme, share: 0.35}
+          - {name: Test and reconcile, role: test_engineer, share: 0.25}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-CUST-REBUILD-TABLE
+        stream: customizations
+        disposition: rebuild
+        kinds: [table, user_defined_table]
+        unit: column
+        fixed: {low: 4, likely: 8, high: 16}
+        per_unit: {low: 0.5, likely: 1, high: 2}
+        activities:
+          - {name: Design target extension, role: solution_architect, share: 0.35}
+          - {name: Build extension and load, role: data_sme, share: 0.4}
+          - {name: Test extension, role: test_engineer, share: 0.25}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-CUST-REBUILD-CODE
+        stream: customizations
+        disposition: rebuild
+        unit: element
+        per_unit: {low: 8, likely: 16, high: 40}
+        activities:
+          - {name: Analyse behaviour, role: solution_architect, share: 0.3}
+          - {name: Rebuild on target, role: solution_architect, share: 0.45}
+          - {name: Test behaviour, role: test_engineer, share: 0.25}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-CUST-REPLACE
+        stream: customizations
+        disposition: replace_with_standard
+        unit: element
+        per_unit: {low: 4, likely: 8, high: 16}
+        activities:
+          - {name: Configure the standard feature, role: solution_architect, share: 0.6}
+          - {name: Test with the business, role: test_engineer, share: 0.4}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-CUST-AGENTIFY
+        stream: customizations
+        disposition: agentify
+        unit: element
+        per_unit: {low: 24, likely: 40, high: 80}
+        activities:
+          - {name: Design the Digital Worker, role: solution_architect, share: 0.4}
+          - {name: Build and evaluate, role: solution_architect, share: 0.4}
+          - {name: Business acceptance, role: test_engineer, share: 0.2}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-INTEGRATION-REBUILD
+        stream: integrations
+        disposition: rebuild
+        unit: element
+        per_unit: {low: 16, likely: 32, high: 64}
+        activities:
+          - {name: Design integration on target APIs, role: solution_architect, share: 0.3}
+          - {name: Build integration, role: solution_architect, share: 0.45}
+          - {name: Test end to end, role: test_engineer, share: 0.25}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-INTEGRATION-RETIRE
+        stream: integrations
+        disposition: retire
+        unit: element
+        per_unit: {low: 1, likely: 2, high: 4}
+        activities:
+          - {name: Confirm the consumer is gone, role: solution_architect, share: 1}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-REPORT-REBUILD
+        stream: reports
+        disposition: rebuild
+        unit: element
+        per_unit: {low: 4, likely: 8, high: 20}
+        activities:
+          - {name: Rebuild report, role: solution_architect, share: 0.7}
+          - {name: Compare outputs, role: test_engineer, share: 0.3}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-REPORT-RETIRE
+        stream: reports
+        disposition: retire
+        unit: element
+        per_unit: {low: 0.5, likely: 1, high: 2}
+        activities:
+          - {name: Confirm retirement, role: customer_data_owner, share: 1}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-CONFIG-MIGRATE
+        stream: configuration
+        disposition: migrate
+        unit: element
+        per_unit: {low: 1, likely: 2, high: 6}
+        activities:
+          - {name: Translate configuration, role: solution_architect, share: 0.7}
+          - {name: Test configuration, role: test_engineer, share: 0.3}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-SECURITY-MIGRATE
+        stream: users_security
+        disposition: migrate
+        unit: element
+        per_unit: {low: 2, likely: 4, high: 8}
+        activities:
+          - {name: Map roles and access, role: customer_it_security_lead, share: 0.6}
+          - {name: Test access, role: test_engineer, share: 0.4}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-PLATFORM-REPLACE
+        stream: platform
+        disposition: replace_with_standard
+        unit: element
+        per_unit: {low: 16, likely: 24, high: 40}
+        activities:
+          - {name: Set up the hosted target, role: migration_lead, share: 0.5}
+          - {name: Hosting checklist, role: customer_it_security_lead, share: 0.5}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
+      - id: GEN-CONTROL-OPERATE
+        stream: process
+        disposition: migrate
+        kinds: [control]
+        unit: element
+        per_unit: {low: 4, likely: 8, high: 16}
+        activities:
+          - {name: Operate control, role: migration_lead, share: 1}
+        sources: [{reference: "Planning assumption (uncalibrated)"}]
