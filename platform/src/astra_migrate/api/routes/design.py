@@ -389,6 +389,34 @@ def form_parity(project_id: uuid.UUID, body: ParityIn, principal: CurrentPrincip
     return out
 
 
+class LayoutIn(BaseModel):
+    key: str
+    note: str = Field(min_length=10, max_length=2000)
+
+
+@router.post("/projects/{project_id}/design/form-layout-approval")
+def approve_layout(project_id: uuid.UUID, body: LayoutIn, principal: CurrentPrincipal, s: DB) -> dict[str, Any]:
+    """Approve layout-only differences (page count or size) of a converted form (E14.F2.S2). Content differences
+    cannot be approved: they fail the test."""
+    t, p = project_for(s, principal, project_id, None)
+    ok, why = service.can_decide(principal, t, p.id, "form")
+    if not ok:
+        raise forbidden(why)
+    with register.connect(t) as tc, tc.transaction():
+        it = register.get(tc, p.id, "form", body.key)
+        if it is None:
+            raise not_found("Form")
+        par = it.get("parity") or {}
+        if not par.get("layout_only"):
+            raise conflict("Nothing to approve", "Only a parity result whose differences are all layout can be "
+                                                 "approved; content differences fail the test.")
+        par = {**par, "layout_approval": {**_who(principal), "note": body.note.strip()}}
+        out = register.update(tc, p.id, "form", body.key, None, {"parity": par}, principal.user.display_name)
+    service.audit_record(s, principal, t, p.id, "design.form_layout_approved",
+                         {"form": body.key, "differences": par.get("layout_differences"), "note": body.note.strip()})
+    return out
+
+
 # ------------------------------------------------------------------ build artifacts (E12.F4.S1, E12.F2.S3)
 
 def _art_out(a: BuildArtifact) -> dict[str, Any]:

@@ -58,8 +58,11 @@ def readiness(item: dict[str, Any]) -> str | None:
         return "The item is blocked: " + "; ".join(item.get("flags") or item.get("evidence") or [])
     if item["status"] == "in_review":
         return "The item is in the review queue; decide it there."
-    if st == "form" and not (item.get("parity") or {}).get("passed"):
-        return "The converted form has not passed parity against its golden copy."
+    par = item.get("parity") or {}
+    if st == "form" and not par.get("passed") and not (par.get("layout_only") and par.get("layout_approval")):
+        return ("Only layout differs from the golden copy: a person must approve the layout differences."
+                if par.get("layout_only") else
+                "The converted form has not passed parity against its golden copy (content differences fail).")
     if st == "integration" and not tgt.get("retire") and not item.get("tests"):
         return "Define the interface's end-to-end test first."
     if st == "security" and item.get("missing"):

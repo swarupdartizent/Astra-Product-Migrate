@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any, ClassVar
 
 from sqlalchemy import (
@@ -21,6 +22,7 @@ from sqlalchemy import (
     Index,
     Integer,
     LargeBinary,
+    Numeric,
     SmallInteger,
     String,
     Text,
@@ -1140,3 +1142,111 @@ class BuildArtifact(Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     approval_note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+LOAD_KINDS = ("rehearsal", "load", "delta", "reload")
+
+
+class LoadRun(Base):
+    """A numbered load (E13.F1.S1): pinned transformation code, pack versions and input extract, so it can be repeated
+    exactly. A rehearsal transforms, validates and reconciles without sending anything to the target."""
+
+    __tablename__ = "load_runs"
+    __table_args__ = (
+        UniqueConstraint("project_id", "number", name="uq_load_run_number"),
+        CheckConstraint(f"kind in {LOAD_KINDS!r}", name="ck_load_run_kind"),
+        CheckConstraint(RUN_STATUSES, name="ck_load_run_status"),
+        CheckConstraint("kind = 'rehearsal' OR target_connection_id IS NOT NULL", name="ck_load_needs_target"),
+        Index("ix_load_run_project", "project_id", "number"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    number: Mapped[int] = mapped_column(Integer)
+    kind: Mapped[str] = mapped_column(String(20))
+    parent_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("load_runs.id"))
+    extract_run_id: Mapped[uuid.UUID | None] = mapped_column()
+    target_connection_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("target_connections.id"))
+    segment: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    artifacts: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    packs: Mapped[dict[str, Any]] = mapped_column()
+    input_digest: Mapped[str] = mapped_column(String(64))
+    result_digest: Mapped[str | None] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    job_id: Mapped[uuid.UUID | None] = mapped_column()
+    requested_by: Mapped[dict[str, Any]] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ReconBreak(Base):
+    """A reconciliation break (E14.F1.S2, E15.F1.S2). It has an owner until it is closed with a reason (database)."""
+
+    __tablename__ = "recon_breaks"
+    __table_args__ = (
+        CheckConstraint("origin in ('load', 'coexistence')", name="ck_break_origin"),
+        CheckConstraint("status in ('open', 'closed')", name="ck_break_status"),
+        CheckConstraint("status <> 'closed' OR (owner_user_id IS NOT NULL AND closed_by IS NOT NULL AND "
+                        "length(coalesce(close_reason, '')) >= 10)", name="ck_break_close_needs_owner_and_reason"),
+        Index("ix_break_project", "project_id", "status", "origin"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    origin: Mapped[str] = mapped_column(String(20))
+    load_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("load_runs.id", ondelete="CASCADE"))
+    scope: Mapped[str] = mapped_column(String(300))
+    measure: Mapped[str] = mapped_column(String(200))
+    source_value: Mapped[Decimal | None] = mapped_column(Numeric(24, 2))
+    target_value: Mapped[Decimal | None] = mapped_column(Numeric(24, 2))
+    difference: Mapped[Decimal | None] = mapped_column(Numeric(24, 2))
+    detail: Mapped[str] = mapped_column(Text)
+    owner_role: Mapped[str] = mapped_column(String(60))
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    close_reason: Mapped[str | None] = mapped_column(Text)
+    closed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ParityRun(Base):
+    """A parity comparison (E14.F2): rating, report, workflow or period-close results from both systems."""
+
+    __tablename__ = "parity_runs"
+    __table_args__ = (CheckConstraint("kind in ('rating', 'report', 'workflow', 'period_close')",
+                                      name="ck_parity_kind"),
+                      Index("ix_parity_project", "project_id", "created_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(20))
+    name: Mapped[str] = mapped_column(String(200))
+    spec: Mapped[dict[str, Any]] = mapped_column()
+    summary: Mapped[dict[str, Any]] = mapped_column()
+    source_sha256: Mapped[str] = mapped_column(String(64))
+    target_sha256: Mapped[str] = mapped_column(String(64))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CoexistenceSchedule(Base):
+    """Daily reconciliation of shared entities while both systems run (E15.F1.S2)."""
+
+    __tablename__ = "coexistence_schedules"
+    __table_args__ = (CheckConstraint("hour_utc between 0 and 23", name="ck_coexistence_hour"),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    connection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("source_connections.id", ondelete="CASCADE"))
+    enabled: Mapped[bool] = mapped_column(Boolean)
+    hour_utc: Mapped[int] = mapped_column(SmallInteger)
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))

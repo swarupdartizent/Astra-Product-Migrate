@@ -61,5 +61,9 @@ def compare(converted: bytes, golden: bytes) -> dict[str, Any]:
         diffs.append(f"fields not in the golden copy: {', '.join(extra[:20])}")
     if typed:
         diffs.append(f"fields with a different type: {', '.join(typed[:20])}")
-    return {"passed": not diffs, "differences": diffs, "pages": len(a["pages"]), "golden_pages": len(b["pages"]),
+    layout = [d for d in diffs if d.startswith("pages:") or (d.startswith("page ") and " size:" in d)]
+    content = [d for d in diffs if d not in layout]
+    return {"passed": not diffs, "differences": diffs, "content_differences": content,
+            "layout_differences": layout, "layout_only": bool(layout) and not content,
+            "pages": len(a["pages"]), "golden_pages": len(b["pages"]),
             "fields": len(a["fields"]), "golden_fields": len(b["fields"])}

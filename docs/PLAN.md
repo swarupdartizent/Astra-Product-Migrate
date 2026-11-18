@@ -164,6 +164,11 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | The Configuration Translator, Code Modernizer, Integration Rebuilder and Target Designer agents are not registered; proposals come from deterministic rules | Needs a model key |
 | API gaps from the I9 screens: build artifacts name their approver by id only; no permission flag for running integration tests (shares stage management with build); no record of a build run beyond its job; the item list searches keys only and its rows lack readiness and can_decide; uploaded PDFs cannot be downloaded back; precedents carry a project id without its name; design runs return no connection name; register updates return the item without readiness, can_decide or files (I9 fixed: form parity checks the decider and decided state, and can_approve excludes the person who generated a version) | I10 |
 | I9 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack or with real PDFs | Next demo |
+| Parity compares result files from both systems; driving the source and target rating, report and workflow engines directly needs their APIs | With target documentation |
+| The target side of coexistence and document checks is what the target accepted in loads or returns from its documents path; reading the target's data directly needs its read API (for example DBQuery) | With target documentation |
+| Loads into the reference target stay rehearsals until its token endpoint, load endpoints (with tables) and documents path are documented | Needs Insurity API docs and sandbox |
+| Staging runs on the SQL Server workbench in one transaction per artifact; very large estates need batching by key range | With a real estate |
+| I10 screens are not built yet | I10 (screens) |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
 | Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |

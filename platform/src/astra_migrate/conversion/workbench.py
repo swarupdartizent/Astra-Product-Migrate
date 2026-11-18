@@ -236,6 +236,29 @@ class Workbench:
             cur.close()
             self.conn.rollback()
 
+    def rows(self, tables: list[Table], steps: list[tuple[str, tuple[Any, ...] | None]], query: str,
+             batches: list[tuple[str, list[tuple[Any, ...]]]] | None = None
+             ) -> tuple[str | None, list[dict[str, Any]]]:
+        """Build the tables, insert batches, run the steps and return the query's rows, in one transaction that is
+        rolled back. Used to run approved transformation code on staged records."""
+        import pymssql
+
+        cur = self.conn.cursor(as_dict=True)
+        try:
+            self._schema(cur, tables)
+            for sql, rows in batches or []:
+                if rows:
+                    cur.executemany(sql, rows)
+            for sql, params in steps:
+                self._exec(cur, sql, params)
+            cur.execute(query)
+            return None, [{k: _plain(v) for k, v in r.items()} for r in cur.fetchall()]
+        except pymssql.Error as e:
+            return _message(e), []
+        finally:
+            cur.close()
+            self.conn.rollback()
+
     def run_test(self, tables: list[Table], sql: str, kind: str, qualified: str, case: dict[str, Any]
                  ) -> TestOutcome:
         """Run one recorded case: insert its rows, call the object with its inputs, compare what comes back."""

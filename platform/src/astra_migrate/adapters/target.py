@@ -146,6 +146,56 @@ class TargetClient:
             parsed = r.text[:2000]
         return r.status_code, parsed, None
 
+    def send(self, ep: Any, records: list[dict[str, Any]], label: str) -> list[tuple[str, int | None, str | None]]:
+        """Send records through one load endpoint and return, per record, (outcome, HTTP status, the target's
+        reason). With batches, a rejected batch rejects each of its records with the batch's reason."""
+        out: list[tuple[str, int | None, str | None]] = []
+        for i in range(0, len(records), ep.batch_size):
+            batch = records[i:i + ep.batch_size]
+            body: Any = batch if ep.batch_size > 1 else batch[0]
+            result: tuple[str, int | None, str | None] = ("rejected", None, "not sent")
+            for attempt in range(MAX_RETRIES_429 + 1):
+                waited = self.limiter.acquire()
+                t0 = time.perf_counter()
+                try:
+                    r = self.http.request(ep.method, ep.path, json=body,
+                                          headers={"Authorization": f"Bearer {self._token()}"})
+                except httpx.HTTPError as e:
+                    self._log(entity=label, method=ep.method, path=ep.path, status=None, outcome="error",
+                              records=len(batch), waited=waited, latency=(time.perf_counter() - t0) * 1000,
+                              remaining=None, error=type(e).__name__)
+                    result = ("rejected", None, f"The target could not be reached: {type(e).__name__}")
+                    break
+                latency = (time.perf_counter() - t0) * 1000
+                remaining = r.headers.get("x-ratelimit-remaining")
+                if r.status_code == 429 and attempt < MAX_RETRIES_429:
+                    self._log(entity=label, method=ep.method, path=ep.path, status=429, outcome="rate_limited",
+                              records=len(batch), waited=waited, latency=latency, remaining=remaining,
+                              error="rate limited")
+                    time.sleep(min(float(r.headers.get("retry-after", "1") or 1), 60))
+                    continue
+                ok = 200 <= r.status_code < 300
+                self._log(entity=label, method=ep.method, path=ep.path, status=r.status_code,
+                          outcome="ok" if ok else "rejected", records=len(batch), waited=waited, latency=latency,
+                          remaining=remaining, error=None if ok else r.text[:500])
+                result = ("loaded", r.status_code, None) if ok else ("rejected", r.status_code, r.text[:2000])
+                break
+            out.extend([result] * len(batch))
+        return out
+
+    def get_bytes(self, path: str, label: str) -> tuple[int | None, bytes | None, str | None]:
+        waited = self.limiter.acquire()
+        t0 = time.perf_counter()
+        try:
+            r = self.http.get(path, headers={"Authorization": f"Bearer {self._token()}"})
+        except httpx.HTTPError as e:
+            return None, None, f"The target could not be reached: {type(e).__name__}"
+        ok = 200 <= r.status_code < 300
+        self._log(entity=label, method="GET", path=path, status=r.status_code, outcome="ok" if ok else "rejected",
+                  records=0, waited=waited, latency=(time.perf_counter() - t0) * 1000,
+                  remaining=r.headers.get("x-ratelimit-remaining"), error=None if ok else r.text[:500])
+        return r.status_code, r.content if ok else None, None if ok else f"HTTP {r.status_code}"
+
     def load(self, entity: str, records: list[dict[str, Any]]) -> LoadResult:
         ep = next((e for e in self.content.load.endpoints if e.entity == entity), None)
         if ep is None:

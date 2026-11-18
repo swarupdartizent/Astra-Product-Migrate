@@ -20,6 +20,7 @@ from astra_migrate.api.routes import (
     design,
     discovery,
     jobs,
+    loads,
     models,
     ontology,
     packs,
@@ -43,11 +44,16 @@ API_PREFIX = "/api/v1"
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    from astra_migrate.loads.coexistence import Scheduler
+
     runner._ensure_handlers()
     runner.start_workers(get_settings().job_workers)
+    scheduler = Scheduler()
+    scheduler.start()
     try:
         yield
     finally:
+        scheduler.stop()
         runner.stop_workers()
 
 
@@ -66,7 +72,7 @@ def create_app() -> FastAPI:
     for r in (core.router, tenants.router, access.router, secrets_audit_obs.router, packs.router, projects.router,
               jobs.router, models.router, agents.router, runtime.router, adapters.router, targets.router,
               ontology.router, discovery.router, upgrade.router, planning.router, review.router,
-              design.router):
+              design.router, loads.router):
         app.include_router(r, prefix=API_PREFIX)
 
     FastAPIInstrumentor.instrument_app(app, tracer_provider=provider, excluded_urls="/api/v1/health")

@@ -153,6 +153,7 @@ def transformation(source_table: str, target_table: str, maps: list[dict[str, An
     problems = [f"required target column {c['name']} has no mapping"
                 for c in target_columns if c.get("nullable") is False and str(c["name"]).lower() not in mapped]
     inputs = {"source_table": source_table, "target_table": target_table,
+              "source_columns": source_columns, "target_columns": target_columns, "procedure": proc,
               "mappings": [{"source": m["source"]["column"], "target": m["target"]["column"],
                             "decided_by": (m.get("decision") or {}).get("by")} for m in maps],
               "seed_rows": rows, "real_sample_rows": min(len(samples), 50)}

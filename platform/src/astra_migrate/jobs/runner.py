@@ -118,6 +118,8 @@ def _ensure_handlers() -> None:
     from astra_migrate.delta import jobs as _delta_jobs  # noqa: F401
     from astra_migrate.design import jobs as _design_jobs  # noqa: F401
     from astra_migrate.discovery import jobs as _discovery_jobs  # noqa: F401
+    from astra_migrate.loads import coexistence as _coexistence_jobs  # noqa: F401
+    from astra_migrate.loads import engine as _load_jobs  # noqa: F401
     from astra_migrate.tenancy import jobs as _tenant_jobs  # noqa: F401
 
 

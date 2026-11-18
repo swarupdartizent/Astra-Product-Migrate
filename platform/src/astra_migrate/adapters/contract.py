@@ -323,6 +323,8 @@ class LoadEndpoint(_M):
     method: Literal["POST", "PUT", "PATCH"]
     path: str = Field(pattern=r"^/[A-Za-z0-9_\-/{}.]*$")
     batch_size: int = Field(default=1, ge=1, le=10_000)
+    table: Annotated[str, Field(pattern=QUALIFIED)] | None = Field(
+        default=None, description="The target baseline table (schema.name) whose rows this endpoint loads (I10)")
 
 
 class Load(_M):
@@ -439,6 +441,15 @@ class TargetDesign(_M):
         return self
 
 
+class TargetDocuments(_M):
+    """How migrated documents are read back from the target, for byte-for-byte checks (I10)."""
+
+    read_path: str = Field(pattern=r"^/[A-Za-z0-9_\-/.]*\{key\}[A-Za-z0-9_\-/.]*$",
+                           description="GET path returning a document's bytes; {key} is the source document key")
+    source: SourceRef
+    confidence: Confidence
+
+
 class TargetAdapterContent(_M):
     contract: Literal["astra.adapters/v1"]
     product: Product
@@ -447,6 +458,7 @@ class TargetAdapterContent(_M):
     baseline_format: Literal["astra.baseline/v1"] = "astra.baseline/v1"
     validated_against_real_target: bool = False
     design: TargetDesign | None = None
+    documents: TargetDocuments | None = None
 
     @field_validator("constraints")
     @classmethod

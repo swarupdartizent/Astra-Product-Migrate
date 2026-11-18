@@ -86,6 +86,20 @@ class Documents(_Strict):
     retrieval_sample_size: int = Field(default=200, ge=1, le=100_000)
 
 
+class Measure(_Strict):
+    table: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$",
+                       description="Target table (schema.name)")
+    column: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")
+    label: str = Field(default="", max_length=100, description="e.g. written premium, taxes, commissions")
+
+
+class Validation(_Strict):
+    measures: list[Measure] = Field(
+        default_factory=list, description="Amounts reconciled to the cent after every load; when empty, every "
+                                          "mapped decimal column is reconciled")
+    blocking_rules_stop_load: bool = Field(default=True, description="Records failing a blocking rule are not sent")
+
+
 class Blueprint(_Strict):
     api_version: Literal["astra.blueprints/v1"] = Field(alias="apiVersion")
     name: str = Field(min_length=3, max_length=120, pattern=r"^[a-z0-9][a-z0-9-]*$")
@@ -104,6 +118,7 @@ class Blueprint(_Strict):
     approvals: Approvals = Field(default_factory=Approvals)
     overrides: list[Override] = Field(default_factory=list)
     documents: Documents = Field(default_factory=Documents)
+    validation: Validation = Field(default_factory=Validation)
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 

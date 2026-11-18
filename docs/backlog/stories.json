@@ -1419,8 +1419,9 @@
       ],
       "release": "R1",
       "spec": "DB-04",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Numbered runs pin approved code digests, pack versions, extract and segment (database); result digests show a rerun with the same inputs gave the same result; counts and errors per run."
     },
     {
       "id": "E13.F1.S2",
@@ -1435,8 +1436,9 @@
       ],
       "release": "R1",
       "spec": "Load runs",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Every record kept with the target's reason; error queue filters, owners, triage, fixed payloads, reload of chosen records alone."
     },
     {
       "id": "E13.F1.S3",
@@ -1450,8 +1452,9 @@
       ],
       "release": "R1",
       "spec": "Load runs",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Loads by segment (column and values); delta loads from delta extracts, and unchanged records are skipped."
     },
     {
       "id": "E13.F2.S1",
@@ -1482,8 +1485,9 @@
       ],
       "release": "R1",
       "spec": "DC-01, DC-02",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Every document link checked with its entity; a repeatable random sample (blueprint size) read back and compared byte for byte. Needs the target's documents read path."
     },
     {
       "id": "E14.F1.S1",
@@ -1497,8 +1501,9 @@
       ],
       "release": "R1",
       "spec": "Validation",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Structural, reference, semantic and business rules on every transformed record; each failure names the rule, the record and a proposed fix."
     },
     {
       "id": "E14.F1.S2",
@@ -1513,8 +1518,9 @@
       ],
       "release": "R1",
       "spec": "Reconciliation",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Three-way reconciliation of counts and measured amounts to the cent after every run; breaks have an owner until closed with a reason (database)."
     },
     {
       "id": "E14.F1.S3",
@@ -1528,8 +1534,9 @@
       ],
       "release": "R1",
       "spec": "Validation",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Data quality before (discovery profile) and after (records with no failure), per object and segment."
     },
     {
       "id": "E14.F2.S1",
@@ -1544,8 +1551,9 @@
       ],
       "release": "R1",
       "spec": "PT-01",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Re-rating results from both systems compared case by case with inputs and both outputs; approvals recorded per difference."
     },
     {
       "id": "E14.F2.S2",
@@ -1560,8 +1568,9 @@
       ],
       "release": "R1",
       "spec": "PT-02",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Form parity: content differences fail; layout-only differences need an approval with a note."
     },
     {
       "id": "E14.F2.S3",
@@ -1576,8 +1585,9 @@
       ],
       "release": "R1",
       "spec": "PT-03",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Report and workflow results compared; report totals to the cent."
     },
     {
       "id": "E14.F2.S4",
@@ -1591,8 +1601,9 @@
       ],
       "release": "R1",
       "spec": "Parity testing",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Period-close results (ledger, receivables, payables, commissions) compared to the cent."
     },
     {
       "id": "E15.F1.S1",
@@ -1623,8 +1634,9 @@
       ],
       "release": "R1",
       "spec": "CO-04",
-      "status": "todo",
-      "increment": "I10"
+      "status": "done",
+      "increment": "I10",
+      "note": "Daily scheduled reconciliation of shared entities; breaks to the schedule's named owner; dashboard of open breaks."
     },
     {
       "id": "E15.F1.S3",
