@@ -130,7 +130,13 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Process mining (DS-04) and agentification candidates are not started; coverage reports show them as gaps | Agentification increment |
 | Screens are not linked to rules: no adapter supplies screen metadata yet | With a real estate |
 | Server-wide usage statistics (index usage, sessions) are not read; usage comes from imported records | Later |
-| API gaps from the I5 screens: untyped discovery result schemas, no `can_start`/`can_waive` hints, results refused for runs that failed late, no single coverage-report GET, graph edge paging and filtered counts, no delete for activity imports | I6 |
+| API gaps from the I5 screens: untyped discovery result schemas, no `can_start`/`can_waive` hints, results refused for runs that failed late, no single coverage-report GET, graph edge paging and filtered counts, no delete for activity imports (not taken up in I6) | I7 |
+| SQL Anywhere conversion is proven on synthetic Watcom-SQL objects compiled and tested on SQL Server; reading code from a live SQL Anywhere estate waits for an engine | Needs SQL Anywhere |
+| The version delta compares tables by columns and code by normalized hash; configuration items are not yet in the delta, and the 60% same-family threshold is untuned | With a real target baseline |
+| The reference source adapter does not yet use `compare_as`/`customization` for its customer extension tables (published 1.1.0 cannot change); until its next version, the delta lists those tables as not in scope | Next reference adapter version |
+| Recorded conversion test cases are entered through the API; there is no import from the customer's capture tools yet | I9 |
+| The reference target adapter records no hosting constraints for SSO, MFA, network or printing, so its checklist shows the generic items | Needs Insurity hosting documentation |
+| Conversion runs create one review proposal per object that needs a person; there is no grouping for estates with many such objects | I8 (review workbench) |
 | API gaps from the I4 screens: no source-adapter detail endpoint, untyped run summaries and ontology responses, no permission hints on target connections and golden runs, extract documents capped at 500 without paging, loads have no record beyond the call log, and no up-front "loads blocked" flag on target connections | I5 |
 | `npm audit` reports high findings in development tooling only (via picomatch); production dependencies have none | Next dependency update |
 | I4 screens are verified by unit tests and by end-to-end tests against recorded API responses; a signed-in walk-through on the live stack needs the administrator's authenticator sign-in | Next demo |

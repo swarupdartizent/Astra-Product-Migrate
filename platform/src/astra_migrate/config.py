@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # Test environments only: "user:password@host:port" of a SQL Server administrator used to build
     # synthetic golden estates. Never set where customer data lives.
     golden_sqlserver_admin: SecretStr | None = None
+    # "user:password@host:port/database" of the SQL Server conversion workbench (E10): converted code is
+    # compiled and tested there inside transactions that are always rolled back. Unset = conversion Blocked.
+    workbench_sqlserver: SecretStr | None = None
 
     @property
     def issuers(self) -> list[str]:

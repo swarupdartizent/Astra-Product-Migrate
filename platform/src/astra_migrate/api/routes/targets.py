@@ -96,8 +96,11 @@ class BaselineIn(BaseModel):
 def create_baseline(body: BaselineIn, principal: CurrentPrincipal, s: DB) -> BaselineOut:
     if not principal.has_platform(P.BASELINE_MANAGE):
         raise forbidden()
-    if s.scalar(select(Pack.id).where(Pack.name == body.adapter_name, Pack.type == "target_adapter")) is None:
-        raise invalid("adapter_name", "No target adapter pack with this name is registered.")
+    # Target baselines are what projects pin; source adapters may also have standard baselines, which the
+    # version delta uses to tell standard objects from customized and customer-specific ones (E09.F1.S2).
+    if s.scalar(select(Pack.id).where(Pack.name == body.adapter_name,
+                                      Pack.type.in_(("target_adapter", "source_adapter")))) is None:
+        raise invalid("adapter_name", "No target or source adapter pack with this name is registered.")
     try:
         raw = yaml.safe_load(body.baseline_yaml)
         b = store_baseline(s, body.adapter_name, body.name.strip(), raw, principal.user.id, principal.actor,
@@ -150,6 +153,8 @@ def pin_baseline(project_id: uuid.UUID, body: PinBaselineIn, principal: CurrentP
     b = s.get(TargetBaseline, body.baseline_id)
     if b is None:
         raise invalid("baseline_id", "Unknown baseline")
+    if s.scalar(select(Pack.id).where(Pack.name == b.adapter_name, Pack.type == "target_adapter")) is None:
+        raise invalid("baseline_id", "Projects pin a target product's baseline; this one belongs to a source adapter.")
     pin = s.get(ProjectBaseline, p.id)
     before = str(pin.baseline_id) if pin else None
     if pin is None:

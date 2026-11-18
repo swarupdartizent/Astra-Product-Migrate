@@ -298,6 +298,7 @@ def write_api_env() -> None:
         "ASTRA_REGIONS_FILE=infra/local/regions.yaml",
         # Local only: builds synthetic golden estates on the local SQL Server. Never set in Azure.
         f"ASTRA_GOLDEN_SQLSERVER_ADMIN=sa:{mssql_sa_password()}@127.0.0.1:11433",
+        f"ASTRA_WORKBENCH_SQLSERVER=sa:{mssql_sa_password()}@127.0.0.1:11433/astra_workbench",
         "",
     ]), encoding="utf-8")
     # Test-only settings: a separate control database, and the database superuser for tamper tests.
@@ -306,6 +307,7 @@ def write_api_env() -> None:
         f"ASTRA_CONTROL_DB_OWNER_URL=postgresql+psycopg://astra_control_owner:{secret('pg_control_owner_password')}@127.0.0.1:15432/astra_control_test",
         f"ASTRA_TEST_ROOT_DB_URL=postgresql+psycopg://astra_root:{secret('pg_root_password')}@127.0.0.1:15432/astra_control_test",
         f"ASTRA_GOLDEN_SQLSERVER_ADMIN=sa:{mssql_sa_password()}@127.0.0.1:11433",
+        f"ASTRA_WORKBENCH_SQLSERVER=sa:{mssql_sa_password()}@127.0.0.1:11433/astra_workbench",
         "",
     ]), encoding="utf-8")
     log("wrote .local/api.env and .local/test.env")

@@ -921,8 +921,9 @@
       ],
       "release": "R1",
       "spec": "CO-01",
-      "status": "todo",
-      "increment": "I6"
+      "status": "done",
+      "increment": "I6",
+      "note": "Deterministic four-group delta with digests; CSV/JSON export (platform/src/astra_migrate/delta)."
     },
     {
       "id": "E09.F1.S2",
@@ -936,8 +937,9 @@
       ],
       "release": "R1",
       "spec": "CO-01",
-      "status": "todo",
-      "increment": "I6"
+      "status": "done",
+      "increment": "I6",
+      "note": "Origin from the source product's standard baseline, or the adapter's customization flag; otherwise unknown."
     },
     {
       "id": "E09.F2.S1",
@@ -952,8 +954,9 @@
       ],
       "release": "R1",
       "spec": "Migration patterns",
-      "status": "todo",
-      "increment": "I6"
+      "status": "done",
+      "increment": "I6",
+      "note": "Pattern advice with evidence; disagreement with the blueprint becomes a review proposal."
     },
     {
       "id": "E09.F2.S2",
@@ -983,8 +986,9 @@
       ],
       "release": "R1",
       "spec": "PF-01",
-      "status": "todo",
-      "increment": "I6"
+      "status": "done",
+      "increment": "I6",
+      "note": "Rule-based SQL Anywhere to SQL Server converter, compiled on a rolled-back SQL Server workbench; review with reason otherwise. Reading code from a live SQL Anywhere estate waits for an engine."
     },
     {
       "id": "E10.F1.S2",
@@ -999,8 +1003,9 @@
       ],
       "release": "R1",
       "spec": "PF-02",
-      "status": "todo",
-      "increment": "I6"
+      "status": "done",
+      "increment": "I6",
+      "note": "Recorded cases replayed on the workbench; differences listed with their inputs."
     },
     {
       "id": "E10.F1.S3",
@@ -1030,8 +1035,9 @@
       ],
       "release": "R1",
       "spec": "Stream 9",
-      "status": "todo",
-      "increment": "I6"
+      "status": "done",
+      "increment": "I6",
+      "note": "Hosting checklist from target adapter constraints plus the four required areas; owners and statuses."
     },
     {
       "id": "E11.F1.S1",

@@ -889,3 +889,87 @@ class ProjectStage(Base):
     note: Mapped[str] = mapped_column(Text, default="")
     updated_by: Mapped[dict[str, Any]] = mapped_column()  # actor
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+RUN_STATUSES = "status in ('queued', 'running', 'succeeded', 'failed', 'blocked', 'cancelled')"
+
+
+class DeltaRun(Base):
+    """One version delta of a project's source estate against its pinned target baseline (E09.F1). The
+    differences live in the tenant database; this row holds status, counts and the digests."""
+
+    __tablename__ = "delta_runs"
+    __table_args__ = (CheckConstraint(RUN_STATUSES, name="ck_delta_status"),
+                      Index("ix_delta_project", "project_id", "created_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    connection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("source_connections.id", ondelete="CASCADE"))
+    baseline_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("target_baselines.id", ondelete="RESTRICT"))
+    standard_baseline_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("target_baselines.id", ondelete="RESTRICT"))
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    counts: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    origin_counts: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    not_in_scope: Mapped[int] = mapped_column(Integer, default=0)
+    new_in_target: Mapped[int] = mapped_column(Integer, default=0)
+    input_digest: Mapped[str | None] = mapped_column(String(64))
+    result_digest: Mapped[str | None] = mapped_column(String(64))
+    advice: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    job_id: Mapped[uuid.UUID | None] = mapped_column()
+    requested_by: Mapped[dict[str, Any]] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ConversionRun(Base):
+    """Conversion of a source estate's code to the target dialect, compiled and tested on the workbench
+    (E10.F1). Converted code and test results live in the tenant database."""
+
+    __tablename__ = "conversion_runs"
+    __table_args__ = (CheckConstraint(RUN_STATUSES, name="ck_conversion_status"),
+                      Index("ix_conversion_project", "project_id", "created_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    connection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("source_connections.id", ondelete="CASCADE"))
+    baseline_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("target_baselines.id", ondelete="RESTRICT"))
+    source_dialect: Mapped[str] = mapped_column(String(30))
+    target_dialect: Mapped[str] = mapped_column(String(30))
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    job_id: Mapped[uuid.UUID | None] = mapped_column()
+    requested_by: Mapped[dict[str, Any]] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+CHECKLIST_STATUSES = ("open", "in_progress", "done", "not_applicable")
+
+
+class ChecklistItem(Base):
+    """One item of a project's hosting checklist (E10.F2.S1), with an owner and a status."""
+
+    __tablename__ = "checklist_items"
+    __table_args__ = (UniqueConstraint("project_id", "key", name="uq_checklist_key"),
+                      CheckConstraint(f"status in {CHECKLIST_STATUSES!r}", name="ck_checklist_status"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    key: Mapped[str] = mapped_column(String(100))
+    category: Mapped[str] = mapped_column(String(40))
+    title: Mapped[str] = mapped_column(String(300))
+    detail: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[dict[str, Any]] = mapped_column(default=dict)  # {"kind": "adapter"|"generic", ...}
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    owner_role: Mapped[str] = mapped_column(String(60))
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    note: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

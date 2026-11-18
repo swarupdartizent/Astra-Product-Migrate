@@ -76,6 +76,10 @@ class ObjectType(_M):
     dependencies: dict[Engine, str] = Field(default_factory=dict)
     required: bool = Field(default=True, description="Missing this type makes the coverage report incomplete")
     interface: bool = Field(default=False, description="Each object of this type is an interface to another system")
+    compare_as: Annotated[str, Field(pattern=KEY)] | None = Field(
+        default=None, description="Baseline object type the version delta compares these objects with (E09.F1)")
+    customization: bool = Field(
+        default=False, description="Every object of this type is a customer extension, not part of the product")
 
     @model_validator(mode="after")
     def _ro(self) -> ObjectType:

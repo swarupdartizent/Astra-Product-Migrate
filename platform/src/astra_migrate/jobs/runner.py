@@ -114,6 +114,8 @@ def _ensure_handlers() -> None:
     from astra_migrate.adapters import jobs as _adapter_jobs  # noqa: F401
     from astra_migrate.adapters import target as _target_jobs  # noqa: F401
     from astra_migrate.agents import jobs as _agent_jobs  # noqa: F401
+    from astra_migrate.conversion import jobs as _conversion_jobs  # noqa: F401
+    from astra_migrate.delta import jobs as _delta_jobs  # noqa: F401
     from astra_migrate.discovery import jobs as _discovery_jobs  # noqa: F401
     from astra_migrate.tenancy import jobs as _tenant_jobs  # noqa: F401
 
