@@ -6,6 +6,9 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { PageHeader, Skeleton, Tab, TabPanel, Tabs, TabsList } from '@/ui';
 import s from '../shared.module.css';
 import { BlueprintEditor } from './BlueprintEditor';
+import { ProjectAgentsTab } from '../runtime/ProjectAgentsTab';
+import { ReviewQueueTab } from '../runtime/ReviewQueueTab';
+import { StageStrip } from '../runtime/StageStrip';
 import { CompareTab } from './CompareTab';
 import { DecisionsTab } from './DecisionsTab';
 import { PlanningGatePill } from './PlanningGatePill';
@@ -101,6 +104,7 @@ function ProjectWorkspace({
           </span>
         }
       />
+      <StageStrip project={project} />
       <Tabs
         value={PROJECT_TABS.includes(tab) ? tab : 'editor'}
         onValueChange={(v) => go({ tab: v as ProjectTab })}
@@ -110,6 +114,8 @@ function ProjectWorkspace({
           <Tab value="versions">Versions</Tab>
           <Tab value="compare">Compare</Tab>
           <Tab value="decisions">Decisions</Tab>
+          <Tab value="agents">Agents</Tab>
+          <Tab value="reviews">Review queue</Tab>
         </TabsList>
         <TabPanel value="editor">
           {latest && base.isPending ? (
@@ -141,6 +147,12 @@ function ProjectWorkspace({
         </TabPanel>
         <TabPanel value="decisions">
           <DecisionsTab project={project} />
+        </TabPanel>
+        <TabPanel value="agents">
+          <ProjectAgentsTab project={project} />
+        </TabPanel>
+        <TabPanel value="reviews">
+          <ReviewQueueTab project={project} />
         </TabPanel>
       </Tabs>
     </>

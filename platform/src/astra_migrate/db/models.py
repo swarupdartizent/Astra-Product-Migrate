@@ -39,10 +39,15 @@ def _uuid() -> uuid.UUID:
 
 
 class User(Base):
+    """A person, or the identity of a registered agent (kind 'agent'). Agent identities never sign in,
+    never hold roles and can never approve, decide or release anything (enforced in the database)."""
+
     __tablename__ = "users"
-    __table_args__ = (UniqueConstraint("issuer", "subject", name="uq_users_identity"),)
+    __table_args__ = (UniqueConstraint("issuer", "subject", name="uq_users_identity"),
+                      CheckConstraint("kind in ('person', 'agent')", name="ck_user_kind"))
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    kind: Mapped[str] = mapped_column(String(10), default="person", server_default="person")
     email: Mapped[str] = mapped_column(String(320), unique=True)
     display_name: Mapped[str] = mapped_column(String(200))
     issuer: Mapped[str | None] = mapped_column(String(500))
@@ -363,3 +368,291 @@ class TraceSpan(Base):
     model: Mapped[str | None] = mapped_column(String(100))
     cost_usd: Mapped[float | None] = mapped_column(Float)
     attributes: Mapped[dict[str, Any]] = mapped_column(default=dict)
+
+
+# ============================================================================ I3: runtime and AI governance
+
+JOB_STATUSES = ("queued", "running", "succeeded", "failed", "cancelled")
+
+
+class Job(Base):
+    """Durable background work (tenant provisioning, region moves, agent runs, agent tests).
+    Workers claim jobs with SELECT ... FOR UPDATE SKIP LOCKED, so any number of workers can run."""
+
+    __tablename__ = "jobs"
+    __table_args__ = (
+        CheckConstraint(f"status in {JOB_STATUSES!r}", name="ck_job_status"),
+        Index("ix_job_claim", "status", "run_after"),
+        Index("ix_job_tenant", "tenant_id", "created_at"),
+        Index("ix_job_project", "project_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    kind: Mapped[str] = mapped_column(String(60))
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    title: Mapped[str] = mapped_column(String(300))
+    payload: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    error: Mapped[str | None] = mapped_column(Text)
+    progress: Mapped[int] = mapped_column(Integer, default=0)
+    progress_message: Mapped[str | None] = mapped_column(Text)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, default=1)
+    run_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    locked_by: Mapped[str | None] = mapped_column(String(120))
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    actor: Mapped[dict[str, Any]] = mapped_column()  # {"type", "id", "name"} of whoever asked for the work
+    trace_id: Mapped[str | None] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+PROVIDER_KINDS = ("anthropic", "anthropic_foundry", "azure_openai")
+
+
+class ModelProvider(Base):
+    """An enterprise model endpoint. The credential is held in the vault; only its path is stored here.
+    A provider can be enabled only when its terms say customer data is not used for training."""
+
+    __tablename__ = "model_providers"
+    __table_args__ = (CheckConstraint(f"kind in {PROVIDER_KINDS!r}", name="ck_provider_kind"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(100), unique=True)
+    kind: Mapped[str] = mapped_column(String(30))
+    endpoint: Mapped[str | None] = mapped_column(String(500))
+    api_version: Mapped[str | None] = mapped_column(String(40))
+    secret_path: Mapped[str | None] = mapped_column(String(300))
+    credential_version: Mapped[int | None] = mapped_column(Integer)
+    no_training_terms: Mapped[bool] = mapped_column(Boolean, default=False)
+    terms_reference: Mapped[str] = mapped_column(Text, default="")
+    options: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    prices: Mapped[dict[str, Any]] = mapped_column(default=dict)  # model id -> USD per million tokens
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    check_status: Mapped[str] = mapped_column(String(20), default="unchecked")  # unchecked | ok | failed
+    check_detail: Mapped[str | None] = mapped_column(Text)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ModelAlias(Base):
+    """Agents name a model alias (for example 'reasoning'), never a provider. Changing the alias
+    changes the model for every agent without changing any agent."""
+
+    __tablename__ = "model_aliases"
+
+    alias: Mapped[str] = mapped_column(String(60), primary_key=True)
+    provider_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("model_providers.id", ondelete="RESTRICT"))
+    model: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ModelCall(Base):
+    """One call through the model gateway: which model and version answered, tokens, cost and time.
+    Prompts and answers are not stored here (they may hold customer data). Append-only."""
+
+    __tablename__ = "model_calls"
+    __table_args__ = (
+        Index("ix_model_call_ts", "created_at"),
+        Index("ix_model_call_agent", "agent_name", "created_at"),
+        Index("ix_model_call_run", "agent_run_id"),
+        Index("ix_model_call_tenant", "tenant_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    provider_id: Mapped[uuid.UUID | None] = mapped_column()
+    provider_name: Mapped[str] = mapped_column(String(100))
+    provider_kind: Mapped[str] = mapped_column(String(30))
+    alias: Mapped[str | None] = mapped_column(String(60))
+    requested_model: Mapped[str] = mapped_column(String(120))
+    served_model: Mapped[str | None] = mapped_column(String(120))
+    api_version: Mapped[str | None] = mapped_column(String(40))
+    sdk_version: Mapped[str | None] = mapped_column(String(40))
+    request_id: Mapped[str | None] = mapped_column(String(120))
+    agent_name: Mapped[str | None] = mapped_column(String(64))
+    agent_version: Mapped[str | None] = mapped_column(String(32))
+    agent_run_id: Mapped[uuid.UUID | None] = mapped_column()
+    test_run_id: Mapped[uuid.UUID | None] = mapped_column()
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column()
+    project_id: Mapped[uuid.UUID | None] = mapped_column()
+    region_code: Mapped[str | None] = mapped_column(String(40))
+    region_pinned: Mapped[bool | None] = mapped_column(Boolean)
+    status: Mapped[str] = mapped_column(String(20))  # ok | refused | error
+    stop_reason: Mapped[str | None] = mapped_column(String(40))
+    error: Mapped[str | None] = mapped_column(Text)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_write_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float | None] = mapped_column(Float)
+    latency_ms: Mapped[float] = mapped_column(Float, default=0)
+    trace_id: Mapped[str | None] = mapped_column(String(32))
+
+
+class Agent(Base):
+    """A registered agent. Each agent has its own identity (a users row of kind 'agent') so every
+    action it takes is attributable, and so the database can refuse it as an approver."""
+
+    __tablename__ = "agents"
+
+    name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    title: Mapped[str] = mapped_column(String(200))
+    team: Mapped[str] = mapped_column(String(30))
+    identity_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+AGENT_VERSION_STATUSES = ("draft", "released", "deprecated")
+
+
+class AgentVersion(Base):
+    """One version of an agent: role, prompt, allowed tools, guardrails, oversight and test suite.
+    Released versions are immutable (enforced in the database)."""
+
+    __tablename__ = "agent_versions"
+    __table_args__ = (
+        UniqueConstraint("agent_name", "version", name="uq_agent_version"),
+        CheckConstraint(f"status in {AGENT_VERSION_STATUSES!r}", name="ck_agent_version_status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    agent_name: Mapped[str] = mapped_column(ForeignKey("agents.name", ondelete="RESTRICT"))
+    version: Mapped[str] = mapped_column(String(32))
+    version_sort: Mapped[list[int]] = mapped_column(ARRAY(Integer))
+    manifest: Mapped[dict[str, Any]] = mapped_column()
+    digest: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20), default="draft")
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    released_test_run_id: Mapped[uuid.UUID | None] = mapped_column()
+    released_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    release_note: Mapped[str | None] = mapped_column(Text)
+
+
+TEST_RUN_STATUSES = ("queued", "running", "passed", "failed", "blocked", "error")
+
+
+class AgentTestRun(Base):
+    __tablename__ = "agent_test_runs"
+    __table_args__ = (
+        CheckConstraint(f"status in {TEST_RUN_STATUSES!r}", name="ck_agent_test_status"),
+        Index("ix_agent_test_version", "agent_version_id", "started_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    agent_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agent_versions.id", ondelete="CASCADE"))
+    digest: Mapped[str] = mapped_column(String(64))  # manifest digest the suite ran against
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    job_id: Mapped[uuid.UUID | None] = mapped_column()
+    started_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    summary: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    results: Mapped[dict[str, Any]] = mapped_column(default=dict)  # {"cases": [...]}
+    cost_usd: Mapped[float] = mapped_column(Float, default=0)
+
+
+class ProjectAgentPin(Base):
+    """A project runs exactly the agent versions it is pinned to (E02.F1.S1)."""
+
+    __tablename__ = "project_agent_pins"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
+    agent_name: Mapped[str] = mapped_column(ForeignKey("agents.name", ondelete="RESTRICT"), primary_key=True)
+    version: Mapped[str] = mapped_column(String(32))
+    reason: Mapped[str] = mapped_column(Text, default="")
+    pinned_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    pinned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+AGENT_RUN_STATUSES = ("queued", "running", "succeeded", "failed", "blocked", "cancelled")
+
+
+class AgentRun(Base):
+    """Metadata of one agent run. The objective, transcript and output live in the tenant's own
+    database, because they may contain customer data."""
+
+    __tablename__ = "agent_runs"
+    __table_args__ = (
+        CheckConstraint(f"status in {AGENT_RUN_STATUSES!r}", name="ck_agent_run_status"),
+        Index("ix_agent_run_project", "project_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    agent_name: Mapped[str] = mapped_column(ForeignKey("agents.name", ondelete="RESTRICT"))
+    agent_version: Mapped[str] = mapped_column(String(32))
+    parent_run_id: Mapped[uuid.UUID | None] = mapped_column()
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    requested_by: Mapped[dict[str, Any]] = mapped_column()  # actor
+    job_id: Mapped[uuid.UUID | None] = mapped_column()
+    model_calls: Mapped[int] = mapped_column(Integer, default=0)
+    tool_calls: Mapped[int] = mapped_column(Integer, default=0)
+    denied_tool_calls: Mapped[int] = mapped_column(Integer, default=0)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0)
+    trace_id: Mapped[str | None] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+REVIEW_KINDS = ("decision", "screening_flag", "proposal")
+REVIEW_STATUSES = ("open", "resolved", "dismissed")
+
+
+class ReviewItem(Base):
+    """The review queue: every decision an agent asks for, every screening flag and every proposal,
+    each with an owner. Only people resolve items (enforced in the database)."""
+
+    __tablename__ = "review_items"
+    __table_args__ = (
+        CheckConstraint(f"kind in {REVIEW_KINDS!r}", name="ck_review_kind"),
+        CheckConstraint(f"status in {REVIEW_STATUSES!r}", name="ck_review_status"),
+        Index("ix_review_project", "project_id", "status", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(20))
+    title: Mapped[str] = mapped_column(String(300))
+    question: Mapped[str] = mapped_column(Text)
+    options: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    context: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    owner_role: Mapped[str] = mapped_column(String(60))
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    requested_by: Mapped[dict[str, Any]] = mapped_column()  # actor
+    agent_run_id: Mapped[uuid.UUID | None] = mapped_column()
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    resolution: Mapped[str | None] = mapped_column(Text)
+    resolution_note: Mapped[str | None] = mapped_column(Text)
+    resolved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+STAGE_STATUSES = ("not_started", "blocked", "in_progress", "done")
+
+
+class ProjectStage(Base):
+    __tablename__ = "project_stages"
+    __table_args__ = (CheckConstraint(f"status in {STAGE_STATUSES!r}", name="ck_stage_status"),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
+    stage: Mapped[str] = mapped_column(String(40), primary_key=True)
+    status: Mapped[str] = mapped_column(String(20), default="not_started")
+    note: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[dict[str, Any]] = mapped_column()  # actor
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

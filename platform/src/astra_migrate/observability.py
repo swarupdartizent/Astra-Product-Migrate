@@ -5,7 +5,7 @@ Every request, agent call, tool call and load step is an OpenTelemetry span. Spa
 - the platform's own span store, which powers the time-and-cost dashboard by project, stage and agent.
 
 Span attribute conventions (set by the code that starts the span):
-  astra.category   http | agent | tool | load | job | other
+  astra.category   http | agent | model | tool | load | job | other
   astra.tenant_id, astra.project_id, astra.stage, astra.agent
   gen_ai.request.model, astra.cost_usd
 """
@@ -29,7 +29,7 @@ from psycopg.types.json import Jsonb
 from astra_migrate.config import get_settings
 
 log = logging.getLogger(__name__)
-STORED_CATEGORIES = {"http", "agent", "tool", "load", "job", "other"}
+STORED_CATEGORIES = {"http", "agent", "model", "tool", "load", "job", "other"}
 
 
 def _category(span: ReadableSpan) -> str:

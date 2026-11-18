@@ -15,7 +15,8 @@ from sqlalchemy.orm import Session
 from astra_migrate import audit
 from astra_migrate.api.errors import Problem, conflict, forbidden, invalid, not_found
 from astra_migrate.db.control import get_session
-from astra_migrate.db.models import Partner, Programme, RegionMigration, Tenant
+from astra_migrate.db.models import Job, Partner, Programme, RegionMigration, Tenant
+from astra_migrate.jobs.runner import enqueue
 from astra_migrate.observability import tag_current
 from astra_migrate.security.principal import CurrentPrincipal, enforce_tenant_policy, tenant_for
 from astra_migrate.security.rbac import P, TenantScope, has_tenant_permission
@@ -138,6 +139,22 @@ class TenantOut(BaseModel):
     created_at: datetime
     deleted_at: datetime | None
     permissions: list[str]
+    active_job: JobRef | None = Field(description="The provisioning or region-move job in progress, if any")
+
+
+class JobRef(BaseModel):
+    id: uuid.UUID
+    kind: str
+    status: str
+    progress: int
+    progress_message: str | None
+
+
+def _active_job(s: Session, tenant_id: uuid.UUID) -> JobRef | None:
+    j = s.scalars(select(Job).where(Job.tenant_id == tenant_id, Job.kind.like("tenant.%"),
+                                    Job.status.in_(("queued", "running"))).order_by(Job.created_at.desc())).first()
+    return JobRef(id=j.id, kind=j.kind, status=j.status, progress=j.progress,
+                  progress_message=j.progress_message) if j else None
 
 
 def tenant_out(s: Session, t: Tenant, principal: CurrentPrincipal) -> TenantOut:
@@ -153,7 +170,7 @@ def tenant_out(s: Session, t: Tenant, principal: CurrentPrincipal) -> TenantOut:
                      partner_id=t.partner_id, partner_name=part.name if part else None, status=t.status,
                      status_detail=t.status_detail, key_name=t.key_name, mfa_required=t.mfa_required,
                      session_timeout_minutes=t.session_timeout_minutes, created_at=t.created_at,
-                     deleted_at=t.deleted_at, permissions=perms)
+                     deleted_at=t.deleted_at, permissions=perms, active_job=_active_job(s, t.id))
 
 
 @router.get("/tenants", response_model=list[TenantOut])
@@ -190,9 +207,9 @@ def create_tenant(body: TenantIn, principal: CurrentPrincipal, s: DB) -> TenantO
         raise invalid("region_code", str(e)) from e
     except service.TenantError as e:
         raise invalid("slug", str(e)) from e
-    s.commit()  # the request is visible while storage is built
     tag_current(tenant_id=str(t.id))
-    service.provision(s, t, get_vault(), principal.actor)
+    enqueue(s, "tenant.provision", f"Provision tenant {t.name}", principal.actor, {"tenant_id": str(t.id)},
+            tenant_id=t.id)
     return tenant_out(s, t, principal)
 
 
@@ -236,6 +253,10 @@ def delete_tenant(tenant_id: TenantId, body: DeleteIn, principal: CurrentPrincip
     if body.confirm_slug != t.slug:
         raise Problem(422, "confirmation-mismatch", "Confirmation does not match",
                       f"Type the tenant's short name '{t.slug}' to confirm deletion.")
+    running = _active_job(s, t.id)
+    if running is not None:
+        raise conflict("The tenant has work in progress",
+                       f"Wait for the {running.kind.split('.')[-1].replace('_', ' ')} job to finish, then delete.")
     try:
         service.delete_tenant(s, t, get_vault(), principal.actor, body.reason.strip())
     except service.TenantError as e:
@@ -278,8 +299,11 @@ def move_region(tenant_id: TenantId, body: RegionMoveIn, principal: CurrentPrinc
     enforce_tenant_policy(principal, t)
     try:
         get_region(body.to_region)
-        m = service.migrate_region(s, t, body.to_region, body.reason.strip(), get_vault(), principal.actor,
-                                   principal.user.id)
+        m = service.request_region_move(s, t, body.to_region, body.reason.strip(), principal.actor,
+                                        principal.user.id)
     except (service.TenantError, UnknownRegion) as e:
         raise invalid("to_region", str(e)) from e
+    job = enqueue(s, "tenant.region_move", f"Move tenant {t.name} to {body.to_region}", principal.actor,
+                  {"migration_id": str(m.id)}, tenant_id=t.id)
+    m.detail = {"job_id": str(job.id)}
     return _move_out(m)

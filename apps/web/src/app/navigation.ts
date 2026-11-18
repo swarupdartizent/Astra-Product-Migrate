@@ -1,7 +1,9 @@
 import type { LinkProps } from '@tanstack/react-router';
 import {
   Activity,
+  Bot,
   Building2,
+  Cpu,
   FileCode,
   FolderKanban,
   House,
@@ -21,7 +23,7 @@ import {
  * and talks to a real API; never add placeholders for features that are not built.
  */
 
-export type NavGroupId = 'overview' | 'platform' | 'configuration' | 'governance';
+export type NavGroupId = 'overview' | 'platform' | 'configuration' | 'ai' | 'governance';
 
 export interface NavGroup {
   id: NavGroupId;
@@ -38,8 +40,11 @@ export interface NavItem {
   /** One sentence for the Home "Get started" card. */
   description?: string;
   icon: LucideIcon;
-  /** Exact API permission code required to see this entry, or null for any signed-in user. */
-  permission: string | null;
+  /**
+   * Exact API permission code required to see this entry; a list means any one of them;
+   * null means any signed-in user.
+   */
+  permission: string | readonly string[] | null;
   group: NavGroupId;
   /** Match the route exactly (true for "/"); otherwise child routes keep it active. */
   exact?: boolean;
@@ -51,6 +56,7 @@ export const navGroups: readonly NavGroup[] = [
   { id: 'overview' },
   { id: 'platform', label: 'Platform' },
   { id: 'configuration', label: 'Configuration' },
+  { id: 'ai', label: 'AI' },
   { id: 'governance', label: 'Governance' },
 ];
 
@@ -107,6 +113,27 @@ export const navItems: readonly NavItem[] = [
     keywords: ['blueprint', 'starter'],
   },
   {
+    id: 'agents',
+    to: '/agents',
+    label: 'Agents',
+    description: 'Registered agents, their tools, limits, tests, release and governance records.',
+    icon: Bot,
+    // Any signed-in person with a role may view the registry; the API refuses everyone else.
+    permission: null,
+    group: 'ai',
+    keywords: ['agent', 'manifest', 'guardrail', 'governance', 'release'],
+  },
+  {
+    id: 'models',
+    to: '/models',
+    label: 'Models',
+    description: 'Model providers, credentials, the aliases agents use, and model cost.',
+    icon: Cpu,
+    permission: ['model:manage', 'audit:read', 'observability:read'],
+    group: 'ai',
+    keywords: ['providers', 'aliases', 'cost', 'usage', 'llm'],
+  },
+  {
     id: 'access',
     to: '/access',
     label: 'Access',
@@ -144,12 +171,22 @@ export const navItems: readonly NavItem[] = [
   //    (the API remains the real enforcement point).
 ];
 
+/** True when `required` is null, or the user holds it (or any one of a list). */
+export function holdsAny(
+  permissions: ReadonlySet<string>,
+  required: string | readonly string[] | null,
+): boolean {
+  if (required === null) return true;
+  if (typeof required === 'string') return permissions.has(required);
+  return required.some((p) => permissions.has(p));
+}
+
 /** Entries the user may see, in registry order. */
 export function visibleNavItems(
   permissions: ReadonlySet<string>,
   items: readonly NavItem[] = navItems,
 ): NavItem[] {
-  return items.filter((item) => item.permission === null || permissions.has(item.permission));
+  return items.filter((item) => holdsAny(permissions, item.permission));
 }
 
 /** Visible entries grouped for rendering; empty groups are dropped. */

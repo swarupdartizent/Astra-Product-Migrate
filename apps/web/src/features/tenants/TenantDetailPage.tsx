@@ -1,9 +1,11 @@
 import { useNavigate } from '@tanstack/react-router';
-import { useTenant } from '@/api/tenancy';
+import { useQueryClient } from '@tanstack/react-query';
+import { tenantKeys, useTenant } from '@/api/tenancy';
+import { JobProgress } from '@/app/JobProgress';
 import { ApiErrorView } from '@/app/ApiErrorView';
 import { RequirePermission } from '@/app/RequirePermission';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Callout, Mono, PageHeader, Skeleton, Tab, TabPanel, Tabs, TabsList } from '@/ui';
+import { Callout, Mono, PageHeader, Skeleton, Tab, TabPanel, Tabs, TabsList, toast } from '@/ui';
 import { DangerZoneTab } from './DangerZoneTab';
 import { can, TENANT_TABS, type TenantTab } from './model';
 import { OverviewTab } from './OverviewTab';
@@ -29,6 +31,7 @@ export function TenantDetailPage(props: TenantDetailPageProps) {
 function TenantDetail({ tenantId, tab }: TenantDetailPageProps) {
   const tenant = useTenant(tenantId);
   const navigate = useNavigate();
+  const qc = useQueryClient();
   useDocumentTitle(tenant.data ? tenant.data.name : 'Tenant');
 
   const breadcrumbs = [
@@ -79,6 +82,25 @@ function TenantDetail({ tenantId, tab }: TenantDetailPageProps) {
           </>
         }
       />
+      {t.active_job ? (
+        <div style={{ marginBottom: 'var(--space-5)' }}>
+          <JobProgress
+            jobId={t.active_job.id}
+            initial={t.active_job}
+            title={
+              t.active_job.kind === 'tenant.provision'
+                ? 'Provisioning this tenant'
+                : 'Moving this tenant to another region'
+            }
+            onFinished={(job) => {
+              void qc.invalidateQueries({ queryKey: tenantKeys.all });
+              if (job.status === 'succeeded') toast.success(`${job.title} finished`);
+              else if (job.status === 'failed')
+                toast.error(`${job.title} failed`, { description: job.error ?? undefined });
+            }}
+          />
+        </div>
+      ) : null}
       {t.status === 'failed' || t.status_detail ? (
         <div style={{ marginBottom: 'var(--space-5)' }}>
           <Callout tone={t.status === 'failed' ? 'danger' : 'info'} title="Status detail">

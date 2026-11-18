@@ -41,13 +41,11 @@ export function UserMenu({ identity, onSignOut }: UserMenuProps) {
   const display = identity.name ?? identity.email ?? 'Signed-in user';
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        className={styles.userTrigger}
-        aria-label={`Account menu for ${display}`}
-      >
+      <DropdownMenuTrigger className={styles.userTrigger}>
         <span className={styles.avatar} aria-hidden="true">
           {initials(identity)}
         </span>
+        <span className="sr-only">Account menu for {display}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent className={styles.userMenu}>
         <div className={styles.userSummary}>

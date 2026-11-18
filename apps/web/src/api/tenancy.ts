@@ -98,7 +98,12 @@ export const tenantsQuery = queryOptions({
 });
 
 export function useTenants(enabled = true) {
-  return useQuery({ ...tenantsQuery, enabled });
+  return useQuery({
+    ...tenantsQuery,
+    enabled,
+    // While a tenant is provisioning or moving, keep its status current.
+    refetchInterval: (query) => ((query.state.data ?? []).some((t) => t.active_job) ? 3000 : false),
+  });
 }
 
 export function tenantQuery(id: string) {
@@ -156,6 +161,10 @@ export function useRegionMoves(tenantId: string) {
     queryKey: tenantKeys.regionMoves(tenantId),
     queryFn: ({ signal }) =>
       api.get<RegionMove[]>(`/tenants/${enc(tenantId)}/region-migrations`, { signal }),
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((m) => m.status === 'queued' || m.status === 'running')
+        ? 3000
+        : false,
   });
 }
 

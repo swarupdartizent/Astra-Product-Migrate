@@ -2,6 +2,7 @@
 # Azure deployments replace this file with real Azure regions (for example westeurope, eastus2).
 # model_endpoints: where model calls for tenants in this region are sent. "region_pinned: false"
 # means the provider does not offer a regional endpoint; residency controls can then block the project.
+# A provider kind not listed for a region cannot serve tenants in that region.
 regions:
   - code: local-a
     name: Local region A
@@ -11,6 +12,8 @@ regions:
       port: 15432
     model_endpoints:
       anthropic: {base_url: "https://api.anthropic.com", region_pinned: false}
+      anthropic_foundry: {region_pinned: false}   # endpoint set on the provider record
+      azure_openai: {region_pinned: false}
   - code: local-b
     name: Local region B
     jurisdiction: local
@@ -19,3 +22,5 @@ regions:
       port: 15433
     model_endpoints:
       anthropic: {base_url: "https://api.anthropic.com", region_pinned: false}
+      anthropic_foundry: {region_pinned: false}   # endpoint set on the provider record
+      azure_openai: {region_pinned: false}

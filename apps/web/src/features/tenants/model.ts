@@ -158,6 +158,11 @@ export function regionMoveTables(detail: Record<string, unknown>): TableCount[] 
     .sort((a, b) => a.table.localeCompare(b.table));
 }
 
+/** Region moves run as background jobs; detail.job_id names the job. */
+export function regionMoveJobId(detail: Record<string, unknown>): string | null {
+  return typeof detail.job_id === 'string' && detail.job_id ? detail.job_id : null;
+}
+
 export function regionMoveError(detail: Record<string, unknown>): string | null {
   return typeof detail.error === 'string' && detail.error ? detail.error : null;
 }

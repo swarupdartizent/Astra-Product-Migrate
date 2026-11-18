@@ -17,7 +17,7 @@ import logging
 import re
 import secrets
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from importlib import resources
@@ -25,6 +25,7 @@ from typing import Any
 
 import psycopg
 from psycopg import sql
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from astra_migrate import audit
@@ -205,33 +206,68 @@ def _tables(conn: psycopg.Connection[Any]) -> list[str]:
     return [r[0] for r in rows]
 
 
-def migrate_region(session: Session, t: Tenant, to_region: str, reason: str, vault: VaultClient,
-                   actor: audit.Actor, requested_by: uuid.UUID) -> RegionMigration:
-    """Move a tenant to another region: build storage there, copy and verify every table, switch,
-    then remove the old storage. The switch is accepted by the database only while this recorded
-    task is running."""
+def request_region_move(session: Session, t: Tenant, to_region: str, reason: str, actor: audit.Actor,
+                        requested_by: uuid.UUID) -> RegionMigration:
+    """Record a region move. The move itself runs as a job (`run_region_move`)."""
     if t.status != "active":
         raise TenantError(f"Tenant is {t.status}; only active tenants can move region.")
     if to_region == t.region_code:
         raise TenantError("The tenant is already in that region.")
-    src_region, dst_region = get_region(t.region_code), get_region(to_region)
+    get_region(to_region)
+    pending = session.scalar(select(RegionMigration).where(
+        RegionMigration.tenant_id == t.id, RegionMigration.status.in_(("queued", "running"))))
+    if pending is not None:
+        raise TenantError("A region move for this tenant is already queued or running.")
     task = RegionMigration(tenant_id=t.id, from_region=t.region_code, to_region=to_region, reason=reason,
-                           status="running", requested_by=requested_by, detail={})
+                           status="queued", requested_by=requested_by, detail={})
     session.add(task)
+    session.flush()
+    audit.record(session, actor, "tenant.region_migration_requested", tenant_id=t.id, target_type="region_migration",
+                 target_id=str(task.id), details={"from": t.region_code, "to": to_region, "reason": reason})
+    return task
+
+
+def run_region_move(session: Session, task_id: uuid.UUID, vault: VaultClient, actor: audit.Actor,
+                    progress: Callable[[int, str], None] | None = None) -> RegionMigration:
+    """Move a tenant to another region: build storage there, copy and verify every table, switch,
+    then remove the old storage. The switch is accepted by the database only while this recorded
+    task is running."""
+    say = progress or (lambda _p, _m: None)
+    found_task = session.get(RegionMigration, task_id)
+    if found_task is None:
+        raise TenantError("Region move not found.")
+    task = found_task
+    found = session.get(Tenant, task.tenant_id)
+    if found is None:
+        raise TenantError("Tenant not found.")
+    t = found
+    if task.status != "queued":
+        raise TenantError(f"Region move is {task.status}.")
+    if t.status != "active" or t.region_code != task.from_region:
+        task.status, task.completed_at = "failed", datetime.now(UTC)
+        task.detail = {"error": f"Tenant is {t.status} in {t.region_code}; the move no longer applies."}
+        session.commit()
+        return task
+    to_region = task.to_region
+    src_region, dst_region = get_region(t.region_code), get_region(to_region)
+    task.status = "running"
     t.status = "migrating"
     session.flush()
     audit.record(session, actor, "tenant.region_migration_started", tenant_id=t.id, target_type="region_migration",
-                 target_id=str(task.id), details={"from": t.region_code, "to": to_region, "reason": reason})
+                 target_id=str(task.id), details={"from": t.region_code, "to": to_region, "reason": task.reason})
     session.commit()
 
     counts: dict[str, dict[str, int]] = {}
     try:
+        say(10, f"Building storage in {dst_region.name}")
         password = vault.get_secret(db_password_path(t.id)).value
         _create_storage(t, dst_region, vault, password)
         with tenant_connection(t, vault) as src, tenant_connection(t, vault, to_region) as dst:
             migrate_tenant_schema(dst)
+            tables = _tables(src)
             with dst.transaction():
-                for table in _tables(src):
+                for i, table in enumerate(tables):
+                    say(20 + int(60 * i / max(1, len(tables))), f"Copying and verifying {table}")
                     ident = sql.Identifier("estate", table)
                     dst.execute(sql.SQL("TRUNCATE {}").format(ident))
                     with src.cursor().copy(sql.SQL("COPY {} TO STDOUT (FORMAT BINARY)").format(ident)) as out, \
@@ -245,6 +281,7 @@ def migrate_region(session: Session, t: Tenant, to_region: str, reason: str, vau
                         raise TenantError(f"Row count mismatch in {table}: {n_src} vs {n_dst}")
                 dst.execute("UPDATE estate.tenant_info SET value = %s, updated_at = now() WHERE key = 'region'",
                             (json.dumps(to_region),))
+        say(85, "Switching the tenant to the new region")
         t.region_code = to_region
         t.status = "active"
         session.flush()  # the database trigger checks the running task here

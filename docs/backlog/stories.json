@@ -148,7 +148,7 @@
       "spec": "NFR Observability",
       "status": "in_progress",
       "increment": "I1",
-      "note": "OpenTelemetry to Jaeger + span store + dashboard with waterfall. Remaining: model cost per agent once agents exist (I3); open trace from review items (I8)."
+      "note": "OpenTelemetry to Jaeger + span store + dashboard with waterfall. Model cost per agent and per model on the dashboard (I3). Remaining: open trace from review items (I8)."
     },
     {
       "id": "E01.F3.S3",
@@ -181,8 +181,9 @@
       ],
       "release": "R1",
       "spec": "Agents",
-      "status": "todo",
-      "increment": "I3"
+      "status": "done",
+      "increment": "I3",
+      "note": "Agent registry with own identities, closed tool catalogue, project pins and suite-gated release (released versions immutable in the database). Model cases stay Blocked until a model key is configured."
     },
     {
       "id": "E02.F1.S2",
@@ -198,8 +199,9 @@
       ],
       "release": "R1",
       "spec": "NFR Models",
-      "status": "todo",
-      "increment": "I3"
+      "status": "done",
+      "increment": "I3",
+      "note": "Gateway with aliases; drivers for Anthropic (default), Claude on Foundry and Azure OpenAI; refuses providers without credential, no-training terms or region; every call recorded (served model, API version, tokens, cost). Azure drivers not yet called live (no keys)."
     },
     {
       "id": "E02.F1.S3",
@@ -215,8 +217,9 @@
       ],
       "release": "R1",
       "spec": "Agents",
-      "status": "todo",
-      "increment": "I3"
+      "status": "done",
+      "increment": "I3",
+      "note": "Orchestrator (metadata-only tools), review queue with owner role/user, stage strip with deterministic gates. Running it needs a configured model provider."
     },
     {
       "id": "E02.F2.S1",
@@ -232,8 +235,9 @@
       ],
       "release": "R1",
       "spec": "Agents",
-      "status": "todo",
-      "increment": "I3"
+      "status": "done",
+      "increment": "I3",
+      "note": "Escaped, labelled untrusted_data wrapping, data policy in every prompt, deterministic screening into the review queue; 32 manipulation and 12 benign cases pass."
     },
     {
       "id": "E02.F2.S2",
@@ -249,8 +253,9 @@
       ],
       "release": "R1",
       "spec": "Agents",
-      "status": "todo",
-      "increment": "I3"
+      "status": "done",
+      "increment": "I3",
+      "note": "No target-write/approve/publish tools exist; database triggers refuse agent identities as any decider; gates in code."
     },
     {
       "id": "E02.F3.S1",
@@ -266,8 +271,9 @@
       ],
       "release": "R1",
       "spec": "Compliance for agents",
-      "status": "todo",
-      "increment": "I3"
+      "status": "in_progress",
+      "increment": "I3",
+      "note": "Governance record per agent version (purpose, risk, oversight, hard rules, tools, models, test history). Inclusion in the proof pack lands with I11."
     },
     {
       "id": "E03.F1.S1",

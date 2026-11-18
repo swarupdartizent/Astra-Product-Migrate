@@ -97,6 +97,9 @@ def _provision(session: Session, c: Claims) -> User:
                           "Ask your administrator to release the email claim to this application.")
         invited = session.scalar(select(User).where(User.email == c.email))
         if invited is not None:
+            if invited.kind != "person":
+                raise Problem(403, "identity-conflict", "This email belongs to an agent identity",
+                              "Agent identities cannot sign in.")
             if invited.issuer is not None:
                 raise Problem(403, "identity-conflict", "This email is linked to a different sign-in",
                               "Ask a platform administrator to review your account.")

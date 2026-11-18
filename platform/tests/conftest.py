@@ -106,6 +106,19 @@ def client(_migrated: None) -> Iterator[Any]:
 Headers = dict[str, str]
 
 
+def wait_job(client: Any, headers: Headers, job_id: str, timeout_s: float = 90) -> dict[str, Any]:
+    """Wait for a background job (run by the API's own worker threads) to finish."""
+    deadline = time.time() + timeout_s
+    while True:
+        j = client.get(f"/api/v1/jobs/{job_id}", headers=headers)
+        assert j.status_code == 200, j.text
+        if j.json()["status"] in ("succeeded", "failed", "cancelled"):
+            return dict(j.json())
+        if time.time() > deadline:
+            raise AssertionError(f"job {job_id} still {j.json()['status']} after {timeout_s}s: {j.json()}")
+        time.sleep(0.2)
+
+
 @pytest.fixture(scope="session")
 def admin(client: Any) -> Headers:
     h = {"Authorization": f"Bearer {make_token(ADMIN_EMAIL, name='Test Admin')}"}
@@ -141,9 +154,13 @@ def tenant_factory(client: Any, admin: Headers) -> Iterator[Callable[..., dict[s
         body = {"slug": slug, "name": f"Test estate {slug}", "region_code": region, **kw}
         r = client.post("/api/v1/tenants", headers=admin, json=body)
         assert r.status_code == 201, r.text
-        assert r.json()["status"] == "active", r.json()
-        created.append(r.json())
-        return dict(r.json())
+        assert r.json()["status"] == "provisioning" and r.json()["active_job"] is not None, r.json()
+        job = wait_job(client, admin, r.json()["active_job"]["id"])
+        assert job["status"] == "succeeded", job
+        t = client.get(f"/api/v1/tenants/{r.json()['id']}", headers=admin).json()
+        assert t["status"] == "active", t
+        created.append(t)
+        return dict(t)
 
     yield make
     for t in created:

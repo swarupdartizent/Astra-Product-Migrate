@@ -39,6 +39,12 @@ class P(StrEnum):
     DECIDE_CONFLICT = "decision:conflict"
     APPROVE_LOOSENING = "decision:loosening"
     TEMPLATE_MANAGE = "template:manage"
+    MODEL_MANAGE = "model:manage"
+    AGENT_MANAGE = "agent:manage"
+    AGENT_RUN = "agent:run"
+    AGENT_PIN = "agent:pin"
+    REVIEW_RESOLVE = "review:resolve"
+    STAGE_MANAGE = "stage:manage"
 
 
 @dataclass(frozen=True)
@@ -62,13 +68,14 @@ ROLES: dict[str, RoleDef] = {r.key: r for r in [
     _r("platform_admin", "Platform administrator", "Runs the platform: tenants, access, secrets and audit.",
        set(P), {"platform"}),
     _r("platform_engineer", "Platform engineer", "Builds and operates the platform; reads traces and cost.",
-       {P.TENANT_READ, P.OBSERVABILITY_READ, P.AUDIT_READ}, {"platform"}),
+       {P.TENANT_READ, P.OBSERVABILITY_READ, P.AUDIT_READ, P.MODEL_MANAGE, P.AGENT_MANAGE}, {"platform"}),
     _r("pack_developer", "Pack developer", "Builds adapters and packs.", {P.TENANT_READ, P.PACK_PUBLISH},
        {"platform"}),
     _r("ontology_curator", "Ontology and pack curator", "Maintains the ontology, domain packs and shared skills.",
        {P.TENANT_READ, P.PACK_PUBLISH, P.TEMPLATE_MANAGE}, {"platform"}),
     _r("compliance_curator", "Compliance curator", "Maintains compliance packs and control rules.",
-       {P.TENANT_READ, P.AUDIT_READ, P.PACK_PUBLISH, P.PACK_REVIEW, P.DECIDE_CONFLICT, P.APPROVE_LOOSENING},
+       {P.TENANT_READ, P.AUDIT_READ, P.PACK_PUBLISH, P.PACK_REVIEW, P.DECIDE_CONFLICT, P.APPROVE_LOOSENING,
+        P.REVIEW_RESOLVE},
        {"platform", "programme", "tenant", "project"}),
     _r("auditor", "Auditor", "Checks evidence, the audit log and the proof pack.",
        {P.TENANT_READ, P.AUDIT_READ, P.AUDIT_EXPORT, P.AUDIT_VERIFY, P.ACCESS_READ}),
@@ -80,16 +87,17 @@ ROLES: dict[str, RoleDef] = {r.key: r for r in [
        {"programme", "partner"}),
     _r("migration_lead", "Migration lead", "Runs a customer migration from set-up to sign-off.",
        {P.TENANT_READ, P.ACCESS_READ, P.SECRETS_READ, P.SECRETS_MANAGE, P.AUDIT_READ, P.OBSERVABILITY_READ,
-        P.PROJECT_CREATE, P.BLUEPRINT_EDIT, P.BLUEPRINT_APPROVE, P.DECIDE_CONFLICT}),
+        P.PROJECT_CREATE, P.BLUEPRINT_EDIT, P.BLUEPRINT_APPROVE, P.DECIDE_CONFLICT, P.AGENT_RUN, P.AGENT_PIN,
+        P.REVIEW_RESOLVE, P.STAGE_MANAGE}),
     _r("data_sme", "Data subject expert", "Reviews data, mappings, code lists and data quality.",
        {P.TENANT_READ}),
     _r("solution_architect", "Solution architect", "Owns target design, customizations, integrations and gaps.",
-       {P.TENANT_READ, P.SECRETS_READ, P.BLUEPRINT_EDIT}),
+       {P.TENANT_READ, P.SECRETS_READ, P.BLUEPRINT_EDIT, P.REVIEW_RESOLVE}),
     _r("customer_data_owner", "Customer data owner", "Makes business data decisions and signs off reconciliation.",
-       {P.TENANT_READ, P.AUDIT_READ, P.BLUEPRINT_APPROVE}, {"tenant", "project"}),
+       {P.TENANT_READ, P.AUDIT_READ, P.BLUEPRINT_APPROVE, P.REVIEW_RESOLVE}, {"tenant", "project"}),
     _r("customer_it_security_lead", "Customer IT security lead", "Owns the customer's security set-up.",
        {P.TENANT_READ, P.TENANT_POLICY, P.ACCESS_READ, P.AUDIT_READ, P.AUDIT_EXPORT, P.SECRETS_READ,
-        P.SECRETS_MANAGE, P.APPROVE_LOOSENING}, {"tenant"}),
+        P.SECRETS_MANAGE, P.APPROVE_LOOSENING, P.REVIEW_RESOLVE}, {"tenant"}),
     _r("customer_operations_manager", "Operations manager (customer)", "Owns Digital Workers in production.",
        {P.TENANT_READ}, {"tenant", "project"}),
     _r("sales_engineer", "Sales engineer", "Runs pre-sales estimates and fleet scans.",

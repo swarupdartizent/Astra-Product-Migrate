@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useMe } from '@/api/queries';
+import { holdsAny } from './navigation';
 
 const NO_PERMISSIONS: ReadonlySet<string> = new Set();
 
@@ -8,8 +9,8 @@ export interface PermissionsState {
   permissions: ReadonlySet<string>;
   isLoading: boolean;
   error: unknown;
-  /** True when the user holds the permission (null means any signed-in user). */
-  can: (permission: string | null) => boolean;
+  /** True when the user holds the permission, or any one of a list (null = any signed-in user). */
+  can: (permission: string | readonly string[] | null) => boolean;
 }
 
 /**
@@ -26,6 +27,6 @@ export function usePermissions(): PermissionsState {
     permissions,
     isLoading: me.isPending,
     error: me.error,
-    can: (permission) => permission === null || permissions.has(permission),
+    can: (permission) => holdsAny(permissions, permission),
   };
 }

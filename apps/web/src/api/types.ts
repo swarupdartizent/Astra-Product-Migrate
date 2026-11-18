@@ -128,6 +128,8 @@ export interface Tenant {
   deleted_at: DateTime | null;
   /** Permissions the caller holds on this tenant. Use for per-tenant button gating. */
   permissions: string[];
+  /** The provisioning or region-move job in progress, if any. */
+  active_job: JobRef | null;
 }
 
 export interface TenantIn {
@@ -682,4 +684,471 @@ export interface TemplateIn {
   title: string;
   description?: string;
   yaml_text: string;
+}
+
+// ---------- Background jobs (tag "jobs") ----------
+
+/** "queued" | "running" | "succeeded" | "failed" | "cancelled" in the current runner. */
+export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | (string & {});
+
+export interface Job {
+  id: Uuid;
+  kind: string;
+  title: string;
+  status: JobStatus;
+  /** 0–100 */
+  progress: number;
+  progress_message: string | null;
+  result: Record<string, unknown> | null;
+  error: string | null;
+  attempts: number;
+  max_attempts: number;
+  tenant_id: Uuid | null;
+  project_id: Uuid | null;
+  requested_by: string;
+  trace_id: string | null;
+  created_at: DateTime;
+  started_at: DateTime | null;
+  finished_at: DateTime | null;
+}
+
+/** The short form embedded in TenantOut.active_job. */
+export interface JobRef {
+  id: Uuid;
+  kind: string;
+  status: JobStatus;
+  progress: number;
+  progress_message: string | null;
+}
+
+// ---------- Model gateway (tag "models") ----------
+
+export type ProviderKind = 'anthropic' | 'anthropic_foundry' | 'azure_openai';
+
+/** USD per million tokens. */
+export interface ModelPrice {
+  input: number;
+  output: number;
+  cache_read: number;
+  cache_write: number;
+}
+
+export interface ModelProvider {
+  id: Uuid;
+  name: string;
+  kind: ProviderKind | (string & {});
+  kind_label: string;
+  endpoint: string | null;
+  api_version: string | null;
+  has_credential: boolean;
+  credential_version: number | null;
+  no_training_terms: boolean;
+  terms_reference: string;
+  options: Record<string, unknown>;
+  prices: Record<string, ModelPrice>;
+  enabled: boolean;
+  usable: boolean;
+  /** Why the provider cannot be used yet (empty when usable). */
+  problems: string[];
+  /** "unchecked" | "ok" | "failed" */
+  check_status: string;
+  check_detail: string | null;
+  checked_at: DateTime | null;
+  /** Regions whose tenants this provider kind can serve. */
+  regions: string[];
+  aliases: string[];
+  created_at: DateTime;
+}
+
+export interface ProviderIn {
+  name: string;
+  kind: ProviderKind;
+  endpoint?: string | null;
+  api_version?: string | null;
+  no_training_terms: boolean;
+  terms_reference?: string;
+  options?: Record<string, boolean>;
+  prices?: Record<string, ModelPrice> | null;
+}
+
+export interface ProviderUpdate extends ProviderIn {
+  enabled: boolean;
+}
+
+export interface ModelAlias {
+  alias: string;
+  provider_id: Uuid;
+  provider_name: string;
+  provider_usable: boolean;
+  model: string;
+  description: string;
+  price_configured: boolean;
+  updated_at: DateTime;
+}
+
+export interface AliasIn {
+  provider_id: Uuid;
+  model: string;
+  description?: string;
+  reason: string;
+}
+
+export interface ModelCall {
+  id: Uuid;
+  created_at: DateTime;
+  provider_name: string;
+  provider_kind: string;
+  alias: string | null;
+  requested_model: string;
+  served_model: string | null;
+  api_version: string | null;
+  sdk_version: string | null;
+  request_id: string | null;
+  agent_name: string | null;
+  agent_version: string | null;
+  agent_run_id: Uuid | null;
+  test_run_id: Uuid | null;
+  tenant_id: Uuid | null;
+  project_id: Uuid | null;
+  region_code: string | null;
+  region_pinned: boolean | null;
+  status: string;
+  stop_reason: string | null;
+  error: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  /** null = no price configured for the served model. */
+  cost_usd: number | null;
+  latency_ms: number;
+  trace_id: string | null;
+}
+
+export type UsageGroupBy = 'agent' | 'served_model' | 'provider' | 'alias' | 'project' | 'tenant';
+
+export interface UsageRow {
+  key: string | null;
+  calls: number;
+  errors: number;
+  refused: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  /** Successful calls with no price configured (their cost is not in cost_usd). */
+  unpriced_calls: number;
+  p95_latency_ms: number;
+}
+
+// ---------- Agents (tag "agents") ----------
+
+export interface AgentTool {
+  name: string;
+  description: string;
+  /** e.g. "read", "propose", "delegate" */
+  effect: string;
+  input_schema: Record<string, unknown>;
+}
+
+export interface ToolCatalogue {
+  tools: AgentTool[];
+  /** Effects no platform tool can ever have. */
+  forbidden_effects: string[];
+}
+
+export interface AgentVersionSummary {
+  id: Uuid;
+  version: string;
+  /** "draft" | "released" | "deprecated" */
+  status: string;
+  risk_rating: string;
+  created_at: DateTime;
+  released_at: DateTime | null;
+  latest_test_status: string | null;
+}
+
+export interface Agent {
+  name: string;
+  title: string;
+  team: string;
+  purpose: string;
+  identity_user_id: Uuid;
+  versions: AgentVersionSummary[];
+  latest_released: string | null;
+}
+
+export interface AgentCatalogItem {
+  file: string;
+  name: string;
+  version: string;
+  title: string;
+  registered_status: string | null;
+}
+
+export interface ManifestValidation {
+  valid: boolean;
+  errors: { field: string; message: string }[];
+}
+
+export type TestCaseKind = 'tool_policy' | 'screening' | 'model';
+export type TestCaseStatus = 'passed' | 'failed' | 'blocked';
+
+export interface TestCaseResult {
+  name: string;
+  kind: TestCaseKind | (string & {});
+  status: TestCaseStatus | (string & {});
+  detail: string;
+  tools_called?: string[];
+  models?: string[];
+  screening?: { source: string; flagged: boolean; rules: string[] }[];
+  answer?: string;
+  cost_usd?: number;
+}
+
+export interface AgentTestRun {
+  id: Uuid;
+  agent: string;
+  version: string;
+  /** "queued" | "running" | "passed" | "failed" | "blocked" | "error" */
+  status: string;
+  digest_matches: boolean;
+  job_id: Uuid | null;
+  started_by: string | null;
+  started_at: DateTime;
+  finished_at: DateTime | null;
+  /** {total, passed, failed, blocked} or {note} */
+  summary: Record<string, unknown>;
+  results: TestCaseResult[];
+  cost_usd: number;
+}
+
+/** The manifest as stored (agents/manifest.py AgentManifest). */
+export interface AgentManifest {
+  apiVersion?: string;
+  name: string;
+  version: string;
+  title: string;
+  team: string;
+  purpose: string;
+  data_access: 'metadata_only' | 'business_data' | (string & {});
+  model: { alias: string; effort?: string; max_tokens?: number };
+  instructions: string;
+  tools?: string[];
+  guardrails?: {
+    screen_untrusted_inputs?: boolean;
+    max_model_calls?: number;
+    max_tool_calls?: number;
+    max_cost_usd?: number;
+    max_delegation_depth?: number;
+  };
+  oversight: { autonomy: string; human_review: string[]; escalation: string };
+  governance: {
+    risk_rating: string;
+    risk_rationale: string;
+    intended_use: string;
+    out_of_scope?: string[];
+    regulatory_notes?: string;
+  };
+  tests: Record<string, unknown>[];
+}
+
+export interface AgentVersionDetail {
+  id: Uuid;
+  agent: string;
+  version: string;
+  status: string;
+  digest: string;
+  manifest: AgentManifest;
+  manifest_yaml: string;
+  created_by: string | null;
+  created_at: DateTime;
+  released_by: string | null;
+  released_at: DateTime | null;
+  release_note: string | null;
+  latest_test_run: AgentTestRun | null;
+  /** Why release is refused right now (empty = can be released). */
+  release_blockers: string[];
+  model_ready: boolean;
+  /** Where the model alias resolves to, or why it is blocked. */
+  model_status: string;
+  /** ["agent:manage"] when the caller may act on agent versions. */
+  permissions: string[];
+}
+
+export interface TestRunSummary {
+  id: string;
+  status: string;
+  started_at: DateTime;
+  finished_at: DateTime | null;
+  summary: Record<string, unknown>;
+  cost_usd: number;
+  digest_matches: boolean;
+}
+
+/** registry.governance_record (the endpoint is typed as a plain object). */
+export interface GovernanceRecord {
+  agent: string;
+  version: string;
+  status: string;
+  digest: string;
+  title: string;
+  team: string;
+  purpose: string;
+  risk_rating: string;
+  risk_rationale: string;
+  intended_use: string;
+  out_of_scope: string[];
+  regulatory_notes: string;
+  oversight: { autonomy: string; human_review: string[]; escalation: string };
+  data_access: string;
+  tools: { name: string; effect: string; description: string }[];
+  guardrails: Record<string, unknown>;
+  hard_rules: string[];
+  model: {
+    alias: string;
+    effort: string;
+    currently_resolves_to: { provider_id: string; model: string } | null;
+    models_that_answered: string[];
+  };
+  usage: { model_calls: number; cost_usd: number; agent_runs: number; projects_pinned: number };
+  tests: {
+    cases: number;
+    by_kind: Record<string, number>;
+    latest: TestRunSummary | null;
+    history: TestRunSummary[];
+  };
+  release: {
+    released_at: DateTime | null;
+    released_by: string | null;
+    test_run_id: string | null;
+    note: string | null;
+  };
+  registered_at: DateTime;
+}
+
+export interface ModelReadiness {
+  alias: string;
+  ready: boolean;
+  /** Where the alias resolves to, or why it is blocked. */
+  detail: string;
+  agents: string[];
+}
+
+export interface ScreeningFinding {
+  rule: string;
+  label: string;
+  severity: string;
+  excerpt: string;
+  encoded: boolean;
+}
+
+export interface ScreenOut {
+  flagged: boolean;
+  severity: string | null;
+  hidden_characters: number;
+  findings: ScreeningFinding[];
+  /** Exactly how the text would be passed to an agent. */
+  wrapped: string;
+  /** The text with hidden characters made visible. */
+  visible_text: string;
+}
+
+// ---------- Project runtime (tag "runtime") ----------
+
+export interface AgentPin {
+  agent: string;
+  title: string;
+  team: string;
+  pinned_version: string | null;
+  pinned_status: string | null;
+  pinned_by: string | null;
+  pinned_at: DateTime | null;
+  reason: string | null;
+  released_versions: string[];
+  newer_release: string | null;
+}
+
+export interface AgentRun {
+  id: Uuid;
+  project_id: Uuid;
+  agent: string;
+  agent_version: string;
+  parent_run_id: Uuid | null;
+  /** "queued" | "running" | "succeeded" | "failed" | "blocked" ... */
+  status: string;
+  status_detail: string | null;
+  requested_by: string;
+  /** "user" | "agent" | "system" */
+  requested_by_type: string;
+  job_id: Uuid | null;
+  model_calls: number;
+  tool_calls: number;
+  denied_tool_calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  trace_id: string | null;
+  created_at: DateTime;
+  started_at: DateTime | null;
+  finished_at: DateTime | null;
+}
+
+export type RunEventKind =
+  'model_request' | 'model_response' | 'tool_call' | 'tool_result' | 'guardrail' | 'error';
+
+export interface RunEvent {
+  seq: number;
+  kind: RunEventKind | (string & {});
+  payload: Record<string, unknown>;
+  created_at: DateTime;
+}
+
+export interface AgentRunDetail extends AgentRun {
+  objective: string | null;
+  output: string | null;
+  events: RunEvent[];
+}
+
+export interface ReviewItem {
+  id: Uuid;
+  project_id: Uuid;
+  kind: string;
+  title: string;
+  question: string;
+  options: string[];
+  context: Record<string, unknown>;
+  owner_role: string;
+  owner_role_label: string;
+  owner_user: string | null;
+  requested_by: string;
+  requested_by_type: string;
+  agent_run_id: Uuid | null;
+  /** "open" | "resolved" | "dismissed" */
+  status: string;
+  resolution: string | null;
+  resolution_note: string | null;
+  resolved_by: string | null;
+  resolved_at: DateTime | null;
+  created_at: DateTime;
+  can_resolve: boolean;
+  /** Screening flags only, on GET /review-items/{id}: the legacy text, hidden characters revealed. */
+  flagged_text?: string | null;
+}
+
+export interface ResolveIn {
+  action: 'resolve' | 'dismiss';
+  resolution?: string | null;
+  note?: string;
+}
+
+export type StageStatus = 'not_started' | 'blocked' | 'in_progress' | 'done';
+
+export interface ProjectStage {
+  stage: string;
+  title: string;
+  status: StageStatus | (string & {});
+  note: string;
+  updated_by: string | null;
+  updated_by_type: string | null;
+  updated_at: DateTime | null;
 }

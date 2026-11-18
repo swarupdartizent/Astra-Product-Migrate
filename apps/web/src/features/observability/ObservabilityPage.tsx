@@ -23,6 +23,7 @@ import {
 import s from '../shared.module.css';
 import { Bar } from './Bar';
 import { barPercent, formatCost, formatDuration, GROUP_BY_OPTIONS } from './model';
+import { ModelCostCard } from './ModelCostCard';
 import styles from './Observability.module.css';
 
 const summaryCol = createDataTableColumns<SummaryRow>();
@@ -239,6 +240,8 @@ function ObservabilityView() {
             </p>
           ) : null}
         </Card>
+
+        <ModelCostCard />
 
         <Card flush aria-labelledby="traces-title">
           <CardHeader

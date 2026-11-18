@@ -98,7 +98,6 @@ export function AppShell() {
                 onClick={() => setPaletteOpen(true)}
                 aria-keyshortcuts="Control+K Meta+K"
                 aria-haspopup="dialog"
-                aria-label="Search or jump to…"
               >
                 <Search aria-hidden="true" className={styles.paletteIcon} />
                 <span className={styles.paletteLabel}>Search or jump to…</span>

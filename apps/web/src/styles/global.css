@@ -130,3 +130,20 @@ pre {
     scroll-behavior: auto !important;
   }
 }
+
+/* Untrusted or model-written text: shown verbatim, never interpreted as markup. */
+.plain-text {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 28rem;
+  overflow-y: auto;
+}

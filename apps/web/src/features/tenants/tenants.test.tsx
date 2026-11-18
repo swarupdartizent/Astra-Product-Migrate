@@ -28,6 +28,7 @@ function tenant(overrides: Partial<Tenant> = {}): Tenant {
     created_at: '2026-11-17T10:00:00Z',
     deleted_at: null,
     permissions: ['tenant:read'],
+    active_job: null,
     ...overrides,
   };
 }

@@ -1,0 +1,37 @@
+.track {
+  position: relative;
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-emphasis);
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+  transition: width var(--duration-slow) var(--ease-out);
+}
+
+.fill[data-tone='success'] {
+  background: var(--color-success-solid);
+}
+
+.fill[data-tone='danger'] {
+  background: var(--color-danger-solid);
+}
+
+.indeterminate {
+  width: 35%;
+  animation: slide 1.2s var(--ease-standard) infinite;
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}

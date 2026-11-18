@@ -20,7 +20,7 @@ class TenantDbServer(BaseModel):
 
 
 class ModelEndpoint(BaseModel):
-    base_url: str
+    base_url: str | None = None  # None: the endpoint is set on the provider record
     region_pinned: bool
 
 

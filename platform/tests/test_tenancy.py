@@ -13,6 +13,7 @@ from astra_migrate.config import get_settings
 from astra_migrate.tenancy.regions import get_region
 from astra_migrate.tenancy.service import db_password_path
 from astra_migrate.vault import VaultError, get_vault
+from tests.conftest import wait_job
 
 pytestmark = pytest.mark.integration
 
@@ -85,6 +86,7 @@ def test_create_and_delete_are_audited_and_delete_crypto_shreds(client: Any, adm
     assert r.status_code == 201
     t = r.json()
     db_name = _names(t)
+    assert wait_job(client, admin, t["active_job"]["id"])["status"] == "succeeded"
 
     bad = client.post(f"/api/v1/tenants/{t['id']}/delete", headers=admin,
                       json={"confirm_slug": "wrong", "reason": "testing deletion"})
@@ -123,7 +125,10 @@ def test_region_is_fixed_except_through_a_recorded_migration(client: Any, admin:
     r = client.post(f"/api/v1/tenants/{t['id']}/region-migrations", headers=admin,
                     json={"to_region": "local-b", "reason": "customer requested EU-to-other move (test)"})
     assert r.status_code == 201, r.text
-    move = r.json()
+    assert r.json()["status"] == "queued"  # the move runs as a background job, not inside the request
+    job = wait_job(client, admin, r.json()["detail"]["job_id"])
+    assert job["status"] == "succeeded", job
+    move = client.get(f"/api/v1/tenants/{t['id']}/region-migrations", headers=admin).json()[0]
     assert move["status"] == "completed", move
     assert move["detail"]["tables"]["tenant_info"]["source"] == move["detail"]["tables"]["tenant_info"]["target"]
 

@@ -9,7 +9,13 @@ import {
 import { safeReturnTo } from '@/auth/config';
 import type { AuthContextValue } from '@/auth/context';
 import { AccessPage } from '@/features/access/AccessPage';
+import { AgentsPage } from '@/features/agents/AgentsPage';
+import { AgentVersionPage } from '@/features/agents/AgentVersionPage';
+import { AGENT_TABS, VERSION_TABS, type AgentsTab, type VersionTab } from '@/features/agents/model';
+import { RegisterAgentPage } from '@/features/agents/RegisterAgentPage';
 import { AuditPage } from '@/features/audit/AuditPage';
+import { ModelsPage } from '@/features/models/ModelsPage';
+import { MODEL_TABS, type ModelTab } from '@/features/models/tabs';
 import { ProjectPage } from '@/features/blueprints/ProjectPage';
 import { PROJECT_TABS, type ProjectTab } from '@/features/blueprints/tabs';
 import { ComposePage } from '@/features/packs/ComposePage';
@@ -206,6 +212,46 @@ const templatesRoute = createRoute({
   component: TemplatesPage,
 });
 
+const modelsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/models',
+  validateSearch: (search: Record<string, unknown>): { tab?: ModelTab } =>
+    MODEL_TABS.includes(search.tab as ModelTab) ? { tab: search.tab as ModelTab } : {},
+  component: function ModelsRoute() {
+    const { tab } = modelsRoute.useSearch();
+    return <ModelsPage tab={tab ?? 'providers'} />;
+  },
+});
+
+const agentsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/agents',
+  validateSearch: (search: Record<string, unknown>): { tab?: AgentsTab } =>
+    AGENT_TABS.includes(search.tab as AgentsTab) ? { tab: search.tab as AgentsTab } : {},
+  component: function AgentsRoute() {
+    const { tab } = agentsRoute.useSearch();
+    return <AgentsPage tab={tab ?? 'registry'} />;
+  },
+});
+
+const registerAgentRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/agents/register',
+  component: RegisterAgentPage,
+});
+
+const agentVersionRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/agents/$name/$version',
+  validateSearch: (search: Record<string, unknown>): { tab?: VersionTab } =>
+    VERSION_TABS.includes(search.tab as VersionTab) ? { tab: search.tab as VersionTab } : {},
+  component: function AgentVersionRoute() {
+    const { name, version } = agentVersionRoute.useParams();
+    const { tab } = agentVersionRoute.useSearch();
+    return <AgentVersionPage name={name} version={version} tab={tab ?? 'overview'} />;
+  },
+});
+
 export const routeTree = rootRoute.addChildren([
   signInRoute,
   authCallbackRoute,
@@ -223,6 +269,10 @@ export const routeTree = rootRoute.addChildren([
     packDetailRoute,
     projectRoute,
     templatesRoute,
+    modelsRoute,
+    agentsRoute,
+    registerAgentRoute,
+    agentVersionRoute,
   ]),
 ]);
 

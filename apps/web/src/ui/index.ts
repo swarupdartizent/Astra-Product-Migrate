@@ -74,6 +74,8 @@ export {
   type SegmentedControlProps,
   type SegmentedOption,
 } from './SegmentedControl';
+export { PlainText, type PlainTextProps } from './PlainText';
+export { ProgressBar, type ProgressBarProps } from './ProgressBar';
 export { Select, type SelectOption, type SelectProps } from './Select';
 export { Sheet, type SheetProps } from './Sheet';
 export { Skeleton, type SkeletonProps } from './Skeleton';

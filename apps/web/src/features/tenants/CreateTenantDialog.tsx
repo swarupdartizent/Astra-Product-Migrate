@@ -95,6 +95,11 @@ export function CreateTenantDialog({ open, onOpenChange }: CreateTenantDialogPro
             toast.error(`${tenant.name} could not be provisioned`, {
               description: tenant.status_detail ?? 'See the tenant for details.',
             });
+          } else if (tenant.active_job || tenant.status === 'provisioning') {
+            toast.info(`Provisioning ${tenant.name}`, {
+              description:
+                'The database, role and key are being built. Progress shows on the tenant page.',
+            });
           } else {
             toast.success(`Tenant ${tenant.name} created`, {
               description: `Storage and key are ready in ${tenant.region_name ?? tenant.region_code}.`,

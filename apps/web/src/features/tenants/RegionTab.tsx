@@ -25,10 +25,14 @@ import {
   type Tone,
 } from '@/ui';
 import s from '../shared.module.css';
-import { can, regionMoveError, regionMoveTables } from './model';
+import { can, regionMoveError, regionMoveJobId, regionMoveTables } from './model';
+import { JobProgress } from '@/app/JobProgress';
+import { tenantKeys } from '@/api/tenancy';
+import { useQueryClient } from '@tanstack/react-query';
 import styles from './RegionTab.module.css';
 
 const MOVE_STATUS: Record<string, { label: string; tone: Tone }> = {
+  queued: { label: 'Queued', tone: 'neutral' },
   running: { label: 'Running', tone: 'info' },
   completed: { label: 'Completed', tone: 'success' },
   failed: { label: 'Failed', tone: 'danger' },
@@ -136,6 +140,9 @@ function MoveItem({ move, regionLabel }: { move: RegionMove; regionLabel: (c: st
   const status = moveStatus(move.status);
   const tables = regionMoveTables(move.detail);
   const error = regionMoveError(move.detail);
+  const jobId = regionMoveJobId(move.detail);
+  const qc = useQueryClient();
+  const active = move.status === 'queued' || move.status === 'running';
   return (
     <li className={styles.move}>
       <div className={styles.moveHeader}>
@@ -161,6 +168,14 @@ function MoveItem({ move, regionLabel }: { move: RegionMove; regionLabel: (c: st
           </>
         ) : null}
       </p>
+      {jobId && active ? (
+        <JobProgress
+          jobId={jobId}
+          title="Region move"
+          compact
+          onFinished={() => void qc.invalidateQueries({ queryKey: tenantKeys.all })}
+        />
+      ) : null}
       {error ? (
         <Callout tone="danger" title="The move failed and the tenant stayed where it was">
           <Mono>{error}</Mono>
@@ -253,7 +268,11 @@ function MoveRegionDialog({ tenant, onClose }: { tenant: Tenant; onClose: () => 
           { to_region: form.to_region, reason: form.reason.trim() },
           {
             onSuccess: (result) => {
-              if (result.status === 'failed') {
+              if (result.status === 'queued' || result.status === 'running') {
+                toast.info(`Moving ${tenant.name} to ${target?.name ?? result.to_region}`, {
+                  description: 'The move runs in the background. Progress shows below.',
+                });
+              } else if (result.status === 'failed') {
                 toast.error('Region move failed', {
                   description:
                     regionMoveError(result.detail) ?? 'The tenant stayed in its original region.',

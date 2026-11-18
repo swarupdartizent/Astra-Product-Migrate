@@ -5,7 +5,8 @@ import { ApiErrorView } from './ApiErrorView';
 import { usePermissions } from './permissions';
 
 export interface RequirePermissionProps {
-  permission: string;
+  /** One permission code, or a list where any one is enough. */
+  permission: string | readonly string[];
   children: ReactNode;
 }
 
@@ -31,7 +32,7 @@ export function RequirePermission({ permission, children }: RequirePermissionPro
         icon={<ShieldBan />}
         title="You don't have permission to view this page"
         body="Your role assignments do not include access to this page. Ask an administrator if you need it."
-        reference={`Requires ${permission}`}
+        reference={`Requires ${typeof permission === 'string' ? permission : permission.join(' or ')}`}
       />
     );
   }

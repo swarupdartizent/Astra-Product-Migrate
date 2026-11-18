@@ -41,6 +41,11 @@ for (const path of [
   '/packs/fixture-pack/1.0.0?tab=controls',
   '/projects/00000000-0000-4000-8000-000000000000?tab=versions&version=2',
   '/templates',
+  '/models?tab=aliases',
+  '/agents?tab=readiness',
+  '/agents/register',
+  '/agents/fixture-agent/1.0.0?tab=tests',
+  '/projects/00000000-0000-4000-8000-000000000000?tab=reviews',
 ]) {
   test(`deep link ${path} while signed out goes to sign-in and keeps the destination`, async ({
     page,

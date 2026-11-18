@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     data_dir: str = ".local/data"  # tenant file storage (blueprint git repositories); Azure: file share
     otlp_endpoint: str | None = None
     cors_origins: str = "http://localhost:5273"
+    # Job worker threads in the API process. Azure runs workers in their own container and sets this to 0.
+    job_workers: int = 2
 
     @property
     def issuers(self) -> list[str]:

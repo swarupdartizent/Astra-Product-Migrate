@@ -238,9 +238,18 @@
     padding: 0 var(--space-2);
   }
 
-  .paletteLabel,
   .paletteKeys {
     display: none;
+  }
+
+  /* Keep the label as the button's accessible name; hide it visually on narrow screens. */
+  .paletteLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
 }
 

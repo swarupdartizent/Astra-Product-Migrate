@@ -41,6 +41,23 @@ Open http://localhost:5273 and sign in as `admin@astra.local`. The password is i
 > On machines where policy blocks the launcher `.exe` files that Python creates in `.venv/Scripts`,
 > always run tools as `python -m <tool>`, as shown above.
 
+Background work (tenant provisioning, region moves, agent runs and agent test suites) runs on a durable job
+queue. The API process runs two worker threads (`ASTRA_JOB_WORKERS`); in Azure, workers run as their own
+process: `python -m astra_migrate.jobs --workers 2`.
+
+### Models and agents
+
+Agents call models only through the model gateway, and no key is built in. To turn agents on:
+
+1. Sign in as a platform administrator and open **Platform > Models**.
+2. Add a provider (Anthropic by default). Record where its no-training terms are, store the API key (it goes
+   to the vault and is never shown again), run **Check connection**, then enable it.
+3. Point the alias `reasoning` at a model, for example `claude-opus-5-5`.
+4. Under **Platform > Agents**, import the built-in agents, run the Orchestrator's test suite and release it
+   when the suite passes. Then pin it on a project and start a run.
+
+Until a provider is configured, model test cases and agent runs show as *Blocked* with the reason.
+
 | Service | URL |
 |---|---|
 | Web app | http://localhost:5273 |
@@ -55,6 +72,8 @@ cd platform && .venv/Scripts/python -m pytest -q
 ```
 
 Integration tests run against the real local stack, using a separate control database (`astra_control_test`).
+Live agent tests (`tests/test_live_agents.py`) call a real model and run only when `ANTHROPIC_API_KEY` is set;
+otherwise they are skipped with that reason.
 
 ## Layout
 

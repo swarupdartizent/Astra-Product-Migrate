@@ -78,22 +78,28 @@ e2e/                    Playwright specs (axe accessibility smoke tests)
 
 ## Screens
 
-| Route                                | Nav permission       | What it does                                                                                                                                                                                            |
-| ------------------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                                  | any signed-in user   | Greeting, "Get started" links to the screens you can open, your role assignments, platform health                                                                                                       |
-| `/tenants`                           | `tenant:read`        | Tenant list; "New tenant" (needs `tenant:create`) builds the database, role and key synchronously                                                                                                       |
-| `/tenants/$tenantId?tab=`            | `tenant:read`        | Tabs: overview, security policy, connector secrets, region, danger zone                                                                                                                                 |
-| `/programmes`                        | `tenant:read`        | Programmes with partners; create programme and add partner need `programme:manage`                                                                                                                      |
-| `/access`                            | `access:read`        | People search, invite, role grant/revoke, enable/disable (side panel)                                                                                                                                   |
-| `/audit`                             | `audit:read`         | Filtered, keyset-paginated audit log; detail panel; CSV/JSONL export (`audit:export`); integrity verification (`audit:verify`) and signed anchors                                                       |
-| `/observability`                     | `observability:read` | Span summary grouped by category, tenant, operation, stage, agent or project; recent traces                                                                                                             |
-| `/observability/traces/$traceId`     | `observability:read` | Trace waterfall, span attributes, link to Jaeger when the API provides one                                                                                                                              |
-| `/packs`                             | any signed-in user   | Pack library grouped by name (expand for older versions), filters; "Upload pack" (`pack:publish`) sends a folder or files as `{files: {path: base64}}`                                                  |
-| `/packs/$name/$version?tab=`         | any signed-in user   | Overview (disclaimer, requires, digest, review), controls with placement, rules, settings, files, tests and release (run tests, record review with `pack:review`, publish, deprecate), compare versions |
-| `/packs/compose`                     | any signed-in user   | Composition preview of published packs: controls by placement area, settings with conflicts, requirement problems                                                                                       |
-| `/tenants/$tenantId?tab=projects`    | `tenant:read`        | Projects with latest/approved version and planning gate; "New project" needs `project:create` on the tenant                                                                                             |
-| `/projects/$projectId?tab=&version=` | project read         | Blueprint workspace: editor (form and YAML views, live validation, save), versions and approvals, compare, decisions                                                                                    |
-| `/templates`                         | any signed-in user   | Blueprint templates; "New template" needs `template:manage`                                                                                                                                             |
+| Route                                | Nav permission                                            | What it does                                                                                                                                                                                            |
+| ------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                  | any signed-in user                                        | Greeting, "Get started" links to the screens you can open, your role assignments, platform health                                                                                                       |
+| `/tenants`                           | `tenant:read`                                             | Tenant list; "New tenant" (needs `tenant:create`) builds the database, role and key synchronously                                                                                                       |
+| `/tenants/$tenantId?tab=`            | `tenant:read`                                             | Tabs: overview, security policy, connector secrets, region, danger zone                                                                                                                                 |
+| `/programmes`                        | `tenant:read`                                             | Programmes with partners; create programme and add partner need `programme:manage`                                                                                                                      |
+| `/access`                            | `access:read`                                             | People search, invite, role grant/revoke, enable/disable (side panel)                                                                                                                                   |
+| `/audit`                             | `audit:read`                                              | Filtered, keyset-paginated audit log; detail panel; CSV/JSONL export (`audit:export`); integrity verification (`audit:verify`) and signed anchors                                                       |
+| `/observability`                     | `observability:read`                                      | Span summary grouped by category, tenant, operation, stage, agent or project; recent traces                                                                                                             |
+| `/observability/traces/$traceId`     | `observability:read`                                      | Trace waterfall, span attributes, link to Jaeger when the API provides one                                                                                                                              |
+| `/packs`                             | any signed-in user                                        | Pack library grouped by name (expand for older versions), filters; "Upload pack" (`pack:publish`) sends a folder or files as `{files: {path: base64}}`                                                  |
+| `/packs/$name/$version?tab=`         | any signed-in user                                        | Overview (disclaimer, requires, digest, review), controls with placement, rules, settings, files, tests and release (run tests, record review with `pack:review`, publish, deprecate), compare versions |
+| `/packs/compose`                     | any signed-in user                                        | Composition preview of published packs: controls by placement area, settings with conflicts, requirement problems                                                                                       |
+| `/tenants/$tenantId?tab=projects`    | `tenant:read`                                             | Projects with latest/approved version and planning gate; "New project" needs `project:create` on the tenant                                                                                             |
+| `/projects/$projectId?tab=&version=` | project read                                              | Blueprint workspace: editor (form and YAML views, live validation, save), versions and approvals, compare, decisions                                                                                    |
+| `/templates`                         | any signed-in user                                        | Blueprint templates; "New template" needs `template:manage`                                                                                                                                             |
+| `/models?tab=`                       | any of `model:manage`, `audit:read`, `observability:read` | Providers (problems, credential, connection test, prices, enable), aliases, usage and cost, model calls. Editing needs `model:manage`                                                                   |
+| `/agents?tab=`                       | any signed-in user with a role                            | Registry, built-in catalogue (import with `agent:manage`), model readiness, governance records (JSON download), guardrail lab (`agent:manage` or `audit:read`)                                          |
+| `/agents/$name/$version?tab=`        | as above                                                  | Purpose, tools and forbidden effects, limits, oversight, release blockers; test suite with per-case results (Blocked is never shown as failed); read-only manifest; governance record                   |
+| `/agents/register`                   | `agent:manage`                                            | Manifest YAML with live validation (field paths such as `tests.3.expect.must_call`)                                                                                                                     |
+| `/projects/$projectId?tab=agents`    | project read                                              | Pins (`agent:pin`), runs (`agent:run`), run transcript timeline, project jobs                                                                                                                           |
+| `/projects/$projectId?tab=reviews`   | project read                                              | Review queue; resolve or dismiss when `can_resolve`                                                                                                                                                     |
 
 Per-tenant actions are gated by `Tenant.permissions` (the permissions the caller holds on that
 tenant), not by the global `/me` list: policy edits need `tenant:update_policy`, secrets need
@@ -110,6 +116,20 @@ Forms follow one pattern: client validation mirrors the API rules and shows afte
 422 `errors: [{field, message}]` from the API are mapped onto the matching `Field` (the server wins);
 anything else renders in `FormError` (auth and permission problems render their dedicated state,
 e.g. the multi-factor step-up).
+
+### Background jobs and AI runtime
+
+- Long work runs as background jobs. `JobProgress` (`src/app/JobProgress.tsx`) polls
+  `GET /jobs/{id}` while a job is queued or running, shows an accessible progress bar and the
+  job's message, reports the end once (`onFinished`), and shows the job's `error` when it fails.
+  Tenant provisioning (`active_job`), region moves (`detail.job_id`), agent test suites and agent
+  runs all use it. `JobsCard` lists a tenant's or project's jobs and can cancel queued ones.
+- The project page shows the six lifecycle stages. With `stage:manage` a stage can be changed;
+  a refusal (409 `/problems/gate-closed`) lists the gate's reasons in the dialog.
+- Model and legacy text (run output, transcripts, flagged review text, guardrail lab) is shown
+  with `PlainText`: verbatim, never as HTML.
+- Model cost is shown from recorded calls; a call with no configured price shows
+  "Price not configured" and is counted in `unpriced_calls`, never as zero.
 
 ### Blueprint workspace
 

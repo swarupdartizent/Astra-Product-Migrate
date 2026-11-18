@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from astra_migrate import audit
-from astra_migrate.api.errors import Problem, conflict, forbidden, not_found
+from astra_migrate.api.errors import Problem, conflict, forbidden, invalid, not_found
 from astra_migrate.api.routes.core import scope_name
 from astra_migrate.db.control import get_session
 from astra_migrate.db.models import Partner, Programme, Project, RoleAssignment, Tenant, User
@@ -90,7 +90,7 @@ def _require_some_access(principal: Principal, perm: P) -> None:
 @router.get("/users", response_model=list[UserOut])
 def list_users(principal: CurrentPrincipal, s: DB, q: str | None = None) -> list[UserOut]:
     _require_some_access(principal, P.ACCESS_READ)
-    stmt = select(User).order_by(User.display_name)
+    stmt = select(User).where(User.kind == "person").order_by(User.display_name)
     if q:
         like = f"%{q.lower()}%"
         stmt = stmt.where(func.lower(User.email).like(like) | func.lower(User.display_name).like(like))
@@ -163,8 +163,11 @@ def grant(body: GrantIn, principal: CurrentPrincipal, s: DB) -> AssignmentOut:
     model = {"programme": Programme, "partner": Partner, "tenant": Tenant, "project": Project}.get(body.scope_type)
     if model is not None and s.get(model, body.scope_id) is None:
         raise Problem(422, "validation", f"Unknown {body.scope_type}")
-    if s.get(User, body.user_id) is None:
+    target = s.get(User, body.user_id)
+    if target is None:
         raise not_found("User")
+    if target.kind != "person":
+        raise invalid("user_id", "Agent identities cannot hold roles. Agents act only through their registered tools.")
     partner_prog = None
     if body.scope_type == "partner":
         partner = s.get(Partner, body.scope_id)
