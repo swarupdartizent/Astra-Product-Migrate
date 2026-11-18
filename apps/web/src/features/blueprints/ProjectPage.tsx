@@ -16,6 +16,9 @@ import { PROJECT_TABS, type ProjectTab } from './tabs';
 import { VersionsTab } from './VersionsTab';
 import { ProjectBaselineTab } from '../baselines/ProjectBaselineTab';
 import { DiscoveryTab } from '../discovery/DiscoveryTab';
+import { DeltaTab } from '../delta/DeltaTab';
+import { ConversionTab } from '../conversion/ConversionTab';
+import { ChecklistTab } from '../checklist/ChecklistTab';
 
 export interface ProjectPageProps {
   projectId: string;
@@ -120,6 +123,9 @@ function ProjectWorkspace({
           <Tab value="reviews">Review queue</Tab>
           <Tab value="baseline">Target baseline</Tab>
           <Tab value="discovery">Discovery</Tab>
+          <Tab value="delta">Version delta</Tab>
+          <Tab value="conversion">Conversion</Tab>
+          <Tab value="checklist">Hosting checklist</Tab>
         </TabsList>
         <TabPanel value="editor">
           {latest && base.isPending ? (
@@ -163,6 +169,15 @@ function ProjectWorkspace({
         </TabPanel>
         <TabPanel value="discovery">
           <DiscoveryTab project={project} />
+        </TabPanel>
+        <TabPanel value="delta">
+          <DeltaTab project={project} />
+        </TabPanel>
+        <TabPanel value="conversion">
+          <ConversionTab project={project} />
+        </TabPanel>
+        <TabPanel value="checklist">
+          <ChecklistTab project={project} />
         </TabPanel>
       </Tabs>
     </>
