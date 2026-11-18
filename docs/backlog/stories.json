@@ -1661,8 +1661,9 @@
       ],
       "release": "R1",
       "spec": "RG-01",
-      "status": "todo",
-      "increment": "I8"
+      "status": "done",
+      "increment": "I8",
+      "note": "Queue sorted by a documented priority (risk, compliance impact, confidence) with filters for stream, segment, agent, kind, risk, compliance, owner role and 'mine'; facets and pattern groups."
     },
     {
       "id": "E16.F1.S2",
@@ -1676,8 +1677,9 @@
       ],
       "release": "R1",
       "spec": "Review",
-      "status": "todo",
-      "increment": "I8"
+      "status": "done",
+      "increment": "I8",
+      "note": "Evidence panel: evidence links to the source objects, sample values read from the tenant at view time, an explanation from the recorded evidence and precedents."
     },
     {
       "id": "E16.F1.S3",
@@ -1692,8 +1694,9 @@
       ],
       "release": "R1",
       "spec": "RG-02",
-      "status": "todo",
-      "increment": "I8"
+      "status": "done",
+      "increment": "I8",
+      "note": "Approve, reject with a reason or change; a change starts a follow-up run of the requesting agent with the note. Compliance-critical items need a named reviewer and two people where a pack requires it (database triggers)."
     },
     {
       "id": "E16.F1.S4",
@@ -1707,8 +1710,9 @@
       ],
       "release": "R1",
       "spec": "Review Assistant",
-      "status": "todo",
-      "increment": "I8"
+      "status": "done",
+      "increment": "I8",
+      "note": "Review Assistant agent with two metadata-read tools and no deciding tool. Needs a pinned release and a model key to answer; the recorded-evidence explanation is always shown."
     },
     {
       "id": "E16.F1.S5",
@@ -1738,8 +1742,9 @@
       ],
       "release": "R1",
       "spec": "Planning workbench",
-      "status": "todo",
-      "increment": "I8"
+      "status": "done",
+      "increment": "I8",
+      "note": "Planning workbench view (timeline, task list, graph) and batched edits that re-run the CP-SAT solver; task changes survive regeneration."
     },
     {
       "id": "E17.F1.S1",
@@ -2005,8 +2010,9 @@
       ],
       "release": "R1",
       "spec": "Learning",
-      "status": "todo",
-      "increment": "I8"
+      "status": "done",
+      "increment": "I8",
+      "note": "Precedents by pattern key within the tenant, with source project, outcome, answer and who decided."
     },
     {
       "id": "E21.F1.S2",

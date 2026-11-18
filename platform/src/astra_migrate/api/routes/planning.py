@@ -26,7 +26,18 @@ from astra_migrate.db.models import Gap, PlanBaseline, PresalesEstimate, Program
 from astra_migrate.packs import registry
 from astra_migrate.packs.schema import PackType
 from astra_migrate.planning import baseline as plan_baseline
-from astra_migrate.planning import controls, cutover, estimation, exports, presales, scope, service, store, wbs
+from astra_migrate.planning import (
+    controls,
+    cutover,
+    estimation,
+    exports,
+    presales,
+    scope,
+    service,
+    store,
+    wbs,
+    workbench,
+)
 from astra_migrate.planning.estimation import DISPOSITIONS, ROLES
 from astra_migrate.planning.service import PlanError
 from astra_migrate.security.principal import CurrentPrincipal, Principal, project_for
@@ -97,6 +108,10 @@ def overview(project_id: uuid.UUID, principal: CurrentPrincipal, s: DB) -> dict[
         "waves_fit": wp.get("fits") if wp else None, "cutover_choice": choice,
         "latest_baseline": _baseline_out(s, latest) if latest else None,
         "approved_baseline_id": str(approved.id) if approved else None,
+        "baseline_awaiting_approval": bool(latest and latest.status == "proposed"),
+        "can_approve_waiting": bool(latest and latest.status == "proposed"
+                                    and latest.proposed_by != principal.user.id
+                                    and principal.has_on_project(P.PLAN_APPROVE, t, p.id)),
         "can_manage": principal.has_on_project(P.STAGE_MANAGE, t, p.id),
         "can_approve": principal.has_on_project(P.PLAN_APPROVE, t, p.id)}
 
@@ -176,6 +191,57 @@ def decide_scope(project_id: uuid.UUID, body: DecisionIn, principal: CurrentPrin
 
 # ------------------------------------------------------------------ dependencies (E11.F1.S2)
 
+@router.get("/projects/{project_id}/plan/scope/keys")
+def scope_keys(project_id: uuid.UUID, principal: CurrentPrincipal, s: DB,
+               q: Annotated[str | None, Query(max_length=200)] = None,
+               limit: Annotated[int, Query(ge=1, le=200)] = 50) -> list[dict[str, Any]]:
+    """A short list of scope items for pickers (pins, dependencies)."""
+    t, p = _ctx(s, principal, project_id)
+    with store.connect(t) as tc:
+        sc = store.items(tc, p.id, "scope")
+    rows = [{"key": k, "element": b["element"], "stream": b["stream"], "disposition": scope.effective(b)}
+            for k, b in sorted(sc.items()) if not q or q.lower() in f"{k} {b['element']}".lower()]
+    return rows[:limit]
+
+
+# ------------------------------------------------------------------ planning workbench (E16.F2.S1)
+
+@router.get("/projects/{project_id}/plan/workbench")
+def plan_workbench(project_id: uuid.UUID, principal: CurrentPrincipal, s: DB) -> dict[str, Any]:
+    """The plan as one view for the timeline, the task list and the dependency graph."""
+    t, p = _ctx(s, principal, project_id)
+    with store.connect(t) as tc:
+        out = workbench.view(tc, p.id)
+    return {**out, "can_edit": principal.has_on_project(P.STAGE_MANAGE, t, p.id)}
+
+
+class WorkbenchEditsIn(BaseModel):
+    edits: list[Annotated[workbench.Edit, Field(discriminator="op")]] = Field(min_length=1, max_length=100)
+
+
+@router.post("/projects/{project_id}/plan/workbench/edits")
+def plan_workbench_edits(project_id: uuid.UUID, body: WorkbenchEditsIn, principal: CurrentPrincipal, s: DB
+                         ) -> dict[str, Any]:
+    """Apply edits (moves, dependencies, task role and estimate changes) together, then re-run the constraint
+    solver. If any edit is invalid, nothing is saved."""
+    t, p = _ctx(s, principal, project_id, P.STAGE_MANAGE)
+    try:
+        with store.connect(t) as tc:
+            out = workbench.edit_and_solve(s, tc, p.id, list(body.edits), _who(principal),
+                                           principal.user.display_name)
+    except workbench.EditError as e:
+        raise invalid(f"edits.{e.index}.{e.field}", str(e)) from e
+    except PlanError as e:
+        raise _plan_error(e) from e
+    plan = out.get("plan") or {}
+    audit.record(s, principal.actor, "plan.workbench_edited", tenant_id=t.id, project_id=p.id,
+                 target_type="project", target_id=str(p.id),
+                 details={"edits": [e.model_dump() for e in body.edits], "applied": out["applied"],
+                          "fits": plan.get("fits"), "broken": len(plan.get("broken") or []),
+                          "solve_error": out["solve_error"]})
+    return {**out, "can_edit": True}
+
+
 @router.get("/projects/{project_id}/plan/dependencies")
 def dependencies(project_id: uuid.UUID, principal: CurrentPrincipal, s: DB) -> dict[str, Any]:
     t, p = _ctx(s, principal, project_id)
@@ -211,7 +277,19 @@ def add_edge(project_id: uuid.UUID, body: EdgeIn, principal: CurrentPrincipal, s
     return view
 
 
-@router.delete("/projects/{project_id}/plan/dependencies")
+class RemoveEdgeIn(BaseModel):
+    key: str
+    reason: str = Field(min_length=10, max_length=2000)
+
+
+@router.post("/projects/{project_id}/plan/dependencies/remove")
+def remove_edge_body(project_id: uuid.UUID, body: RemoveEdgeIn, principal: CurrentPrincipal, s: DB
+                     ) -> dict[str, Any]:
+    """Remove a dependency, with the reason in the body (so it is not kept in URLs and access logs)."""
+    return remove_edge(project_id, body.key, body.reason, principal, s)
+
+
+@router.delete("/projects/{project_id}/plan/dependencies", deprecated=True)
 def remove_edge(project_id: uuid.UUID, key: str, reason: Annotated[str, Query(min_length=10, max_length=2000)],
                 principal: CurrentPrincipal, s: DB) -> dict[str, Any]:
     """Remove a dependency. A discovered one is kept as removed, with who and why, so it does not come back."""

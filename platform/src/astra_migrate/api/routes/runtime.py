@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -11,13 +11,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from astra_migrate import audit, stages
+from astra_migrate import stages
 from astra_migrate.agents import registry
 from astra_migrate.agents.guardrails import reveal_hidden
 from astra_migrate.agents.jobs import read_content, start_run
 from astra_migrate.api.errors import Problem, conflict, forbidden, invalid, not_found
 from astra_migrate.db.control import get_session
 from astra_migrate.db.models import Agent, AgentRun, AgentVersion, ProjectAgentPin, ReviewItem, Tenant, User
+from astra_migrate.review import service as reviews
 from astra_migrate.security.principal import CurrentPrincipal, project_for
 from astra_migrate.security.rbac import ROLES, P
 from astra_migrate.tenancy.service import tenant_connection
@@ -185,6 +186,26 @@ class ReviewOut(BaseModel):
     can_resolve: bool
     cannot_resolve_reason: str | None = None
     flagged_text: str | None = None
+    # I8 review workbench
+    stream: str | None = None
+    segment: str | None = None
+    subject_type: str = "decision"
+    risk: str = "medium"
+    confidence: float | None = None
+    compliance: str = "none"
+    compliance_controls: list[str] = Field(default_factory=list)
+    required_approvals: int = 1
+    approvals: list[dict[str, Any]] = Field(default_factory=list)
+    owner_user_id: uuid.UUID | None = None
+    agent: str | None = None
+    pattern_key: str | None = None
+    evidence: list[dict[str, Any]] = Field(default_factory=list)
+    outcome: str | None = None
+    changed_value: str | None = None
+    follow_up_run_id: uuid.UUID | None = None
+    priority: int = 0
+    priority_reasons: list[str] = Field(default_factory=list)
+    can_assign_reviewer: bool = False
 
 
 def _review_out(s: Session, principal: Any, t: Tenant, r: ReviewItem, with_text: bool = False) -> ReviewOut:
@@ -196,7 +217,23 @@ def _review_out(s: Session, principal: Any, t: Tenant, r: ReviewItem, with_text:
             row = conn.execute("SELECT excerpt FROM estate.screening_flags WHERE id = %s",
                                (uuid.UUID(r.context["flag_id"]),)).fetchone()
         text = reveal_hidden(row[0]) if row else None
-    return ReviewOut(id=r.id, project_id=r.project_id, kind=r.kind, title=r.title, question=r.question,
+    ok, why = reviews.can_decide(s, principal, t, r)
+    score, reasons = reviews.priority(r)
+    appr = []
+    for a in reviews.approvals(s, r):
+        u = s.get(User, a.user_id)
+        appr.append({"user": u.display_name if u else None, "option": a.option, "note": a.note,
+                     "at": a.created_at.isoformat() if a.created_at else None})
+    return ReviewOut(
+        stream=r.stream, segment=r.segment, subject_type=r.subject_type, risk=r.risk, confidence=r.confidence,
+        compliance=r.compliance, compliance_controls=list(r.compliance_controls or []),
+        required_approvals=r.required_approvals, approvals=appr, owner_user_id=r.owner_user_id,
+        agent=str(r.requested_by.get("name")) if r.requested_by.get("type") == "agent" else None,
+        pattern_key=r.pattern_key, evidence=list(r.evidence or []), outcome=r.outcome,
+        changed_value=r.changed_value, follow_up_run_id=r.follow_up_run_id, priority=score,
+        priority_reasons=reasons,
+        can_assign_reviewer=r.status == "open" and principal.has_on_project(P.STAGE_MANAGE, t, r.project_id),
+        id=r.id, project_id=r.project_id, kind=r.kind, title=r.title, question=r.question,
                      options=list(r.options), context=r.context, owner_role=r.owner_role,
                      owner_role_label=ROLES[r.owner_role].label if r.owner_role in ROLES else r.owner_role,
                      owner_user=owner.display_name if owner else None,
@@ -204,26 +241,12 @@ def _review_out(s: Session, principal: Any, t: Tenant, r: ReviewItem, with_text:
                      requested_by_type=str(r.requested_by.get("type", "")), agent_run_id=r.agent_run_id,
                      status=r.status, resolution=r.resolution, resolution_note=r.resolution_note,
                      resolved_by=by.display_name if by else None, resolved_at=r.resolved_at,
-                     created_at=r.created_at, can_resolve=_can_resolve(principal, t, r)[0],
-                     cannot_resolve_reason=_can_resolve(principal, t, r)[1] or None, flagged_text=text)
-
-
-def _can_resolve(principal: Any, t: Tenant, r: ReviewItem) -> tuple[bool, str]:
-    if r.status != "open":
-        return False, f"The item is {r.status}."
-    if not principal.has_on_project(P.REVIEW_RESOLVE, t, r.project_id):
-        return False, "You cannot resolve review items on this project."
-    if r.owner_user_id is not None and r.owner_user_id == principal.user.id:
-        return True, ""
-    if r.owner_role in principal.roles_on_project(t, r.project_id):
-        return True, ""
-    label = ROLES[r.owner_role].label if r.owner_role in ROLES else r.owner_role
-    return False, f"This item is owned by the {label} role."
+                     created_at=r.created_at, can_resolve=ok, cannot_resolve_reason=why or None, flagged_text=text)
 
 
 @router.get("/projects/{project_id}/reviews", response_model=list[ReviewOut])
 def list_reviews(project_id: uuid.UUID, principal: CurrentPrincipal, s: DB,
-                 status: Literal["open", "resolved", "dismissed", "all"] = "open",
+                 status: Literal["open", "resolved", "dismissed", "rejected", "changes_requested", "all"] = "open",
                  limit: Annotated[int, Query(ge=1, le=500)] = 200) -> list[ReviewOut]:
     t, p = project_for(s, principal, project_id, None)
     stmt = select(ReviewItem).where(ReviewItem.project_id == p.id)
@@ -250,30 +273,26 @@ class ResolveIn(BaseModel):
 
 @router.post("/review-items/{item_id}/resolve", response_model=ReviewOut)
 def resolve_review(item_id: uuid.UUID, body: ResolveIn, principal: CurrentPrincipal, s: DB) -> ReviewOut:
+    """Kept for earlier clients: 'resolve' approves one option (recording one approval on two-person items) and
+    'dismiss' dismisses with a reason. The review workbench uses /review-items/{id}/decide."""
     r = s.get(ReviewItem, item_id, with_for_update=True)
     if r is None:
         raise not_found("Review item")
     t, _ = project_for(s, principal, r.project_id, None)
-    ok, why = _can_resolve(principal, t, r)
-    if not ok:
-        if r.status != "open":
-            raise conflict(why)
-        raise forbidden(why)
-    if body.action == "resolve":
-        if body.resolution not in r.options:
-            raise invalid("resolution", "Choose one of the item's options.")
-        r.status, r.resolution = "resolved", body.resolution
-    else:
-        if len(body.note.strip()) < 10:
-            raise invalid("note", "Say why the item is dismissed (at least 10 characters).")
-        r.status = "dismissed"
-    r.resolution_note, r.resolved_by, r.resolved_at = body.note.strip(), principal.user.id, datetime.now(UTC)
-    s.flush()
-    audit.record(s, principal.actor, f"review.{r.status}", tenant_id=t.id, project_id=r.project_id,
-                 target_type="review_item", target_id=str(r.id),
-                 details={"kind": r.kind, "title": r.title, "resolution": r.resolution, "note": r.resolution_note,
-                          "owner_role": r.owner_role, "requested_by": r.requested_by})
+    try:
+        reviews.decide(s, principal, t, r, "approve" if body.action == "resolve" else "dismiss",
+                       body.resolution, body.note, None)
+    except reviews.ReviewError as e:
+        raise review_problem(e) from e
     return _review_out(s, principal, t, r)
+
+
+def review_problem(e: reviews.ReviewError) -> Problem:
+    if e.status == 422:
+        return invalid(e.field or "body", str(e))
+    if e.status == 403:
+        return forbidden(str(e))
+    return conflict("The review item cannot be decided this way", str(e))
 
 
 # ------------------------------------------------------------------ stages

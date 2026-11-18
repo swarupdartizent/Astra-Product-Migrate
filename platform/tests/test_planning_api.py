@@ -155,8 +155,8 @@ def test_planning_end_to_end(client: Any, admin: H, tenant_factory: Any, user_fa
     cyc = client.post(f"{base}/dependencies", headers=admin,
                       json={"src": orders, "dst": lines, "reason": "Totals are recalculated from lines."}).json()
     assert cyc["errors"] and set(cyc["errors"][0]["members"]) == {orders, lines}
-    fixed = client.delete(f"{base}/dependencies", headers=admin,
-                          params={"key": f"{orders}->{lines}", "reason": "Recalculation happens after the load."})
+    fixed = client.post(f"{base}/dependencies/remove", headers=admin,
+                        json={"key": f"{orders}->{lines}", "reason": "Recalculation happens after the load."})
     assert fixed.json()["errors"] == []
 
     # ---- tasks and estimates
@@ -183,6 +183,37 @@ def test_planning_end_to_end(client: Any, admin: H, tenant_factory: Any, user_fa
     kinds = {b["constraint"] for b in solved["broken"]}
     assert "freeze_period" in kinds  # W2 cuts over in the quarter-end freeze
     assert any(o["option"] == "move_cutover" for o in solved["options"])
+
+    # ---- planning workbench (I8): one view; edits re-run the solver; an invalid edit saves nothing
+    wb = client.get(f"{base}/workbench", headers=admin).json()
+    assert wb["can_edit"] and not wb["stale"] and [w["key"] for w in wb["waves"]] == ["W1", "W2"]
+    assert len(wb["items"]) == len(keys) and wb["unplaced"] == []
+    assert all(bool(i["wave"]) == (i["key"] not in wb["unestimated"]) for i in wb["items"])
+    assert [k["key"] for k in client.get(f"{base}/scope/keys", headers=admin, params={"q": "orderline"}).json()] \
+        == [lines]
+    task = next(t for t in tasks if t["scope"] == lines and t["likely"])
+    bad = client.post(f"{base}/workbench/edits", headers=admin, json={"edits": [
+        {"op": "move", "scope_key": lines, "wave": "W2"},
+        {"op": "task", "key": task["key"], "likely": 99, "reason": "Deliberately too large."}]})
+    assert bad.status_code == 422 and bad.json()["errors"][0]["field"] == "edits.1.likely"
+    still = client.get(f"{base}/workbench", headers=admin).json()
+    assert next(i for i in still["items"] if i["key"] == lines)["pinned_wave"] is None
+    edited = client.post(f"{base}/workbench/edits", headers=admin, json={"edits": [
+        {"op": "move", "scope_key": lines, "wave": "W2"},
+        {"op": "task", "key": task["key"], "role": "test_engineer", "likely": task["low"],
+         "reason": "Load checks are run by the test engineer."}]})
+    assert edited.status_code == 200, edited.text
+    ew = edited.json()
+    line_item = next(i for i in ew["items"] if i["key"] == lines)
+    assert line_item["pinned_wave"] == "W2" and line_item["wave"] == "W2" and line_item["overridden_tasks"] == 1
+    assert ew["plan"]["solved_at"] > solved["solved_at"] and ew["solve_error"] is None and not ew["stale"]
+    assert len(ew["applied"]) == 2
+    client.post(f"{base}/tasks/generate", headers=admin)  # regeneration keeps a person's task change
+    kept = next(t for t in client.get(f"{base}/tasks", headers=admin, params={"limit": 500}).json()["items"]
+                if t["key"] == task["key"])
+    assert kept["role"] == "test_engineer" and kept["likely"] == task["low"] and kept["override"]["original"]
+    assert client.get(f"{base}/workbench", headers=admin).json()["stale"]  # tasks changed after the last solve
+    client.post(f"{base}/waves/solve", headers=admin)
 
     # ---- risks: the planner's are proposals a person accepts
     rk = client.get(f"{base}/risks", headers=admin).json()
@@ -215,6 +246,8 @@ def test_planning_end_to_end(client: Any, admin: H, tenant_factory: Any, user_fa
     prop = client.post(f"{base}/baselines", headers=admin, json={"reason": "First plan for review."})
     assert prop.status_code == 201, prop.text
     bid = prop.json()["id"]
+    waiting = client.get(base, headers=admin).json()
+    assert waiting["baseline_awaiting_approval"] and not waiting["can_approve_waiting"]  # the proposer cannot
     self_ok = client.post(f"/api/v1/plan-baselines/{bid}/decision", headers=admin,
                           json={"approve": True, "note": "Looks right to me."})
     assert self_ok.status_code == 403

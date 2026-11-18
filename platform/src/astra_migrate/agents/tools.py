@@ -35,6 +35,8 @@ from astra_migrate.db.models import (
     RoleAssignment,
     Tenant,
 )
+from astra_migrate.planning.estimation import STREAMS
+from astra_migrate.review import service as reviews
 from astra_migrate.security.rbac import ROLES
 
 
@@ -181,6 +183,12 @@ class RequestDecisionIn(_In):
     owner_role: Literal[DECISION_OWNER_ROLES] = Field(  # type: ignore[valid-type]
         description="The role that owns this decision")
     why_needed: str = Field(min_length=10, max_length=1000, description="Why the decision is needed now")
+    risk: Literal["low", "medium", "high", "critical"] = Field(
+        default="medium", description="How much harm a wrong answer would do")
+    confidence: float | None = Field(default=None, ge=0, le=1,
+                                     description="How sure you are of the option you would suggest (0 to 1)")
+    stream: Literal[STREAMS] | None = Field(  # type: ignore[valid-type]
+        default=None, description="The migration stream the decision belongs to")
 
 
 def _single_holder(s: Session, t: Tenant, project_id: uuid.UUID, role: str) -> uuid.UUID | None:
@@ -202,13 +210,15 @@ def request_decision(s: Session, env: ToolEnv, inp: RequestDecisionIn) -> dict[s
         return {"review_item_id": str(dup.id), "status": "already_open",
                 "note": "An open decision with this title already exists; it was not duplicated."}
     owner = _single_holder(s, t, p.id, inp.owner_role)
-    item = ReviewItem(tenant_id=t.id, project_id=p.id, kind="decision", title=inp.title.strip(),
-                      question=inp.question.strip(), options=opts, owner_role=inp.owner_role, owner_user_id=owner,
-                      context={"why_needed": inp.why_needed.strip(), "agent": env.agent_name,
-                               "agent_version": env.agent_version},
-                      requested_by={"type": env.actor.type, "id": env.actor.id, "name": env.actor.name},
-                      agent_run_id=env.run_id, status="open")
-    s.add(item)
+    item = reviews.new_item(
+        s, tenant_id=t.id, project_id=p.id, kind="decision", title=inp.title.strip(),
+        question=inp.question.strip(), options=opts, owner_role=inp.owner_role, owner_user_id=owner,
+        context={"why_needed": inp.why_needed.strip(), "agent": env.agent_name, "agent_version": env.agent_version},
+        requested_by={"type": env.actor.type, "id": env.actor.id, "name": env.actor.name},
+        agent_run_id=env.run_id, subject_type="decision", stream=inp.stream, risk=inp.risk,
+        confidence=inp.confidence,
+        pattern=reviews.pattern_key(f"decision:{env.agent_name}:{inp.owner_role}", inp.title),
+        evidence=[{"label": "Agent run transcript", "kind": "agent_run", "ref": {"run_id": str(env.run_id)}}])
     s.flush()
     audit.record(s, env.actor, "review.decision_requested", tenant_id=t.id, project_id=p.id,
                  target_type="review_item", target_id=str(item.id),
@@ -308,6 +318,29 @@ def get_precedents(s: Session, env: ToolEnv, inp: ConceptIn) -> dict[str, Any]:
     return _onto(service.get_precedents, s, inp.concept_id)
 
 
+class ReviewItemIn(_In):
+    item_id: uuid.UUID = Field(description="The review item's id")
+
+
+def _review_item(s: Session, env: ToolEnv, item_id: uuid.UUID) -> ReviewItem:
+    _load(s, env)
+    r = s.get(ReviewItem, item_id)
+    if r is None or r.project_id != env.project_id:
+        raise ToolError("No such review item on this project.")
+    return r
+
+
+def get_review_item(s: Session, env: ToolEnv, inp: ReviewItemIn) -> dict[str, Any]:
+    return reviews.tool_view(s, _review_item(s, env, inp.item_id))
+
+
+def get_review_precedents(s: Session, env: ToolEnv, inp: ReviewItemIn) -> dict[str, Any]:
+    prec = reviews.precedents(s, _review_item(s, env, inp.item_id))
+    # Reviewers' free-text notes are not passed to the model; outcomes and answers are.
+    return {"pattern_key": prec["pattern_key"], "outcomes": prec["outcomes"],
+            "items": [{k: v for k, v in x.items() if k != "note"} for x in prec["items"]]}
+
+
 # ====================================================================== catalogue
 
 CATALOGUE: dict[str, ToolSpec] = {t.name: t for t in [
@@ -345,6 +378,14 @@ CATALOGUE: dict[str, ToolSpec] = {t.name: t for t in [
     ToolSpec("get_vendor_binding",
              "Get how source adapters bind a concept to product tables and columns.",
              Effect.READ_METADATA, ConceptIn, get_vendor_binding),
+    ToolSpec("get_review_item",
+             "Read one review item on this project: its question, options, risk, confidence, compliance controls, "
+             "the evidence recorded with it and the platform's explanation of why it was raised. No sample values.",
+             Effect.READ_METADATA, ReviewItemIn, get_review_item),
+    ToolSpec("get_review_precedents",
+             "Read earlier decisions in this tenant on items like this one (same pattern), with their source "
+             "project and outcome.",
+             Effect.READ_METADATA, ReviewItemIn, get_review_precedents),
     ToolSpec("get_precedents",
              "Get earlier mapping decisions people recorded for a concept.",
              Effect.READ_METADATA, ConceptIn, get_precedents),

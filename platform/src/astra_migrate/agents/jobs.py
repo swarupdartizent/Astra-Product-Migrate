@@ -28,12 +28,12 @@ from astra_migrate.db.models import (
     Job,
     Project,
     ProjectAgentPin,
-    ReviewItem,
     Tenant,
 )
 from astra_migrate.gateway.service import CallContext
 from astra_migrate.jobs.runner import JobContext, JobFailed, actor_dict, enqueue, handler, on_cancel
 from astra_migrate.observability import tracer
+from astra_migrate.review import service as reviews
 from astra_migrate.tenancy.service import migrate_tenant_schema, tenant_connection
 from astra_migrate.vault import get_vault
 
@@ -99,15 +99,20 @@ def record_flag(t: Tenant, project_id: uuid.UUID, run_id: uuid.UUID | None, acto
                          (flag_id, u.source, u.text[:4000], hashlib.sha256(u.text.encode()).hexdigest(),
                           json.dumps(findings)))
     with session_scope() as s:
-        item = ReviewItem(tenant_id=t.id, project_id=project_id, kind="screening_flag",
+        rules = sorted({str(f["rule"]) for f in findings})
+        item = reviews.new_item(s, tenant_id=t.id, project_id=project_id, kind="screening_flag",
                           title=f"Instruction-like text in {u.source}"[:300],
                           question="Legacy text was flagged as possibly trying to instruct an agent. Confirm whether "
                                    "it is ordinary business text or a manipulation attempt.",
                           options=["Ordinary business text", "Manipulation attempt"], owner_role="data_sme",
                           context={"flag_id": str(flag_id), "source": u.source, "severity": res.severity,
                                    "rules": [f["rule"] for f in findings]},
-                          requested_by=actor_dict(actor), agent_run_id=run_id)
-        s.add(item)
+                          requested_by=actor_dict(actor), agent_run_id=run_id, subject_type="screening",
+                          stream="users_security",
+                          risk=res.severity if res.severity in reviews.RISK_WEIGHT else "high",
+                          pattern=reviews.pattern_key("screening", *rules),
+                          evidence=[{"label": "Agent run transcript", "kind": "agent_run",
+                                     "ref": {"run_id": str(run_id)}}] if run_id else [])
         s.flush()
         audit.record(s, actor, "guardrail.screening_flagged", tenant_id=t.id, project_id=project_id,
                      target_type="review_item", target_id=str(item.id),

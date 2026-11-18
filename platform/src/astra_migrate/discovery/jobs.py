@@ -24,7 +24,6 @@ from astra_migrate.db.models import (
     DiscoveryRun,
     Job,
     ProjectBaseline,
-    ReviewItem,
     SourceConnection,
     TargetBaseline,
     Tenant,
@@ -33,6 +32,7 @@ from astra_migrate.db.models import (
 from astra_migrate.discovery import activity, pipeline
 from astra_migrate.discovery.profiler import WEIGHTS
 from astra_migrate.jobs.runner import JobContext, JobFailed, actor_dict, handler, on_cancel
+from astra_migrate.review import service as reviews
 from astra_migrate.tenancy.service import migrate_tenant_schema, tenant_connection
 from astra_migrate.vault import get_vault
 
@@ -181,8 +181,8 @@ def run_discovery(ctx: JobContext) -> dict[str, Any]:
                              gaps=[dataclasses.asdict(g) for g in d.gaps], waivers=[], status="draft")
         s.add(rep)
         if d.usage.unused:
-            s.add(ReviewItem(
-                tenant_id=r.tenant_id, project_id=project_id, kind="proposal",
+            reviews.new_item(
+                s, tenant_id=r.tenant_id, project_id=project_id, kind="proposal",
                 title=f"Retirement review: {len(d.usage.unused)} element(s) with no use in {window} days",
                 question="Discovery found legacy elements with no direct or indirect use in the activity window. "
                          "Decide whether they can be retired instead of migrated.",
@@ -190,7 +190,9 @@ def run_discovery(ctx: JobContext) -> dict[str, Any]:
                 owner_role="solution_architect",
                 context={"discovery_run_id": str(run_id), "unused": len(d.usage.unused),
                          "evidence_days": d.usage.evidence_days},
-                requested_by=actor_dict(audit.Actor.system("discovery")), status="open"))
+                requested_by=actor_dict(audit.Actor.system("discovery")), subject_type="retirement",
+                risk="medium", pattern="discovery:retirement",
+                evidence=[{"label": "Discovery run", "kind": "discovery_run", "ref": {"run_id": str(run_id)}}])
         s.flush()
         audit.record(s, ctx.actor, "discovery.run_finished", tenant_id=r.tenant_id, project_id=project_id,
                      target_type="discovery_run", target_id=str(run_id),

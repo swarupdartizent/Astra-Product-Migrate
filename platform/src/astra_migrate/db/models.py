@@ -21,6 +21,7 @@ from sqlalchemy import (
     Index,
     Integer,
     LargeBinary,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -609,7 +610,10 @@ class AgentRun(Base):
 
 
 REVIEW_KINDS = ("decision", "screening_flag", "proposal")
-REVIEW_STATUSES = ("open", "resolved", "dismissed")
+REVIEW_STATUSES = ("open", "resolved", "dismissed", "rejected", "changes_requested")
+REVIEW_RISKS = ("low", "medium", "high", "critical")
+REVIEW_COMPLIANCE = ("none", "relevant", "critical")
+REVIEW_OUTCOMES = ("approved", "rejected", "changed", "dismissed")
 
 
 class ReviewItem(Base):
@@ -620,7 +624,11 @@ class ReviewItem(Base):
     __table_args__ = (
         CheckConstraint(f"kind in {REVIEW_KINDS!r}", name="ck_review_kind"),
         CheckConstraint(f"status in {REVIEW_STATUSES!r}", name="ck_review_status"),
+        CheckConstraint(f"risk in {REVIEW_RISKS!r}", name="ck_review_risk"),
+        CheckConstraint(f"compliance in {REVIEW_COMPLIANCE!r}", name="ck_review_compliance"),
+        CheckConstraint("required_approvals in (1, 2)", name="ck_review_required_approvals"),
         Index("ix_review_project", "project_id", "status", "created_at"),
+        Index("ix_review_pattern", "tenant_id", "pattern_key", "status"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
@@ -640,6 +648,33 @@ class ReviewItem(Base):
     resolution_note: Mapped[str | None] = mapped_column(Text)
     resolved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # I8: what the workbench sorts, filters and checks by
+    stream: Mapped[str | None] = mapped_column(String(30))
+    segment: Mapped[str | None] = mapped_column(String(100))
+    subject_type: Mapped[str] = mapped_column(String(40), default="decision")
+    risk: Mapped[str] = mapped_column(String(10), default="medium")
+    confidence: Mapped[float | None] = mapped_column(Float)
+    compliance: Mapped[str] = mapped_column(String(10), default="none")
+    compliance_controls: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    required_approvals: Mapped[int] = mapped_column(SmallInteger, default=1)
+    pattern_key: Mapped[str | None] = mapped_column(String(200))
+    evidence: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    outcome: Mapped[str | None] = mapped_column(String(20))
+    changed_value: Mapped[str | None] = mapped_column(Text)
+    follow_up_run_id: Mapped[uuid.UUID | None] = mapped_column()
+
+
+class ReviewApproval(Base):
+    """One person's approval of a review item. Two-person items need two rows from different people
+    (enforced in the database, as is that the requester cannot approve)."""
+
+    __tablename__ = "review_approvals"
+
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("review_items.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    option: Mapped[str] = mapped_column(Text)
+    note: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

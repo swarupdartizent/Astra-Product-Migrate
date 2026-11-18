@@ -25,7 +25,6 @@ from astra_migrate.db.models import (
     BlueprintVersion,
     DeltaRun,
     Job,
-    ReviewItem,
     SourceConnection,
     TargetBaseline,
     Tenant,
@@ -41,6 +40,7 @@ from astra_migrate.delta.engine import (
 )
 from astra_migrate.discovery.dictionary import harvest
 from astra_migrate.jobs.runner import JobContext, JobFailed, actor_dict, handler, on_cancel
+from astra_migrate.review import service as reviews
 from astra_migrate.tenancy.service import migrate_tenant_schema, tenant_connection
 from astra_migrate.vault import get_vault
 
@@ -163,15 +163,17 @@ def run_delta(ctx: JobContext) -> dict[str, Any]:
         r.status, r.finished_at = "succeeded", datetime.now(UTC)
         r.status_detail = "; ".join(problems)[:2000] if problems else None
         if advice["agrees"] is False:
-            s.add(ReviewItem(
-                tenant_id=r.tenant_id, project_id=project_id, kind="proposal",
+            reviews.new_item(
+                s, tenant_id=r.tenant_id, project_id=project_id, kind="proposal",
                 title=f"Migration pattern: the version delta suggests {advice['recommended']}",
                 question=f"The blueprint says {pattern}. The version delta suggests {advice['recommended']}. "
                          "Keep the blueprint's pattern, or change the blueprint?",
                 options=[f"Keep {pattern}", f"Change the blueprint to {advice['recommended']}"],
                 owner_role="solution_architect",
                 context={"delta_run_id": str(run_id), "advice": advice},
-                requested_by=actor_dict(audit.Actor.system("delta")), status="open"))
+                requested_by=actor_dict(audit.Actor.system("delta")), subject_type="pattern", risk="high",
+                pattern=f"delta:pattern:{pattern}->{advice['recommended']}",
+                evidence=[{"label": "Version delta run", "kind": "delta_run", "ref": {"run_id": str(run_id)}}])
         audit.record(s, ctx.actor, "delta.run_finished", tenant_id=r.tenant_id, project_id=project_id,
                      target_type="delta_run", target_id=str(run_id),
                      details={"counts": result.counts, "origins": result.origin_counts,

@@ -119,7 +119,7 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | The other agents in the specification are registered as their tools arrive (only the Orchestrator's tools exist now) | I5 onwards |
 | Agent governance records and review decisions in the proof pack (E02.F3.S1, E03.F2.S3) | I11 |
 | Model prices are kept by administrators on each provider; there is no automatic price feed | Later |
-| API gaps from the I3 screens still open: allowed stage moves before trying, `/jobs` paging, untyped governance and transcript payloads (`can_cancel` and the reason a review item cannot be resolved were added in I4) | I8 |
+| API gaps from the I3 screens still open: allowed stage moves before trying, `/jobs` paging, untyped governance and transcript payloads (`can_cancel` and the reason a review item cannot be resolved were added in I4; not taken up in I8) | I9 |
 | The reference source adapter is proven only on the synthetic golden estate; its entity tables and SQL Anywhere queries must be confirmed on a real ConceptOne estate | Needs a ConceptOne reference database |
 | SQL Anywhere: the driver is written but needs an engine and SAP client libraries to run | Needs SQL Anywhere |
 | Pro Suite Base loads are Blocked: token endpoint, load endpoints, rate limits and approved bulk tools are unknown; only a synthetic baseline exists | Needs Insurity API docs, sandbox and baseline |
@@ -130,12 +130,12 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Process mining (DS-04) and agentification candidates are not started; coverage reports show them as gaps | Agentification increment |
 | Screens are not linked to rules: no adapter supplies screen metadata yet | With a real estate |
 | Server-wide usage statistics (index usage, sessions) are not read; usage comes from imported records | Later |
-| API gaps from the I5 screens: untyped discovery result schemas, no `can_start`/`can_waive` hints, results refused for runs that failed late, no single coverage-report GET, graph edge paging and filtered counts, no delete for activity imports (not taken up in I6 or I7) | I8 |
+| API gaps from the I5 screens: untyped discovery result schemas, no `can_start`/`can_waive` hints, results refused for runs that failed late, no single coverage-report GET, graph edge paging and filtered counts, no delete for activity imports (not taken up in I6, I7 or I8) | I9 |
 | The Scope Analyst and Cutover Planner agents are not registered; scope proposals and cutover figures come from deterministic rules and stated assumptions | Needs a model key |
 | The generic estimation pack is uncalibrated planning assumptions; estimates become evidence-based only as actual effort flows back (three past tasks per rule) | With delivered work |
 | Jira and Azure DevOps exchange is through their CSV import and export formats; live two-way API sync needs credentials for each tool | Needs Jira/ADO credentials |
 | Risks found by agents use the same proposal flow as the planner's, but no agent raises risks yet | Needs a model key |
-| API gaps from the I7 screens: untyped planning responses; owner pickers need access:read (`/users`); no permission hints for pre-sales, vendor changes or gaps; no lightweight scope-key list for pins; dependency removal reason sent as a query parameter; overview does not flag a baseline waiting for approval; plan sub-tabs not deep-linkable | I8 |
+| API gaps from the I7 screens still open: untyped planning responses; owner pickers need access:read (`/users`); no permission hints for pre-sales, vendor changes or gaps; plan sub-tabs not deep-linkable (I8 added the scope-key list, the dependency removal reason in the body and the waiting-baseline flag) | I9 |
 | I7 screens are verified by unit tests and end-to-end tests against recorded API responses, not yet signed in on the live stack | Next demo |
 | The wave solver places scope items, not individual tasks, and does not model calendar time inside a wave | Later |
 | SQL Anywhere conversion is proven on synthetic Watcom-SQL objects compiled and tested on SQL Server; reading code from a live SQL Anywhere estate waits for an engine | Needs SQL Anywhere |
@@ -145,11 +145,14 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | The reference target adapter records no hosting constraints for SSO, MFA, network or printing, so its checklist shows the generic items | Needs Insurity hosting documentation |
 | API gaps from the I6 screens: no project-scoped list of possible checklist owners (`/users` needs access:read), no permission hints on recorded tests or on starting delta and conversion runs (tenant-level source:manage), untyped delta, conversion and checklist responses, no list of supported dialect pairs, test cases not checked against existing objects, no deep link to a single run | I7 |
 | I6 screens are verified by unit tests and by end-to-end tests against recorded API responses; a signed-in walk-through on the live stack needs the administrator's authenticator sign-in | Next demo |
-| Conversion runs create one review proposal per object that needs a person; there is no grouping for estates with many such objects | I8 (review workbench) |
 | API gaps from the I4 screens: no source-adapter detail endpoint, untyped run summaries and ontology responses, no permission hints on target connections and golden runs, extract documents capped at 500 without paging, loads have no record beyond the call log, and no up-front "loads blocked" flag on target connections | I5 |
 | `npm audit` reports high findings in development tooling only (via picomatch); production dependencies have none | Next dependency update |
 | I4 screens are verified by unit tests and by end-to-end tests against recorded API responses; a signed-in walk-through on the live stack needs the administrator's authenticator sign-in | Next demo |
 | I3 screens are verified by unit tests and by end-to-end tests against recorded API responses; a signed-in walk-through on the live stack needs the administrator's authenticator sign-in | Next demo |
+| The Review Assistant answers only when a released version is pinned on the project and a model key is configured; until then reviewers see the explanation built from the recorded evidence | Needs a model key |
+| Risk on items raised by platform rules is a fixed value per item type (for example high for triggers and procedures that need hand conversion); agents state their own risk and confidence | With delivered work |
+| Bulk approval of items sharing a pattern (E16.F1.S5, never for compliance-critical items) | R2 |
+| Review items raised before I8 have no stream, segment, pattern key or evidence links, and count as medium risk with no compliance impact | Not planned (development data only) |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
 | Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |

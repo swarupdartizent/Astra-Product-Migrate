@@ -27,9 +27,10 @@ from astra_migrate.conversion import sqlanywhere
 from astra_migrate.conversion.sqlanywhere import Conversion
 from astra_migrate.conversion.workbench import Table, Workbench, WorkbenchBlocked, sqlserver_type, tables_from_baseline
 from astra_migrate.db.control import session_scope
-from astra_migrate.db.models import AdapterRun, ConversionRun, Job, ReviewItem, SourceConnection, TargetBaseline, Tenant
+from astra_migrate.db.models import AdapterRun, ConversionRun, Job, SourceConnection, TargetBaseline, Tenant
 from astra_migrate.discovery.dictionary import harvest
 from astra_migrate.jobs.runner import JobContext, JobFailed, actor_dict, handler, on_cancel
+from astra_migrate.review import service as reviews
 from astra_migrate.tenancy.service import migrate_tenant_schema, tenant_connection
 from astra_migrate.vault import get_vault
 
@@ -160,7 +161,7 @@ def run_conversion(ctx: JobContext) -> dict[str, Any]:
     rows: list[tuple[Any, ...]] = []
     counts = {"compiled": 0, "compile_failed": 0, "review": 0}
     test_counts = {"passed": 0, "failed": 0}
-    review: list[tuple[str, str, list[str]]] = []
+    review: list[tuple[str, str, str, list[str]]] = []
     try:
         for i, m in enumerate(objects):
             ctx.progress(10 + int(85 * i / max(1, len(objects))), f"Converting {m.qualified}")
@@ -172,7 +173,7 @@ def run_conversion(ctx: JobContext) -> dict[str, Any]:
             results: list[dict[str, Any]] = []
             if c.needs_review or c.converted is None:
                 status = "review"
-                review.append((qualified, kind, c.review or ["The object could not be converted."]))
+                review.append((qualified, m.type, kind, c.review or ["The object could not be converted."]))
             else:
                 res = wb.compile(tables, c.converted, qualified)
                 comp = res.as_dict()
@@ -183,7 +184,7 @@ def run_conversion(ctx: JobContext) -> dict[str, Any]:
                         results.append(o.__dict__)
                         test_counts["passed" if o.passed else "failed"] += 1
                 else:
-                    review.append((qualified, kind, [f"Does not compile on the workbench: {res.error}"]))
+                    review.append((qualified, m.type, kind, [f"Does not compile on the workbench: {res.error}"]))
             counts[status] += 1
             rows.append((run_id, m.type, qualified, status, m.definition, c.converted, json.dumps(c.rules),
                          json.dumps(c.warnings), json.dumps(c.review), json.dumps(comp), json.dumps(results)))
@@ -199,15 +200,24 @@ def run_conversion(ctx: JobContext) -> dict[str, Any]:
         r = s.get(ConversionRun, run_id)
         assert r is not None
         r.summary, r.status, r.finished_at = summary, "succeeded", datetime.now(UTC)
-        for qualified, kind, reasons in review:
-            s.add(ReviewItem(
-                tenant_id=r.tenant_id, project_id=project_id, kind="proposal",
-                title=f"Convert by hand: {kind} {qualified}"[:300],
+        review_compliance = reviews.compliance_for(s, project_id, "conversion_script")
+        for qualified, object_type, kind, reasons in review:
+            compile_failed = reasons[0].startswith("Does not compile")
+            reviews.new_item(
+                s, tenant_id=r.tenant_id, project_id=project_id, kind="proposal",
+                title=f"Convert by hand: {kind} {qualified}",
                 question="Automatic conversion stopped for this object. " + " ".join(reasons),
                 options=["Convert by hand", "Retire the object", "Keep it out of scope"],
                 owner_role="solution_architect",
-                context={"conversion_run_id": str(run_id), "object": qualified, "kind": kind, "reasons": reasons},
-                requested_by=actor_dict(audit.Actor.system("conversion")), status="open"))
+                context={"conversion_run_id": str(run_id), "object": qualified, "object_type": object_type,
+                         "kind": kind, "reasons": reasons},
+                requested_by=actor_dict(audit.Actor.system("conversion")), subject_type="conversion_script",
+                stream="customizations", segment=kind, risk="high" if kind in ("trigger", "procedure") else "medium",
+                pattern=reviews.pattern_key(f"conversion:{kind}", *(["compile"] if compile_failed else reasons)),
+                evidence=[{"label": f"Converted {kind} {qualified}", "kind": "conversion_object",
+                           "ref": {"run_id": str(run_id), "name": qualified}},
+                          {"label": "Conversion run", "kind": "conversion_run", "ref": {"run_id": str(run_id)}}],
+                compliance=review_compliance)
         audit.record(s, ctx.actor, "conversion.run_finished", tenant_id=r.tenant_id, project_id=project_id,
                      target_type="conversion_run", target_id=str(run_id), details=summary)
     return summary

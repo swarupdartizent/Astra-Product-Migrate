@@ -181,12 +181,29 @@ def generate_tasks(tc: psycopg.Connection[Any], inp: Inputs, project_id: uuid.UU
     edges = deps.active(store.items(tc, project_id, "edge"))
     matrix = controls.matrix(inp.compliance)
     tasks, unestimated = wbs.build(sc, edges, inp.rules, factors(tc), inp.max_task_hours, matrix)
+    keep_overrides(store.items(tc, project_id, "task"), tasks)
     with tc.transaction():
         store.put_many(tc, project_id, "task", tasks, by, replace=True)
         _planner_risks(tc, project_id, sc, edges, unestimated, by)
     over = [k for k, t in tasks.items() if (t.get("likely") or 0) > inp.max_task_hours]
     return {"tasks": len(tasks), "unestimated": unestimated, "over_limit": over,
             "max_task_hours": inp.max_task_hours}
+
+
+def keep_overrides(old: dict[str, dict[str, Any]], new: dict[str, dict[str, Any]]) -> None:
+    """A person's change to a task (role or estimate, from the planning workbench) survives regeneration while the
+    task key still exists. The regenerated values become the override's 'original'."""
+    for k, t in new.items():
+        o = (old.get(k) or {}).get("override")
+        if not o:
+            continue
+        original = {x: t.get(x) for x in ("role", "low", "likely", "high")}
+        for x in ("role", "low", "likely", "high"):
+            if o.get(x) is not None:
+                t[x] = o[x]
+        if None not in (t.get("low"), t.get("likely"), t.get("high")):
+            t["low"], t["high"] = min(t["low"], t["likely"]), max(t["high"], t["likely"])
+        t["override"] = {**o, "original": original}
 
 
 def _planner_risks(tc: psycopg.Connection[Any], project_id: uuid.UUID, sc: dict[str, dict[str, Any]],
