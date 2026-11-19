@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { FolderKanban, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAddPartner, useCreateProgramme, useProgrammes } from '@/api/tenancy';
@@ -33,7 +34,13 @@ const baseColumns = col.columns([
     size: 320,
     cell: (info) => (
       <span className={s.cellStack}>
-        <span className={s.cellPrimary}>{info.getValue()}</span>
+        <Link
+          to="/programmes/$programmeId"
+          params={{ programmeId: info.row.original.id }}
+          className={s.cellLink}
+        >
+          {info.getValue()}
+        </Link>
         {info.row.original.description ? (
           <span className={`${s.muted} ${s.small}`}>{info.row.original.description}</span>
         ) : null}
@@ -253,7 +260,13 @@ function CreateProgrammeDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function AddPartnerDialog({ programme, onClose }: { programme: Programme; onClose: () => void }) {
+export function AddPartnerDialog({
+  programme,
+  onClose,
+}: {
+  programme: Programme;
+  onClose: () => void;
+}) {
   const add = useAddPartner(programme.id);
   const [name, setName] = useState('');
   const [submitted, setSubmitted] = useState(false);

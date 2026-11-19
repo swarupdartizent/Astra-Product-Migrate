@@ -42,6 +42,8 @@ import { PACK_TABS, type PackTab } from '@/features/packs/tabs';
 import { TemplatesPage } from '@/features/templates/TemplatesPage';
 import { ObservabilityPage } from '@/features/observability/ObservabilityPage';
 import { TraceDetailPage } from '@/features/observability/TraceDetailPage';
+import { parseProgrammeSearch, type ProgrammeSearch } from '@/features/programmes/model';
+import { ProgrammePage } from '@/features/programmes/ProgrammePage';
 import { ProgrammesPage } from '@/features/programmes/ProgrammesPage';
 import { TENANT_TABS, type TenantTab } from '@/features/tenants/model';
 import { TenantDetailPage } from '@/features/tenants/TenantDetailPage';
@@ -144,6 +146,25 @@ const programmesRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: '/programmes',
   component: ProgrammesPage,
+});
+
+const programmeRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/programmes/$programmeId',
+  validateSearch: (search: Record<string, unknown>): ProgrammeSearch =>
+    parseProgrammeSearch(search),
+  component: function ProgrammeRoute() {
+    const { programmeId } = programmeRoute.useParams();
+    const search = programmeRoute.useSearch();
+    const navigate = programmeRoute.useNavigate();
+    return (
+      <ProgrammePage
+        programmeId={programmeId}
+        search={search}
+        onSearch={(next, replace) => void navigate({ search: next, replace })}
+      />
+    );
+  },
 });
 
 const accessRoute = createRoute({
@@ -396,6 +417,7 @@ export const routeTree = rootRoute.addChildren([
     tenantsRoute,
     tenantDetailRoute,
     programmesRoute,
+    programmeRoute,
     accessRoute,
     auditRoute,
     observabilityRoute,

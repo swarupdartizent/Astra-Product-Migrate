@@ -168,7 +168,7 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Staging runs on the SQL Server workbench in one transaction per artifact; very large estates need batching by key range | With a real estate |
 | I10 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack | Next demo |
 | The window, not the content area, scrolls beneath the sticky top bar, so at some scroll positions controls sit partly under it (scroll padding keeps focused controls clear); moving scrolling to the content area is a shell change | Next shell update |
-| The plan workbench keyboard-move end-to-end test is timing-sensitive under full-suite load (passes alone) | Next test hardening |
+| Some tests are timing-sensitive under full-suite load and pass alone: the plan workbench keyboard-move end-to-end test, the home page and audit page smoke tests | Next test hardening |
 | Proof packs carry a detached Ed25519 signature from the vault key, verifiable with the published public key; a PAdES signature that PDF readers show needs an organisation signing certificate | Needs an organisation certificate |
 | The reference programme's G0 to G4 labels and approvers belong in its blueprint (`gates`), which is set up with the programme | With the reference programme |
 | Proof packs are produced on request; producing one automatically when a gate passes or a wave cuts over is not set up | Later |
@@ -177,7 +177,8 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | The Complexity Index weights and reference ranges are starting assumptions; calibrate them against delivered customers' actual effort | With delivered customers |
 | Gate evidence goes to billing as CSV; a live billing integration needs the billing system's API | Needs the billing system |
 | The programme view reads each customer's database for risk and effort counts on every request; very large programmes need these figures cached | Programme scale |
-| I12 screens are not built yet | I12 (screens) |
+| I12 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack | Next demo |
+| API gaps from the I12 screens: source connections do not say whether a check ever succeeded (the scan refuses unchecked ones server-side); the fleet view returns only succeeded scans; gate titles for `next_gate` are repeated in the web app | I13 |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
 | Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |
