@@ -174,6 +174,10 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Proof packs are produced on request; producing one automatically when a gate passes or a wave cuts over is not set up | Later |
 | I11 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack | Next demo |
 | API gaps from the I11 screens: the gates list does not return the caller's user id (the screen reads /me); proof pack waves are keys without names; the signature and public key formats are documented in docs/gates.md but not in the API's schema | I12 |
+| The Complexity Index weights and reference ranges are starting assumptions; calibrate them against delivered customers' actual effort | With delivered customers |
+| Gate evidence goes to billing as CSV; a live billing integration needs the billing system's API | Needs the billing system |
+| The programme view reads each customer's database for risk and effort counts on every request; very large programmes need these figures cached | Programme scale |
+| I12 screens are not built yet | I12 (screens) |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
 | Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |

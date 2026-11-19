@@ -26,6 +26,7 @@ from astra_migrate.api.routes import (
     ontology,
     packs,
     planning,
+    programmes,
     projects,
     review,
     runtime,
@@ -73,7 +74,8 @@ def create_app() -> FastAPI:
     for r in (core.router, tenants.router, access.router, secrets_audit_obs.router, packs.router, projects.router,
               jobs.router, models.router, agents.router, runtime.router, adapters.router, targets.router,
               ontology.router, discovery.router, upgrade.router, planning.router, review.router,
-              design.router, loads.router, gates.router):
+              design.router, loads.router, gates.router,
+              programmes.router):
         app.include_router(r, prefix=API_PREFIX)
 
     FastAPIInstrumentor.instrument_app(app, tracer_provider=provider, excluded_urls="/api/v1/health")

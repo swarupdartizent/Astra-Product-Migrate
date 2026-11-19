@@ -1814,8 +1814,9 @@
       ],
       "release": "R1",
       "spec": "Installed-base programmes",
-      "status": "todo",
-      "increment": "I12"
+      "status": "done",
+      "increment": "I12",
+      "note": "Programme playbook (adapters, template, packs, segments, index settings), partner pods and programme waves; each customer assigned to one partner of the programme (database); partners see only their own customers."
     },
     {
       "id": "E18.F2.S1",
@@ -1830,8 +1831,9 @@
       ],
       "release": "R1",
       "spec": "IB-01",
-      "status": "todo",
-      "increment": "I12"
+      "status": "done",
+      "increment": "I12",
+      "note": "Consent recorded before a scan (database); the light scan reads metadata and counts through a checked read-only connection and keeps only numbers."
     },
     {
       "id": "E18.F2.S2",
@@ -1846,8 +1848,9 @@
       ],
       "release": "R1",
       "spec": "IB-02",
-      "status": "todo",
-      "increment": "I12"
+      "status": "done",
+      "increment": "I12",
+      "note": "Migration Complexity Index: documented weighted sum with each measure, weight and contribution; simple, medium or complex per customer and per segment."
     },
     {
       "id": "E18.F2.S3",
@@ -1878,8 +1881,9 @@
       ],
       "release": "R1",
       "spec": "IB-03",
-      "status": "todo",
-      "increment": "I12"
+      "status": "done",
+      "increment": "I12",
+      "note": "CP-SAT portfolio planner across programme waves and partner pods with pod rotation per wave; every customer that does not fit is reported with the reason."
     },
     {
       "id": "E18.F3.S2",
@@ -1894,8 +1898,9 @@
       ],
       "release": "R1",
       "spec": "IB-04",
-      "status": "todo",
-      "increment": "I12"
+      "status": "done",
+      "increment": "I12",
+      "note": "Programme view per customer: band, gates per project, risks, vendor gaps, breaks and the last load; partners see only their own customers; only aggregates cross tenants."
     },
     {
       "id": "E18.F4.S1",
@@ -1910,8 +1915,9 @@
       ],
       "release": "R1",
       "spec": "IB-05",
-      "status": "todo",
-      "increment": "I12"
+      "status": "done",
+      "increment": "I12",
+      "note": "Metering per customer and segment: band, gates, actual effort, elapsed days, planned wave; effort per segment compared across waves; gate evidence CSV for invoicing."
     },
     {
       "id": "E19.F1.S1",

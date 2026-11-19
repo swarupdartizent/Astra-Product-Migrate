@@ -8,7 +8,7 @@ lives in each tenant's own database (see `tenancy`).
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, ClassVar
 
@@ -16,6 +16,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -67,6 +68,15 @@ class Programme(Base):
     name: Mapped[str] = mapped_column(String(200), unique=True)
     description: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # I12: the programme's shared playbook
+    source_adapter: Mapped[str | None] = mapped_column(String(120))
+    target_adapter: Mapped[str | None] = mapped_column(String(120))
+    blueprint_template: Mapped[str | None] = mapped_column(String(100))
+    packs: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    segments: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    mci_config: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    band_effort_weeks: Mapped[dict[str, Any]] = mapped_column(default=lambda: {"simple": 8, "medium": 16,
+                                                                               "complex": 26})
 
 
 class Partner(Base):
@@ -97,6 +107,7 @@ class Tenant(Base):
     region_code: Mapped[str] = mapped_column(String(40))
     programme_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("programmes.id", ondelete="RESTRICT"))
     partner_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("partners.id", ondelete="RESTRICT"))
+    segment: Mapped[str | None] = mapped_column(String(100))
     status: Mapped[str] = mapped_column(String(20), default="provisioning")
     status_detail: Mapped[str | None] = mapped_column(Text)
     db_name: Mapped[str] = mapped_column(String(63))
@@ -1322,5 +1333,87 @@ class ProofPack(Base):
     signing_key: Mapped[str] = mapped_column(String(100))
     key_version: Mapped[int] = mapped_column(Integer)
     summary: Mapped[dict[str, Any]] = mapped_column()
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Pod(Base):
+    """A delivery team of a partner; capacity is how many customers it migrates at once (per programme wave)."""
+
+    __tablename__ = "pods"
+    __table_args__ = (UniqueConstraint("partner_id", "name", name="uq_pod_name"),
+                      CheckConstraint("capacity between 1 and 50", name="ck_pod_capacity"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    partner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("partners.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(100))
+    capacity: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ProgrammeWave(Base):
+    __tablename__ = "programme_waves"
+    __table_args__ = (UniqueConstraint("programme_id", "key", name="uq_programme_wave"),
+                      CheckConstraint("end_date >= start_date", name="ck_programme_wave_dates"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    programme_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("programmes.id", ondelete="CASCADE"))
+    key: Mapped[str] = mapped_column(String(40))
+    name: Mapped[str] = mapped_column(String(100))
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+
+
+class CustomerConsent(Base):
+    """A customer's consent to a light fleet scan (E18.F2.S1). Never edited; revoked consents stay revoked."""
+
+    __tablename__ = "customer_consents"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    signatory_name: Mapped[str] = mapped_column(String(200))
+    signatory_title: Mapped[str] = mapped_column(String(200))
+    scope: Mapped[str] = mapped_column(Text)
+    reference: Mapped[str] = mapped_column(String(1000))
+    recorded_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    revoke_reason: Mapped[str | None] = mapped_column(Text)
+
+
+class FleetScan(Base):
+    """A light scan of one customer's estate: metadata and counts only, never business values (E18.F2.S1).
+    Only aggregate measures are kept, so they can be shown across the programme."""
+
+    __tablename__ = "fleet_scans"
+    __table_args__ = (CheckConstraint(RUN_STATUSES, name="ck_fleet_scan_status"),
+                      Index("ix_fleet_scan_tenant", "tenant_id", "created_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    programme_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("programmes.id", ondelete="CASCADE"))
+    connection_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("source_connections.id", ondelete="CASCADE"))
+    consent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("customer_consents.id"))
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    status_detail: Mapped[str | None] = mapped_column(Text)
+    measures: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    mci: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    job_id: Mapped[uuid.UUID | None] = mapped_column()
+    requested_by: Mapped[dict[str, Any]] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PortfolioPlan(Base):
+    """A solved schedule of the programme's customers across waves and pods (E18.F3.S1)."""
+
+    __tablename__ = "portfolio_plans"
+    __table_args__ = (UniqueConstraint("programme_id", "number", name="uq_portfolio_plan_number"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    programme_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("programmes.id", ondelete="CASCADE"))
+    number: Mapped[int] = mapped_column(Integer)
+    result: Mapped[dict[str, Any]] = mapped_column()
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
