@@ -254,15 +254,25 @@ def bootstrap_keycloak() -> None:
     http("PUT", f"{base}/clients/{web_id}", current, token=tok)
     http("PUT", f"{base}/clients/{web_id}/default-client-scopes/{amr_id}", token=tok)
 
-    # The AMR mapper reports the reference value of each authenticator the user passed.
+    # The AMR mapper reports the reference value of each authenticator the user passed, for as long as its max age
+    # allows. A max age of 0 makes every reference expire at once (the claim comes back empty), so it is set to the
+    # longest tenant session (12 h); the API's tenant session timeout still limits how long a sign-in counts.
     refs = {"auth-username-password-form": "pwd", "auth-otp-form": "otp"}
+    amr_max_age = "43200"
     _, execs = http("GET", f"{base}/authentication/flows/browser/executions", token=tok)
     for ex in execs:  # type: ignore[union-attr]
         ref = refs.get(ex.get("providerId", ""))
-        if ref and not ex.get("authenticationConfig"):
-            http("POST", f"{base}/authentication/executions/{ex['id']}/config", {
-                "alias": f"amr-{ref}", "config": {"default.reference.value": ref, "default.reference.maxAge": "0"},
-            }, token=tok)
+        if not ref:
+            continue
+        cfg = {"default.reference.value": ref, "default.reference.maxAge": amr_max_age}
+        if not ex.get("authenticationConfig"):
+            http("POST", f"{base}/authentication/executions/{ex['id']}/config",
+                 {"alias": f"amr-{ref}", "config": cfg}, token=tok)
+        else:
+            _, current_cfg = http("GET", f"{base}/authentication/config/{ex['authenticationConfig']}", token=tok)
+            if (current_cfg.get("config") or {}) != cfg:  # type: ignore[union-attr]
+                current_cfg["config"] = cfg  # type: ignore[index]
+                http("PUT", f"{base}/authentication/config/{ex['authenticationConfig']}", current_cfg, token=tok)
 
     # Bootstrap platform administrator for local use. Password lives only in .local/secrets.
     email = "admin@astra.local"
