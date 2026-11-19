@@ -1,11 +1,11 @@
 {
-  "created_at": "2026-11-19T09:57:28.291061+00:00",
-  "engine_digest": "420ca263e83aba19b37bd0d11e4321effbbcc83610d58c88b65411a72ace1d92",
+  "created_at": "2026-11-19T10:39:12.061666+00:00",
+  "engine_digest": "0fa8092c607ba48531d0e00b350723784abe0bc7e9ba8eaa3eda858f6a58d651",
   "forced": false,
   "format": "astra.evaluation/v1",
-  "previous_release": null,
-  "reason": "First release scorecard: the baseline later releases must not fall below.",
-  "recorded_at": "2026-11-19T09:57:28.314737+00:00",
+  "previous_release": "R1-I13",
+  "reason": "First release scorecard: the baseline later releases must not fall below. Digests ignore line endings.",
+  "recorded_at": "2026-11-19T10:39:12.090245+00:00",
   "regressions_accepted": [],
   "release": "R1-I13",
   "suites": {

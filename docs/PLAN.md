@@ -182,7 +182,9 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Mapping table matching does not use earlier decisions in the tenant, so a renamed customer table finds no target (the golden suite measures it: top-1 accuracy 0.867, every miss goes to review) | Next mapping work |
 | One golden evaluation suite exists; more suites (and the reference programme's own, once its real estate is available) make the gate stronger. Agent measures need a model key | With more estates |
 | Confidence calibration per agent (E22.F1.S3) | R2 |
-| I13 screens are not built yet | I13 (screens) |
+| I13 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack | Next demo |
+| API gaps from the I13 screens: the evaluation preview does not return the baseline's measures (the page reads the latest released record); the release list has no paging beyond 100; the evaluation runs synchronously | Next release-gate update |
+| On this development machine the full web unit run needs `--maxWorkers=2`; with more workers some test files fail to start for lack of processes | Local machine |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
 | Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |

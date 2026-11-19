@@ -157,16 +157,21 @@ def load_suites(root: pathlib.Path | None = None) -> dict[str, tuple[dict[str, A
         missing = REQUIRED_AREAS - set(spec)
         if missing:
             raise ValueError(f"{f.parent.name}: the suite has no {', '.join(sorted(missing))} section(s)")
-        out[spec["name"]] = (spec, hashlib.sha256(raw).hexdigest())
+        out[spec["name"]] = (spec, hashlib.sha256(_lf(raw)).hexdigest())
     if not out:
         raise ValueError(f"No evaluation suites in {suites_dir(root)}")
     return out
 
 
+def _lf(b: bytes) -> bytes:
+    """Digests ignore line endings, so a checkout on any platform gives the same digest."""
+    return b.replace(b"\r\n", b"\n")
+
+
 def engine_digest() -> str:
     h = hashlib.sha256()
     for f in ENGINE_FILES:
-        h.update(f.encode() + b"\0" + (SRC / f).read_bytes())
+        h.update(f.encode() + b"\0" + _lf((SRC / f).read_bytes()))
     return h.hexdigest()
 
 

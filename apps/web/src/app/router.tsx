@@ -45,6 +45,7 @@ import { TraceDetailPage } from '@/features/observability/TraceDetailPage';
 import { parseProgrammeSearch, type ProgrammeSearch } from '@/features/programmes/model';
 import { ProgrammePage } from '@/features/programmes/ProgrammePage';
 import { ProgrammesPage } from '@/features/programmes/ProgrammesPage';
+import { ReleasesPage } from '@/features/releases/ReleasesPage';
 import { TENANT_TABS, type TenantTab } from '@/features/tenants/model';
 import { TenantDetailPage } from '@/features/tenants/TenantDetailPage';
 import { TenantsPage } from '@/features/tenants/TenantsPage';
@@ -191,6 +192,23 @@ const traceRoute = createRoute({
   component: function TraceRoute() {
     const { traceId } = traceRoute.useParams();
     return <TraceDetailPage traceId={traceId} />;
+  },
+});
+
+const releasesRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/releases',
+  validateSearch: (search: Record<string, unknown>): { release?: string } =>
+    typeof search.release === 'string' && search.release ? { release: search.release } : {},
+  component: function ReleasesRoute() {
+    const { release } = releasesRoute.useSearch();
+    const navigate = releasesRoute.useNavigate();
+    return (
+      <ReleasesPage
+        releaseId={release ?? null}
+        onSelectRelease={(id) => void navigate({ search: { release: id }, replace: true })}
+      />
+    );
   },
 });
 
@@ -422,6 +440,7 @@ export const routeTree = rootRoute.addChildren([
     auditRoute,
     observabilityRoute,
     traceRoute,
+    releasesRoute,
     packsRoute,
     composeRoute,
     packDetailRoute,

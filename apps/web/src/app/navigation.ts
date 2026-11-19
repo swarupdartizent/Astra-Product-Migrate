@@ -6,6 +6,7 @@ import {
   FlaskConical,
   Network,
   Plug,
+  Rocket,
   Bot,
   Building2,
   Cpu,
@@ -156,6 +157,18 @@ export const navItems: readonly NavItem[] = [
     permission: null,
     group: 'configuration',
     keywords: ['blueprint', 'starter'],
+  },
+  {
+    id: 'releases',
+    to: '/releases',
+    label: 'Releases',
+    description:
+      'Release history and the release gate: check whether any golden suite measure fell, and record a release.',
+    icon: Rocket,
+    // The API lets platform readers list releases; recording needs golden:run on the platform.
+    permission: ['tenant:read', 'golden:run'],
+    group: 'platform',
+    keywords: ['release', 'gate', 'regression', 'scorecard', 'evaluation', 'baseline'],
   },
   {
     id: 'presales',
