@@ -1250,3 +1250,77 @@ class CoexistenceSchedule(Base):
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+
+
+class GateEvidence(Base):
+    """A person's attestation that a gate condition is met, with its evidence (E17.F1.S1)."""
+
+    __tablename__ = "gate_evidence"
+    __table_args__ = (CheckConstraint("length(note) >= 10", name="ck_gate_evidence_note"),)
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
+    gate: Mapped[str] = mapped_column(String(30), primary_key=True)
+    item_key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    note: Mapped[str] = mapped_column(Text)
+    reference: Mapped[str | None] = mapped_column(String(1000))
+    attested_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    attested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GateApproval(Base):
+    """One person's approval of a gate for one role, bound to the checklist as it was (its digest)."""
+
+    __tablename__ = "gate_approvals"
+    __table_args__ = (
+        UniqueConstraint("project_id", "gate", "checklist_digest", "user_id", name="uq_gate_approval_person"),
+        UniqueConstraint("project_id", "gate", "checklist_digest", "role", name="uq_gate_approval_role"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    gate: Mapped[str] = mapped_column(String(30))
+    role: Mapped[str] = mapped_column(String(60))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    checklist_digest: Mapped[str] = mapped_column(String(64))
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GatePass(Base):
+    """A gate passed: its checklist as it was, approved by every required role (enforced in the database)."""
+
+    __tablename__ = "gate_passes"
+    __table_args__ = (UniqueConstraint("project_id", "gate", "checklist_digest", name="uq_gate_pass"),
+                      Index("ix_gate_pass_project", "project_id", "gate", "created_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    gate: Mapped[str] = mapped_column(String(30))
+    checklist_digest: Mapped[str] = mapped_column(String(64))
+    required_roles: Mapped[list[str]] = mapped_column(ARRAY(String(60)))
+    checklist: Mapped[dict[str, Any]] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ProofPack(Base):
+    """A signed proof pack (E17.F2.S1). Its content stays in the tenant database; it never changes once signed."""
+
+    __tablename__ = "proof_packs"
+    __table_args__ = (UniqueConstraint("project_id", "number", name="uq_proof_pack_number"),
+                      CheckConstraint("scope in ('project', 'wave')", name="ck_proof_scope"),
+                      CheckConstraint("(scope = 'wave') = (wave IS NOT NULL)", name="ck_proof_wave"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="RESTRICT"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    number: Mapped[int] = mapped_column(Integer)
+    scope: Mapped[str] = mapped_column(String(10))
+    wave: Mapped[str | None] = mapped_column(String(40))
+    json_sha256: Mapped[str] = mapped_column(String(64))
+    pdf_sha256: Mapped[str] = mapped_column(String(64))
+    signature: Mapped[str] = mapped_column(Text)
+    signing_key: Mapped[str] = mapped_column(String(100))
+    key_version: Mapped[int] = mapped_column(Integer)
+    summary: Mapped[dict[str, Any]] = mapped_column()
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

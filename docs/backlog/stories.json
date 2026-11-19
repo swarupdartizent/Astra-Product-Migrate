@@ -1780,8 +1780,9 @@
       ],
       "release": "R1",
       "spec": "Lifecycle",
-      "status": "todo",
-      "increment": "I11"
+      "status": "done",
+      "increment": "I11",
+      "note": "Eight lifecycle gates with checklists: evidence from records (linked), compliance-pack controls and attestations by people; approvals per role from different people bound to the checklist digest (database); blueprint labels (e.g. G0 to G4) and approvers; gates unlock the later stages."
     },
     {
       "id": "E17.F2.S1",
@@ -1796,8 +1797,9 @@
       ],
       "release": "R1",
       "spec": "RG-04",
-      "status": "todo",
-      "increment": "I11"
+      "status": "done",
+      "increment": "I11",
+      "note": "Proof packs per project or wave: canonical JSON and a PDF, signed together with the vault Ed25519 key, verifiable offline with the published public key; every item links to its source record."
     },
     {
       "id": "E18.F1.S1",

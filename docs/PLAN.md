@@ -115,9 +115,7 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | The Orchestrator's model test cases are *Blocked* until a model provider with a real key is configured; it cannot be released (and so cannot run) before that. Live tests (`tests/test_live_agents.py`) run only when `ANTHROPIC_API_KEY` is set | Needs the Anthropic key |
 | The Azure OpenAI and Claude-on-Foundry drivers are built and unit-checked but not yet called live | Needs Azure keys |
 | Model calls are checked against the region's provider list, but not yet against blueprint residency controls (the I7 control matrix lists residency controls; enforcing them on model calls is not done) | I9 (agents at scale) |
-| Stage gates for discovery, planning, execution, validation and cutover stay closed until the evidence those increments produce exists | I5, I7, I9–I11 |
 | The other agents in the specification are registered as their tools arrive (only the Orchestrator's tools exist now) | I5 onwards |
-| Agent governance records and review decisions in the proof pack (E02.F3.S1, E03.F2.S3) | I11 |
 | Model prices are kept by administrators on each provider; there is no automatic price feed | Later |
 | API gaps from the I3 screens still open: allowed stage moves before trying, `/jobs` paging, untyped governance and transcript payloads (`can_cancel` and the reason a review item cannot be resolved were added in I4; not taken up in I8) | I9 |
 | The reference source adapter is proven only on the synthetic golden estate; its entity tables and SQL Anywhere queries must be confirmed on a real ConceptOne estate | Needs a ConceptOne reference database |
@@ -171,10 +169,13 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | I10 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack | Next demo |
 | The window, not the content area, scrolls beneath the sticky top bar, so at some scroll positions controls sit partly under it (scroll padding keeps focused controls clear); moving scrolling to the content area is a shell change | Next shell update |
 | The plan workbench keyboard-move end-to-end test is timing-sensitive under full-suite load (passes alone) | Next test hardening |
+| Proof packs carry a detached Ed25519 signature from the vault key, verifiable with the published public key; a PAdES signature that PDF readers show needs an organisation signing certificate | Needs an organisation certificate |
+| The reference programme's G0 to G4 labels and approvers belong in its blueprint (`gates`), which is set up with the programme | With the reference programme |
+| Proof packs are produced on request; producing one automatically when a gate passes or a wave cuts over is not set up | Later |
+| I11 screens are not built yet | I11 (screens) |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
 | Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |
-| Loosening approvals and conflict decisions in the proof pack (E03.F2.S3) | I11 |
 | SDK templates for partners (E04.F3.S1); the pack CLI (validate, bundle, upload) exists since I4 | R3 |
 | Live verification against Microsoft Entra ID and Okta (E01.F2.S1) | Needs a test tenant |
 

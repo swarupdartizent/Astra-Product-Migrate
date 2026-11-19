@@ -37,9 +37,9 @@ STAGE_TITLES = dict(STAGES)
 _DONE_EVIDENCE = {
     "discovery": "No accepted discovery coverage report exists for this project.",
     "planning": "No approved migration plan exists for this project.",
-    "execution": "No execution results have been recorded for this project.",
-    "validation": "No signed-off reconciliation exists for this project.",
-    "cutover": "No completed cutover with go/no-go sign-off exists for this project.",
+    "execution": "The design gate has not passed (decided mappings, approved code, approvals).",
+    "validation": "The build and rehearse gate has not passed (a reconciled rehearsal, approvals).",
+    "cutover": "The cutover gate has not passed (final load, closed breaks, parity, documents, approvals).",
 }
 
 
@@ -66,6 +66,11 @@ def _evidence(session: Session, project: Project, stage: str) -> bool:
 
         return session.scalar(select(PlanBaseline.id).where(PlanBaseline.project_id == project.id,
                                                             PlanBaseline.status == "approved")) is not None
+    gate = {"execution": "design", "validation": "build_rehearse", "cutover": "cutover"}.get(stage)
+    if gate:
+        from astra_migrate.gates import ever_passed
+
+        return ever_passed(session, project.id, gate)
     return False
 
 

@@ -29,6 +29,7 @@ dependencies = [
   "sqlglot==30.29.0",
   "ortools==9.12.4544",
   "pypdf==5.4.0",
+  "reportlab==4.2.5",
 ]
 
 [dependency-groups]
@@ -68,4 +69,8 @@ python_version = "3.13"
 strict = true
 plugins = ["pydantic.mypy"]
 exclude = ['src/astra_migrate/migrations/versions/']
+
+[[tool.mypy.overrides]]
+module = ["reportlab", "reportlab.*"]
+ignore_missing_imports = true
 

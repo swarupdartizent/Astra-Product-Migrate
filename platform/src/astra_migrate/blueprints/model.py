@@ -100,6 +100,18 @@ class Validation(_Strict):
     blocking_rules_stop_load: bool = Field(default=True, description="Records failing a blocking rule are not sent")
 
 
+GATE_KEYS = ("configure", "discover", "plan", "design", "build_rehearse", "cutover", "stabilise", "decommission")
+
+
+class Gate(_Strict):
+    """How the project names a lifecycle gate (for example G0 to G4) and who approves it."""
+
+    key: Literal["configure", "discover", "plan", "design", "build_rehearse", "cutover", "stabilise", "decommission"]
+    label: str = Field(min_length=1, max_length=40)
+    approvers: list[str] = Field(default_factory=list, description="Roles that approve; default migration lead and "
+                                                                    "customer data owner")
+
+
 class Blueprint(_Strict):
     api_version: Literal["astra.blueprints/v1"] = Field(alias="apiVersion")
     name: str = Field(min_length=3, max_length=120, pattern=r"^[a-z0-9][a-z0-9-]*$")
@@ -119,6 +131,8 @@ class Blueprint(_Strict):
     overrides: list[Override] = Field(default_factory=list)
     documents: Documents = Field(default_factory=Documents)
     validation: Validation = Field(default_factory=Validation)
+    gates: list[Gate] = Field(default_factory=list,
+                              description="Gate labels and approvers; unlisted gates use defaults")
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
