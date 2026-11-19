@@ -117,11 +117,12 @@ export function useDeleteSourceConnection(tenantId: string) {
   });
 }
 
-export function useAdapterRuns(connectionId: string) {
+export function useAdapterRuns(connectionId: string, enabled = true) {
   return useQuery({
     queryKey: adapterKeys.runs(connectionId),
     queryFn: ({ signal }) =>
       api.get<AdapterRun[]>(`/source-connections/${enc(connectionId)}/runs`, { signal }),
+    enabled: enabled && connectionId !== '',
     refetchInterval: (q) =>
       (q.state.data ?? []).some((r) => ACTIVE.includes(r.status)) ? 3000 : false,
   });

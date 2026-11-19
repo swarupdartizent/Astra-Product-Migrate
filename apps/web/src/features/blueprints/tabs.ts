@@ -1,4 +1,5 @@
 import { isDesignSection, type DesignSection } from '../design/model';
+import { isLoadsSection, type LoadsSection } from '../loads/model';
 import { PLAN_SECTIONS, type PlanSection } from '../plan/model';
 import { parseReviewSearch, type ReviewSearch } from '../review/model';
 
@@ -16,19 +17,20 @@ export const PROJECT_TABS = [
   'checklist',
   'plan',
   'design',
+  'loads',
 ] as const;
 export type ProjectTab = (typeof PROJECT_TABS)[number];
 
 /**
  * The project page's URL state. Besides the tab: the blueprint version, the plan or design
  * section, the review workbench's view (selected item and filters), the run, object or agent run
- * that an evidence link opens on the conversion, delta or agents tab, and the design item or build
- * artifact selected on the design tab.
+ * that an evidence link opens on the conversion, delta or agents tab, the design item or build
+ * artifact selected on the design tab, and the load or parity run selected on the loads tab.
  */
 export interface ProjectSearch extends ReviewSearch {
   tab?: ProjectTab;
   version?: number;
-  section?: PlanSection | DesignSection;
+  section?: PlanSection | DesignSection | LoadsSection;
   /** Design tab: the selected register item's key (within `section`). */
   key?: string;
   run?: string;
@@ -36,6 +38,8 @@ export interface ProjectSearch extends ReviewSearch {
   agent_run?: string;
   /** Design tab, build section: the selected build artifact. */
   artifact?: string;
+  /** Loads tab, parity section: the selected parity run. */
+  parity_run?: string;
 }
 
 function str(v: unknown): string | undefined {
@@ -57,8 +61,13 @@ export function parseProjectSearch(raw: Record<string, unknown>): ProjectSearch 
     const artifact = str(raw.artifact);
     if (artifact) out.artifact = artifact;
   }
+  if (out.tab === 'loads' && isLoadsSection(raw.section)) out.section = raw.section;
+  if (out.tab === 'loads') {
+    const parity = str(raw.parity_run);
+    if (parity) out.parity_run = parity;
+  }
   if (out.tab === 'reviews') Object.assign(out, parseReviewSearch(raw));
-  if (out.tab === 'conversion' || out.tab === 'delta') {
+  if (out.tab === 'conversion' || out.tab === 'delta' || out.tab === 'loads') {
     const run = str(raw.run);
     if (run) out.run = run;
   }

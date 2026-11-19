@@ -403,6 +403,8 @@
 
 .fileInput {
   font-size: var(--text-sm);
+  /* WCAG 2.2 target size: at least 24px. */
+  min-height: 2rem;
 }
 
 .fileInput:focus-visible {

@@ -192,9 +192,24 @@ export interface DesignApproval {
   no_target: boolean;
 }
 
+/** A person's approval of layout-only form differences (E14.F2.S2). */
+export interface LayoutApproval {
+  by: string;
+  by_id: string;
+  at: string;
+  note: string;
+}
+
 export interface FormParity {
   passed: boolean;
   differences: string[];
+  /** Page text and form field differences: they fail the test and cannot be approved. */
+  content_differences?: string[];
+  /** Page count and page size differences: a person may approve them with a note. */
+  layout_differences?: string[];
+  /** True when there are layout differences and no content differences. */
+  layout_only?: boolean;
+  layout_approval?: LayoutApproval | null;
   pages: number;
   golden_pages: number;
   fields: number;

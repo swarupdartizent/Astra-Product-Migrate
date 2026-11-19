@@ -11,6 +11,9 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   height: 100%;
+  /* Controls scrolled into view (by focus or script) land below the sticky top bar, never under it
+     (WCAG 2.2 SC 2.4.11 Focus Not Obscured, and target size of partly covered controls). */
+  scroll-padding-top: calc(var(--topbar-h) + var(--space-2));
 }
 
 body {

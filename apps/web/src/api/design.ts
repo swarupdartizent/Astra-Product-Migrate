@@ -149,6 +149,15 @@ export function useFormParity(projectId: string) {
   });
 }
 
+export function useApproveFormLayout(projectId: string) {
+  const invalidate = useInvalidateProject(projectId);
+  return useMutation({
+    mutationFn: (body: { key: string; note: string }) =>
+      api.post<DesignItemDetail>(`${base(projectId)}/design/form-layout-approval`, body),
+    onSuccess: invalidate,
+  });
+}
+
 // ---------- Build ----------
 
 export function useStartBuild(projectId: string) {

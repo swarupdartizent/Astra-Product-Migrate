@@ -168,7 +168,9 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | The target side of coexistence and document checks is what the target accepted in loads or returns from its documents path; reading the target's data directly needs its read API (for example DBQuery) | With target documentation |
 | Loads into the reference target stay rehearsals until its token endpoint, load endpoints (with tables) and documents path are documented | Needs Insurity API docs and sandbox |
 | Staging runs on the SQL Server workbench in one transaction per artifact; very large estates need batching by key range | With a real estate |
-| I10 screens are not built yet | I10 (screens) |
+| I10 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack | Next demo |
+| The window, not the content area, scrolls beneath the sticky top bar, so at some scroll positions controls sit partly under it (scroll padding keeps focused controls clear); moving scrolling to the content area is a shell change | Next shell update |
+| The plan workbench keyboard-move end-to-end test is timing-sensitive under full-suite load (passes alone) | Next test hardening |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
 | Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |

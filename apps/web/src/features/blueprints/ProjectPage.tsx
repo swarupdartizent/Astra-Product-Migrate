@@ -12,6 +12,8 @@ import type { ReviewSearch } from '../review/model';
 import { PLAN_SECTIONS, type PlanSection } from '../plan/model';
 import { DesignTab } from '../design/DesignTab';
 import { isDesignSection, type DesignSearch } from '../design/model';
+import { LoadsTab } from '../loads/LoadsTab';
+import { isLoadsSection, type LoadsSearch } from '../loads/model';
 import { StageStrip } from '../runtime/StageStrip';
 import { CompareTab } from './CompareTab';
 import { DecisionsTab } from './DecisionsTab';
@@ -88,6 +90,7 @@ function ProjectWorkspace({ project, search }: { project: Project; search: Proje
     agent_run: _agentRun,
     key: _key,
     artifact: _artifact,
+    parity_run: _parityRun,
     ...reviewSearch
   } = search;
   const goReviews = (next: ReviewSearch, replace: boolean) =>
@@ -110,6 +113,13 @@ function ProjectWorkspace({ project, search }: { project: Project; search: Proje
       to: '/projects/$projectId',
       params: { projectId: project.id },
       search: { tab: 'design', ...next },
+      replace,
+    });
+  const goLoads = (next: LoadsSearch, replace: boolean) =>
+    void navigate({
+      to: '/projects/$projectId',
+      params: { projectId: project.id },
+      search: { tab: 'loads', ...next },
       replace,
     });
   const planSection = PLAN_SECTIONS.includes(search.section as PlanSection)
@@ -162,6 +172,7 @@ function ProjectWorkspace({ project, search }: { project: Project; search: Proje
           <Tab value="checklist">Hosting checklist</Tab>
           <Tab value="plan">Plan</Tab>
           <Tab value="design">Design and build</Tab>
+          <Tab value="loads">Loads and validation</Tab>
         </TabsList>
         <TabPanel value="editor">
           {latest && base.isPending ? (
@@ -236,6 +247,17 @@ function ProjectWorkspace({ project, search }: { project: Project; search: Proje
               ...(search.artifact ? { artifact: search.artifact } : {}),
             }}
             onSearch={goDesign}
+          />
+        </TabPanel>
+        <TabPanel value="loads">
+          <LoadsTab
+            project={project}
+            search={{
+              ...(isLoadsSection(search.section) ? { section: search.section } : {}),
+              ...(search.run ? { run: search.run } : {}),
+              ...(search.parity_run ? { parity_run: search.parity_run } : {}),
+            }}
+            onSearch={goLoads}
           />
         </TabPanel>
       </Tabs>
