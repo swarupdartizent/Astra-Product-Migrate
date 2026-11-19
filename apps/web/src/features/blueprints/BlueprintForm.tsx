@@ -57,7 +57,18 @@ export interface BlueprintFormProps {
   onChange: (next: Content) => void;
   tenantId: string;
   validation: BlueprintValidation | undefined;
+  /** Paths whose inline errors show even while empty and unedited; 'all' after a save attempt. */
+  revealed?: ReadonlySet<string> | 'all';
   readOnly: boolean;
+}
+
+function isBlank(value: unknown): boolean {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === 'string' && value.trim() === '') ||
+    (Array.isArray(value) && value.length === 0)
+  );
 }
 
 /** Errors from the latest validation, by exact path, for inline display. */
@@ -76,15 +87,27 @@ export function BlueprintForm({
   onChange,
   tenantId,
   validation,
+  revealed,
   readOnly,
 }: BlueprintFormProps) {
   const packs = usePublishedPacks();
   const roles = useRoles();
   const secrets = useSecrets(tenantId);
   const issues = useIssueMap(validation);
-  const set = (path: Path, value: unknown) => onChange(setIn(content, path, value));
+  const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set());
+  const set = (path: Path, value: unknown) => {
+    const key = path.join('.');
+    if (!touched.has(key)) setTouched((t) => new Set(t).add(key));
+    onChange(setIn(content, path, value));
+  };
   const str = (path: Path) => asString(getIn(content, path));
-  const err = (path: string) => issues.get(path);
+  // A field the user has not reached yet is not an error to shout about; the problem list still counts it.
+  const err = (path: string) => {
+    const message = issues.get(path);
+    if (message === undefined) return undefined;
+    if (revealed === 'all' || revealed?.has(path) || touched.has(path)) return message;
+    return isBlank(getIn(content, path.split('.'))) ? undefined : message;
+  };
 
   const packsOfType = (type: string): PackSummary[] =>
     (packs.data ?? []).filter((p) => p.type === type);

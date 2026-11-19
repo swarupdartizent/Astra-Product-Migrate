@@ -242,6 +242,8 @@ class Manifest(Strict):
 
 def parse_ref(ref: str) -> tuple[str, str]:
     """'name@1.2.0' -> ('name', '1.2.0')."""
+    if not ref.strip():
+        raise ValueError("None chosen yet: name an exact version, like name@1.2.0")
     if "@" not in ref:
         raise ValueError(f"'{ref}' must name an exact version, like name@1.2.0")
     name, version = ref.split("@", 1)

@@ -53,6 +53,8 @@ export function BlueprintEditor({ project, base, onSaved }: BlueprintEditorProps
   const [converting, setConverting] = useState(false);
   const [convertError, setConvertError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
+  // Empty fields show their inline error only once the user edits them, opens them from the problem list, or saves.
+  const [revealed, setRevealed] = useState<ReadonlySet<string> | 'all'>(() => new Set());
   const yamlRef = useRef<HTMLTextAreaElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
 
@@ -96,6 +98,7 @@ export function BlueprintEditor({ project, base, onSaved }: BlueprintEditorProps
       yamlRef.current?.focus();
       return;
     }
+    setRevealed((r) => (r === 'all' ? r : new Set(r).add(path)));
     for (const candidate of pathCandidates(path)) {
       const el = document.getElementById(fieldId(candidate));
       if (el) {
@@ -143,7 +146,10 @@ export function BlueprintEditor({ project, base, onSaved }: BlueprintEditorProps
                 variant="primary"
                 leadingIcon={<Save aria-hidden="true" />}
                 disabled={!dirty && base !== null}
-                onClick={() => setSaving(true)}
+                onClick={() => {
+                  setRevealed('all');
+                  setSaving(true);
+                }}
               >
                 Save version
               </Button>
@@ -174,6 +180,7 @@ export function BlueprintEditor({ project, base, onSaved }: BlueprintEditorProps
             onChange={setContent}
             tenantId={project.tenant_id}
             validation={validation.data}
+            revealed={revealed}
             readOnly={!canEdit}
           />
         ) : (

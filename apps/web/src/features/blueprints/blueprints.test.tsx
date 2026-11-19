@@ -151,10 +151,36 @@ describe('BlueprintForm', () => {
     expect(onChange).toHaveBeenLastCalledWith({ ...content, pattern: 'consolidation' });
 
     expect(screen.getByText('Loosens · needs approval')).toBeInTheDocument();
-    expect(screen.getByText('Choose a target adapter')).toBeInTheDocument();
+    // The target adapter is still empty and unedited: no inline error yet.
+    expect(screen.queryByText('Choose a target adapter')).not.toBeInTheDocument();
     expect(await screen.findByRole('combobox', { name: /Source adapter/ })).toHaveTextContent(
       'Legacy source (legacy-src@1.0.0)',
     );
+  });
+
+  it('shows the inline error of an empty field once it is revealed from the problem list or by saving', () => {
+    const view = renderWithProviders(
+      <BlueprintForm
+        content={content}
+        onChange={vi.fn()}
+        tenantId="t1"
+        validation={validation}
+        revealed={new Set(['target.adapter'])}
+        readOnly={false}
+      />,
+    );
+    expect(screen.getByText('Choose a target adapter')).toBeInTheDocument();
+    view.rerender(
+      <BlueprintForm
+        content={content}
+        onChange={vi.fn()}
+        tenantId="t1"
+        validation={validation}
+        revealed="all"
+        readOnly={false}
+      />,
+    );
+    expect(screen.getByText('Choose a target adapter')).toBeInTheDocument();
   });
 
   it('is read-only without blueprint:edit', () => {
