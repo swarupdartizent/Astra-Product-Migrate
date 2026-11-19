@@ -1,0 +1,31 @@
+{
+  "created_at": "2026-11-19T09:57:28.291061+00:00",
+  "engine_digest": "420ca263e83aba19b37bd0d11e4321effbbcc83610d58c88b65411a72ace1d92",
+  "forced": false,
+  "format": "astra.evaluation/v1",
+  "previous_release": null,
+  "reason": "First release scorecard: the baseline later releases must not fall below.",
+  "recorded_at": "2026-11-19T09:57:28.314737+00:00",
+  "regressions_accepted": [],
+  "release": "R1-I13",
+  "suites": {
+    "shop-upgrade": {
+      "digest": "868e3474405a9e1b19636e6d9ef44a90fff9fa7139b18a543a9c53313eac92a7",
+      "measures": {
+        "code.conversion_accuracy": 1.0,
+        "code.review_routing_accuracy": 1.0,
+        "compliance.approvers_accuracy": 1.0,
+        "compliance.level_accuracy": 1.0,
+        "configuration.accuracy": 1.0,
+        "mapping.auto_precision": 1.0,
+        "mapping.review_recall": 1.0,
+        "mapping.top1_accuracy": 0.8667,
+        "planning.cycle_precision": 1.0,
+        "planning.cycle_recall": 1.0,
+        "planning.disposition_accuracy": 1.0,
+        "review.grouping_agreement": 1.0,
+        "review.order_agreement": 1.0
+      }
+    }
+  }
+}

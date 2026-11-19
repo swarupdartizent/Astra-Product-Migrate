@@ -119,9 +119,40 @@ def wait_job(client: Any, headers: Headers, job_id: str, timeout_s: float = 90) 
         time.sleep(0.2)
 
 
+class _FreshBearer(dict[str, str]):
+    """Session-wide headers whose short-lived token is re-minted before it expires, so a slow full run (a loaded
+    machine) does not fail late with 401s. Each token still lives five minutes, as a real one would."""
+
+    def __init__(self, email: str, name: str) -> None:
+        super().__init__()
+        self._email, self._name, self._expires = email, name, 0.0
+        self._refresh()
+
+    def _refresh(self) -> None:
+        if time.time() > self._expires - 60:
+            super().__setitem__("Authorization", f"Bearer {make_token(self._email, name=self._name)}")
+            self._expires = time.time() + 300
+
+    def __getitem__(self, key: str) -> str:
+        self._refresh()
+        return super().__getitem__(key)
+
+    def items(self) -> Any:
+        self._refresh()
+        return super().items()
+
+    def keys(self) -> Any:
+        self._refresh()
+        return super().keys()
+
+    def __iter__(self) -> Any:
+        self._refresh()
+        return super().__iter__()
+
+
 @pytest.fixture(scope="session")
 def admin(client: Any) -> Headers:
-    h = {"Authorization": f"Bearer {make_token(ADMIN_EMAIL, name='Test Admin')}"}
+    h = _FreshBearer(ADMIN_EMAIL, "Test Admin")
     assert client.get("/api/v1/me", headers=h).status_code == 200
     return h
 

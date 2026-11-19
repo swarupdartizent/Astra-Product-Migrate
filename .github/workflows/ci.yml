@@ -44,6 +44,9 @@ jobs:
       - name: Type check
         working-directory: platform
         run: .venv/bin/python -m mypy src
+      - name: Release gate (no golden measure may fall below the last release)
+        working-directory: platform
+        run: .venv/bin/python -m astra_migrate.evaluation gate
       - name: Start local stack
         run: python tools/dev.py up
       - name: Migrate

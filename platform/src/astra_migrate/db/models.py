@@ -1417,3 +1417,26 @@ class PortfolioPlan(Base):
     result: Mapped[dict[str, Any]] = mapped_column()
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Release(Base):
+    """An evaluated release (E22.F1.S2): its scorecard and what changed against the previous released one. A
+    release with regressions is recorded as blocked; the database refuses `released` with regressions."""
+
+    __tablename__ = "releases"
+    __table_args__ = (CheckConstraint("status in ('released', 'blocked')", name="ck_release_status"),
+                      CheckConstraint("status <> 'released' OR regressions = '[]'::jsonb",
+                                      name="ck_release_no_regressions"),
+                      CheckConstraint("length(reason) >= 10", name="ck_release_reason"),
+                      Index("ix_release_created", "created_at"))
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(60))
+    status: Mapped[str] = mapped_column(String(20))
+    scorecard: Mapped[dict[str, Any]] = mapped_column()
+    baseline_release: Mapped[str | None] = mapped_column(String(60))
+    regressions: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    improved: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    reason: Mapped[str] = mapped_column(Text)
+    recorded_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

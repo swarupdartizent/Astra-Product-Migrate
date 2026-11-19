@@ -2134,8 +2134,9 @@
       ],
       "release": "R1",
       "spec": "Evaluation",
-      "status": "todo",
-      "increment": "I13"
+      "status": "done",
+      "increment": "I13",
+      "note": "Golden suites scored by the platform's engines across mapping, configuration, code, planning, compliance and review; CI blocks a release when any measure falls below the committed baseline; release records in the database cannot be released with regressions."
     },
     {
       "id": "E22.F1.S3",

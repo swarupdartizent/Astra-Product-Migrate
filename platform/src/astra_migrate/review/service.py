@@ -66,7 +66,7 @@ def compliance_for(s: Session, project_id: uuid.UUID, subject_type: str) -> Comp
                    .order_by(BlueprintVersion.number.desc())).first() or blueprints.latest(s, project_id)
     if bv is None:
         return Compliance()
-    level, controls, two = "none", [], False
+    found: list[dict[str, Any]] = []
     for ref in (bv.content or {}).get("compliance_packs") or []:
         try:
             pk = pack_registry.get_by_ref(s, ref, published_only=False)
@@ -75,13 +75,22 @@ def compliance_for(s: Session, project_id: uuid.UUID, subject_type: str) -> Comp
         if pk is None:
             continue
         m = pack_registry.manifest_of(pk)
-        for c in m.adds.controls:
-            if c.type != ControlType.APPROVAL or subject_type not in (c.parameters.get("applies_to") or []):
-                continue
-            controls.append(c.id)
-            level = "critical" if c.compliance_critical or level == "critical" else "relevant"
-            two = two or c.two_person_approval or int(c.parameters.get("min_approvers") or 1) >= 2
-    return Compliance(level, tuple(sorted(set(controls))), 2 if two else 1)
+        found += [{"id": c.id, "type": c.type.value, "applies_to": list(c.parameters.get("applies_to") or []),
+                   "compliance_critical": c.compliance_critical, "two_person_approval": c.two_person_approval,
+                   "min_approvers": int(c.parameters.get("min_approvers") or 1)} for c in m.adds.controls]
+    return classify(found, subject_type)
+
+
+def classify(controls: list[dict[str, Any]], subject_type: str) -> Compliance:
+    """The compliance impact of a subject type under a set of controls (pure; the release gate scores it)."""
+    level, ids, two = "none", [], False
+    for c in controls:
+        if c["type"] != ControlType.APPROVAL.value or subject_type not in c.get("applies_to", []):
+            continue
+        ids.append(c["id"])
+        level = "critical" if c.get("compliance_critical") or level == "critical" else "relevant"
+        two = two or bool(c.get("two_person_approval")) or int(c.get("min_approvers") or 1) >= 2
+    return Compliance(level, tuple(sorted(set(ids))), 2 if two else 1)
 
 
 def pattern_key(prefix: str, *parts: str) -> str:
