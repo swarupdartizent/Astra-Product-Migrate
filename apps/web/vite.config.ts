@@ -48,5 +48,8 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     css: { modules: { classNameStrategy: 'non-scoped' } },
     restoreMocks: true,
+    // Screen flows type and click through whole forms in jsdom; with every worker busy the 5 s default
+    // times out flows that take 1-2 s alone.
+    testTimeout: 30_000,
   },
 });

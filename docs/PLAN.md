@@ -172,7 +172,8 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Proof packs carry a detached Ed25519 signature from the vault key, verifiable with the published public key; a PAdES signature that PDF readers show needs an organisation signing certificate | Needs an organisation certificate |
 | The reference programme's G0 to G4 labels and approvers belong in its blueprint (`gates`), which is set up with the programme | With the reference programme |
 | Proof packs are produced on request; producing one automatically when a gate passes or a wave cuts over is not set up | Later |
-| I11 screens are not built yet | I11 (screens) |
+| I11 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack | Next demo |
+| API gaps from the I11 screens: the gates list does not return the caller's user id (the screen reads /me); proof pack waves are keys without names; the signature and public key formats are documented in docs/gates.md but not in the API's schema | I12 |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |
 | Plan impact of a pack upgrade (E04.F1.S2) and the control matrix (E07.F1.S1) | I7 |

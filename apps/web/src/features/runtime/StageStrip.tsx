@@ -164,6 +164,14 @@ function StageDialog({
               <li key={i}>{r}</li>
             ))}
           </ul>
+          <Link
+            to="/projects/$projectId"
+            params={{ projectId: project.id }}
+            search={{ tab: 'gates', section: 'gates' }}
+            onClick={onClose}
+          >
+            Open the gates and their checklists
+          </Link>
         </Callout>
       ) : null}
       <p className={`${s.muted} ${s.xs}`}>Current: {stageStatus(stage.status).label}</p>
