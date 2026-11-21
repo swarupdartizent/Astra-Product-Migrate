@@ -185,8 +185,11 @@ class RequestDecisionIn(_In):
     why_needed: str = Field(min_length=10, max_length=1000, description="Why the decision is needed now")
     risk: Literal["low", "medium", "high", "critical"] = Field(
         default="medium", description="How much harm a wrong answer would do")
+    suggested_option: str | None = Field(default=None, max_length=500,
+                                         description="The option you would suggest; one of `options`")
     confidence: float | None = Field(default=None, ge=0, le=1,
-                                     description="How sure you are of the option you would suggest (0 to 1)")
+                                     description="How sure you are of the option you would suggest (0 to 1); give "
+                                                 "it with `suggested_option`")
     stream: Literal[STREAMS] | None = Field(  # type: ignore[valid-type]
         default=None, description="The migration stream the decision belongs to")
 
@@ -204,6 +207,11 @@ def request_decision(s: Session, env: ToolEnv, inp: RequestDecisionIn) -> dict[s
     opts = [o.strip() for o in inp.options if o.strip()]
     if len(set(opts)) != len(opts) or len(opts) < 2:
         raise ToolError("Give at least two distinct options.")
+    suggested = inp.suggested_option.strip() if inp.suggested_option else None
+    if suggested is not None and suggested not in opts:
+        raise ToolError("`suggested_option` must be one of `options`.")
+    if inp.confidence is not None and suggested is None:
+        raise ToolError("A confidence is about the option you suggest: give `suggested_option` too.")
     dup = s.scalar(select(ReviewItem).where(ReviewItem.project_id == p.id, ReviewItem.status == "open",
                                             ReviewItem.kind == "decision", ReviewItem.title == inp.title.strip()))
     if dup is not None:
@@ -213,7 +221,8 @@ def request_decision(s: Session, env: ToolEnv, inp: RequestDecisionIn) -> dict[s
     item = reviews.new_item(
         s, tenant_id=t.id, project_id=p.id, kind="decision", title=inp.title.strip(),
         question=inp.question.strip(), options=opts, owner_role=inp.owner_role, owner_user_id=owner,
-        context={"why_needed": inp.why_needed.strip(), "agent": env.agent_name, "agent_version": env.agent_version},
+        context={"why_needed": inp.why_needed.strip(), "agent": env.agent_name, "agent_version": env.agent_version,
+                 **({"suggested": suggested} if suggested else {})},
         requested_by={"type": env.actor.type, "id": env.actor.id, "name": env.actor.name},
         agent_run_id=env.run_id, subject_type="decision", stream=inp.stream, risk=inp.risk,
         confidence=inp.confidence,

@@ -84,10 +84,14 @@ Each increment ends with a running, demonstrable slice. Story IDs are in `backlo
 | I11 | Gates and proof pack (E17) | 2 | Gate checklists, signed PDF + structured proof pack |
 | I12 | Installed-base programme (E18) | 6 | Programme set-up, consented fleet scan, Complexity Index, portfolio planner, programme owner view, commercial metering |
 | I13 | Release gate (E22.F1.S2) | 1 | Release blocked when any golden measure regresses |
+| I14 | Learning from delivered work (E16.F1.S5, E22.F1.S3, E21.F3.S2, E18.F2.S3) | 4 | Bulk approval by evidence pattern (never compliance-critical), confidence calibration per agent, estimate error per wave with non-compounding calibration, versioned Complexity Index weights recalibrated after a wave with contracted bands fixed |
+| I15 | Agentification (E08.F2.S4, E20.F1.S1–S2, E20.F2.S1, E20.F2.S3) | 5 | Workflows rebuilt from logs, ranked candidates, Digital Worker designs, test range certificates, monitoring and rollback |
+| I16 | Shared learning and assistants (E21.F1.S2, E21.F2.S1, E21.F3.S1, E06.F3.S1, E03.F1.S3) | 5 | Consent-gated shared memory, approved skills, cached decision model, ontology change proposals, Blueprint Assistant |
+| I17 | Integration and deployment (E15.F2.S1, E09.F2.S2, E11.F5.S3, E07.F2.S2, E01.F3.S3, E01.F1.S3) | 6 | Coexistence sync, ontology-mediated mapping, Microsoft Project export, Lloyd's pack, SIEM streaming, customer-cloud deployment |
 
 A thin **review-item and decision service** is built in I2, because conflicts, approvals and scope decisions need it from the start. I8 builds the full review workbench on top of it.
 
-R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
+R2 (20 stories) is I14 to I17. R3 and R4 stories (6) follow.
 
 ## 5. Inputs we do not have yet
 
@@ -149,7 +153,6 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | I3 screens are verified by unit tests and by end-to-end tests against recorded API responses; a signed-in walk-through on the live stack needs the administrator's authenticator sign-in | Next demo |
 | The Review Assistant answers only when a released version is pinned on the project and a model key is configured; until then reviewers see the explanation built from the recorded evidence | Needs a model key |
 | Risk on items raised by platform rules is a fixed value per item type (for example high for triggers and procedures that need hand conversion); agents state their own risk and confidence | With delivered work |
-| Bulk approval of items sharing a pattern (E16.F1.S5, never for compliance-critical items) | R2 |
 | Review items raised before I8 have no stream, segment, pattern key or evidence links, and count as medium risk with no compliance impact | Not planned (development data only) |
 | API gaps from the I8 screens: conversion evidence links carry no object type (same-named objects of different types cannot be told apart); queue rows do not say whether the caller already approved or is the named reviewer; pattern groups have no readable label; the plan workbench does not return the maximum task hours; the Review Assistant's answer is reachable only through the run transcript | I9 |
 | I8 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack; plan drag-and-drop has no automated test (the keyboard move does) | Next demo |
@@ -174,16 +177,18 @@ R2–R4 stories (26) follow after R1, in the order of release phases 2–4.
 | Proof packs are produced on request; producing one automatically when a gate passes or a wave cuts over is not set up | Later |
 | I11 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack | Next demo |
 | API gaps from the I11 screens: the gates list does not return the caller's user id (the screen reads /me); proof pack waves are keys without names; the signature and public key formats are documented in docs/gates.md but not in the API's schema | I12 |
-| The Complexity Index weights and reference ranges are starting assumptions; calibrate them against delivered customers' actual effort | With delivered customers |
+| The Complexity Index weights are starting assumptions until a programme recalibrates them from actual effort after a wave (I14); reference ranges and band limits are not fitted, only weights | With delivered customers |
 | Gate evidence goes to billing as CSV; a live billing integration needs the billing system's API | Needs the billing system |
 | The programme view reads each customer's database for risk and effort counts on every request; very large programmes need these figures cached | Programme scale |
 | I12 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack | Next demo |
 | API gaps from the I12 screens: source connections do not say whether a check ever succeeded (the scan refuses unchecked ones server-side); the fleet view returns only succeeded scans; gate titles for `next_gate` are repeated in the web app | I13 |
 | Mapping table matching does not use earlier decisions in the tenant, so a renamed customer table finds no target (the golden suite measures it: top-1 accuracy 0.867, every miss goes to review) | Next mapping work |
 | One golden evaluation suite exists; more suites (and the reference programme's own, once its real estate is available) make the gate stronger. Agent measures need a model key | With more estates |
-| Confidence calibration per agent (E22.F1.S3) | R2 |
 | I13 screens are verified by unit tests and end-to-end tests (with accessibility checks) against recorded API responses, not yet signed in on the live stack | Next demo |
 | API gaps from the I13 screens: the evaluation preview does not return the baseline's measures (the page reads the latest released record); the release list has no paging beyond 100; the evaluation runs synchronously | Next release-gate update |
+| Calibration needs decided items with a recorded suggestion: items raised before I14 by agents carry no suggestion and count as unscored; sources with fewer than 20 scored items are marked as too few to trust | With delivered work |
+| Actual effort imported before I14 has no factor, planned range or wave: those rows count as uncalibrated and not in a wave | Not planned (development data only) |
+| I14 screens are not built yet | I14 (screens) |
 | On this development machine the full web unit run needs `--maxWorkers=2`; with more workers some test files fail to start for lack of processes | Local machine |
 | OpenAPI does not yet describe the bearer scheme, problem+json errors, non-JSON export responses or status enums | I2 |
 | `/users` has no paging and no single-user endpoint | I12 (programme scale) |

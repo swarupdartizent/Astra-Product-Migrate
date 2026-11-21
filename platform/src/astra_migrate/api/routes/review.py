@@ -179,6 +179,66 @@ def decide(item_id: uuid.UUID, body: DecideIn, principal: CurrentPrincipal, s: D
     return DecideOut(recorded=res.recorded, follow_up_error=res.follow_up_error, item=_review_out(s, principal, t, r))
 
 
+# ------------------------------------------------------------------ bulk approval (E16.F1.S5)
+
+class BulkExcluded(BaseModel):
+    item: ReviewOut
+    reason: str
+
+
+class BulkPreviewOut(BaseModel):
+    pattern_key: str
+    eligible: list[ReviewOut]
+    excluded: list[BulkExcluded]
+    options: list[str] = Field(description="Options every eligible item has")
+    first_approver_options: dict[str, str] = Field(
+        description="Item id -> the option its first approver chose (two-person items): approve that option")
+    can_bulk: bool
+    reason: str | None
+    max_items: int
+
+
+@router.get("/projects/{project_id}/review-bulk", response_model=BulkPreviewOut)
+def bulk_preview(project_id: uuid.UUID, principal: CurrentPrincipal, s: DB,
+                 pattern_key: Annotated[str, Query(min_length=3, max_length=200)]) -> BulkPreviewOut:
+    """What a bulk approval of one evidence pattern would cover for the caller, and what it leaves out and why.
+    Compliance-critical items are never included."""
+    t, p = project_for(s, principal, project_id, None)
+    c = reviews.bulk_candidates(s, principal, t, p.id, pattern_key)
+    return BulkPreviewOut(pattern_key=pattern_key, eligible=[_review_out(s, principal, t, r) for r in c["eligible"]],
+                          excluded=[BulkExcluded(item=_review_out(s, principal, t, r), reason=why)
+                                    for r, why in c["excluded"]],
+                          options=c["options"], first_approver_options=c["first_approver_options"],
+                          can_bulk=c["can_bulk"], reason=c["reason"], max_items=reviews.BULK_MAX)
+
+
+class BulkIn(BaseModel):
+    pattern_key: str = Field(min_length=3, max_length=200)
+    option: str = Field(min_length=1, max_length=4000)
+    note: str = Field(min_length=10, max_length=4000, description="The reason, recorded on every item")
+    item_ids: list[uuid.UUID] = Field(min_length=reviews.BULK_MIN, max_length=reviews.BULK_MAX,
+                                      description="Exactly the items the reviewer saw in the preview")
+
+
+class BulkOut(BaseModel):
+    batch_id: uuid.UUID
+    items: int
+    approved: int
+    approval_recorded: int = Field(description="Two-person items that now wait for a second approver")
+
+
+@router.post("/projects/{project_id}/review-bulk", response_model=BulkOut)
+def bulk_approve(project_id: uuid.UUID, body: BulkIn, principal: CurrentPrincipal, s: DB) -> BulkOut:
+    t, p = project_for(s, principal, project_id, None)
+    if not principal.has_on_project(P.REVIEW_RESOLVE, t, p.id):
+        raise forbidden("You cannot decide review items on this project.")
+    try:
+        res = reviews.bulk_approve(s, principal, t, p.id, body.pattern_key, body.option, body.note, body.item_ids)
+    except reviews.ReviewError as e:
+        raise review_problem(e) from e
+    return BulkOut(**res)
+
+
 class ReviewerIn(BaseModel):
     user_id: uuid.UUID | None = Field(description="null removes the named reviewer")
 

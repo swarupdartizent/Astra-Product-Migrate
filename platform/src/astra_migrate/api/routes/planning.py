@@ -875,20 +875,30 @@ def import_actuals(project_id: uuid.UUID, body: ActualsIn, principal: CurrentPri
         raise invalid("content_base64", str(e)) from e
     with store.connect(t) as tc:
         tasks = store.items(tc, p.id, "task")
+        assign = service.assignments_from(store.get(tc, p.id, "wave_plan", "current"))
         matched = [(k, h) for k, h in rows if k in tasks]
         with tc.transaction(), tc.cursor() as cur:
             cur.executemany(
-                "INSERT INTO estate.plan_actuals(project_id, task_key, rule_id, estimate, hours, source) "
-                "VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (project_id, task_key) DO UPDATE SET hours = excluded.hours, "
-                "source = excluded.source, imported_at = now()",
-                [(p.id, k, tasks[k]["evidence"].get("rule"), tasks[k].get("likely"), h, body.filename)
-                 for k, h in matched])
+                "INSERT INTO estate.plan_actuals(project_id, task_key, hours, source, rule_id, estimate, planned_low, "
+                "planned_likely, planned_high, factor, wave, overridden) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (project_id, task_key) DO UPDATE SET "
+                "hours = excluded.hours, source = excluded.source, imported_at = now()",
+                [(p.id, k, h, body.filename, *service.actual_row(tasks[k], assign)) for k, h in matched])
     unmatched = [k for k, _ in rows if k not in tasks]
     audit.record(s, principal.actor, "plan.actuals_imported", tenant_id=t.id, project_id=p.id, target_type="project",
                  target_id=str(p.id), details={"file": body.filename, "matched": len(matched),
                                                "unmatched": len(unmatched)})
     return {"rows": len(rows), "matched": len(matched), "unmatched": unmatched[:100],
             "hours": round(sum(h for _, h in matched), 2)}
+
+
+@router.get("/projects/{project_id}/plan/estimate-accuracy")
+def estimate_accuracy(project_id: uuid.UUID, principal: CurrentPrincipal, s: DB) -> dict[str, Any]:
+    """Estimate error per wave from imported actual effort, the trend across waves and the calibration factors
+    later estimates use (E21.F3.S2)."""
+    t, p = _ctx(s, principal, project_id)
+    with store.connect(t) as tc:
+        return service.estimate_accuracy(tc, p.id)
 
 
 # ------------------------------------------------------------------ gaps (E19.F1)

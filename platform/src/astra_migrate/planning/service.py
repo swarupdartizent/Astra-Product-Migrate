@@ -164,12 +164,68 @@ def dependency_view(tc: psycopg.Connection[Any], project_id: uuid.UUID) -> dict[
 # ------------------------------------------------------------------ tasks
 
 def factors(tc: psycopg.Connection[Any]) -> dict[str, dict[str, Any]]:
-    """Calibration from actual effort in this tenant's projects, per estimation rule."""
+    """Calibration from actual effort in this tenant's projects, per estimation rule. Each sample compares the actual
+    hours with the rule's *uncalibrated* estimate, so a factor never compounds an earlier one. Tasks whose hours a
+    person overrode say nothing about the rule and are left out."""
     samples: dict[str, list[tuple[str, float, float]]] = {}
     for key, rule, est, hours in tc.execute("SELECT task_key, rule_id, estimate, hours FROM estate.plan_actuals "
-                                            "WHERE rule_id IS NOT NULL").fetchall():
+                                            "WHERE rule_id IS NOT NULL AND NOT overridden").fetchall():
         samples.setdefault(rule, []).append((key, float(est or 0), float(hours)))
     return estimation.calibrate(samples)
+
+
+def actual_row(task: dict[str, Any], assign: dict[str, str]) -> tuple[Any, ...]:
+    """(rule_id, uncalibrated estimate, planned low, likely, high, factor applied, wave, overridden) for one task
+    whose actual effort is being imported."""
+    ev = task.get("evidence") or {}
+    factor = float((ev.get("calibration") or {}).get("factor") or 1.0)
+    likely = task.get("likely")
+    base = float(likely) / factor if likely is not None and factor > 0 else likely
+    return (ev.get("rule"), base, task.get("low"), likely, task.get("high"), factor,
+            assign.get(str(task.get("scope"))) if task.get("scope") else None, bool(task.get("override")))
+
+
+def estimate_accuracy(tc: psycopg.Connection[Any], project_id: uuid.UUID) -> dict[str, Any]:
+    """Estimate error per wave (E21.F3.S2): planned hours (what the team was shown) against actual hours, in wave
+    order, so a lead sees whether estimates improve as calibration learns from earlier waves."""
+    names = {k: w.get("name") or k for k, w in ordered_waves(tc, project_id)}
+    order = list(names)
+    rows = tc.execute("SELECT task_key, rule_id, planned_low, planned_likely, planned_high, factor, hours, wave, "
+                      "overridden FROM estate.plan_actuals WHERE project_id = %s", (project_id,)).fetchall()
+    by: dict[str | None, list[tuple[Any, ...]]] = {}
+    for r in rows:
+        by.setdefault(r[7], []).append(r)
+    waves: list[dict[str, Any]] = []
+    for key in [*order, *sorted(k for k in by if k is not None and k not in names), None]:
+        rs = by.get(key)
+        if not rs:
+            continue
+        planned = [(float(r[3]), float(r[6])) for r in rs if r[3] is not None]
+        p_sum, a_sum = sum(p for p, _ in planned), sum(a for _, a in planned)
+        ape = [abs(a - p) / p for p, a in planned if p > 0]
+        ranged = [r for r in rs if r[2] is not None and r[4] is not None]
+        calibrated = sum(1 for r in rs if r[5] is not None and abs(float(r[5]) - 1.0) > 1e-9)
+        waves.append({
+            "wave": key, "name": names.get(key, key) if key else "Not in a wave", "tasks": len(rs),
+            "planned_hours": round(p_sum, 1), "actual_hours": round(a_sum, 1),
+            "error_pct": round(100 * (a_sum - p_sum) / p_sum, 1) if p_sum else None,
+            "mean_abs_error_pct": round(100 * sum(ape) / len(ape), 1) if ape else None,
+            "within_range_pct": round(100 * sum(1 for r in ranged if float(r[2]) <= float(r[6]) <= float(r[4]))
+                                      / len(ranged), 1) if ranged else None,
+            "calibrated_tasks": calibrated, "overridden_tasks": sum(1 for r in rs if r[8])})
+    in_waves = [w for w in waves if w["wave"] is not None and w["mean_abs_error_pct"] is not None]
+    trend = None
+    if len(in_waves) >= 2:
+        first, last = float(in_waves[0]["mean_abs_error_pct"]), float(in_waves[-1]["mean_abs_error_pct"])
+        trend = {"from_wave": in_waves[0]["name"], "to_wave": in_waves[-1]["name"], "from": first, "to": last,
+                 "direction": "improving" if last < first else "worsening" if last > first else "unchanged"}
+    return {"waves": waves, "trend": trend, "factors": factors(tc), "tasks_with_actuals": len(rows),
+            "min_samples": estimation.MIN_CALIBRATION_SAMPLES,
+            "definitions": {
+                "error_pct": "(actual − planned) ÷ planned, over the wave's tasks with actuals; positive means "
+                             "the work took longer than planned",
+                "mean_abs_error_pct": "Mean of |actual − planned| ÷ planned per task",
+                "within_range_pct": "Share of tasks whose actual hours fell inside the planned low–high range"}}
 
 
 def generate_tasks(tc: psycopg.Connection[Any], inp: Inputs, project_id: uuid.UUID, by: str) -> dict[str, Any]:

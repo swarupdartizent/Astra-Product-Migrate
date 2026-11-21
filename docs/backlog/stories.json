@@ -58,7 +58,7 @@
       "release": "R2",
       "spec": "NFR Deployment",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I17"
     },
     {
       "id": "E01.F2.S1",
@@ -165,7 +165,7 @@
       "release": "R2",
       "spec": "NFR Observability",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I17"
     },
     {
       "id": "E02.F1.S1",
@@ -325,7 +325,7 @@
       "release": "R2",
       "spec": "Blueprint Assistant",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I16"
     },
     {
       "id": "E03.F2.S1",
@@ -689,7 +689,7 @@
       "release": "R2",
       "spec": "Learning",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I16"
     },
     {
       "id": "E06.F4.S1",
@@ -755,7 +755,7 @@
       "release": "R2",
       "spec": "Compliance additions",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I17"
     },
     {
       "id": "E07.F3.S1",
@@ -888,7 +888,7 @@
       "release": "R2",
       "spec": "DS-04",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I15"
     },
     {
       "id": "E08.F3.S1",
@@ -971,7 +971,7 @@
       "release": "R2",
       "spec": "Migration patterns",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I17"
     },
     {
       "id": "E10.F1.S1",
@@ -1237,7 +1237,7 @@
       "release": "R2",
       "spec": "PL-06",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I17"
     },
     {
       "id": "E11.F5.S4",
@@ -1668,7 +1668,7 @@
       "release": "R2",
       "spec": "Coexistence",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I17"
     },
     {
       "id": "E16.F1.S1",
@@ -1747,8 +1747,9 @@
       ],
       "release": "R2",
       "spec": "Review",
-      "status": "todo",
-      "increment": "later-R2"
+      "status": "done",
+      "increment": "I14",
+      "note": "Bulk approval by evidence pattern; preview with exclusions; all or nothing; DB refuses compliance-critical items and other patterns (review_bulk_guard)."
     },
     {
       "id": "E16.F2.S1",
@@ -1865,8 +1866,9 @@
       ],
       "release": "R2",
       "spec": "IB-02",
-      "status": "todo",
-      "increment": "later-R2"
+      "status": "done",
+      "increment": "I14",
+      "note": "Append-only, dated weights versions; NNLS recalibration after a wave blended by n/(n+10); contracted bands fixed (band_contracts)."
     },
     {
       "id": "E18.F3.S1",
@@ -1964,7 +1966,7 @@
       "release": "R2",
       "spec": "AG-01",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I15"
     },
     {
       "id": "E20.F1.S2",
@@ -1979,7 +1981,7 @@
       "release": "R2",
       "spec": "AG-02",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I15"
     },
     {
       "id": "E20.F2.S1",
@@ -1994,7 +1996,7 @@
       "release": "R2",
       "spec": "AG-03",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I15"
     },
     {
       "id": "E20.F2.S2",
@@ -2025,7 +2027,7 @@
       "release": "R2",
       "spec": "Agentification",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I15"
     },
     {
       "id": "E21.F1.S1",
@@ -2057,7 +2059,7 @@
       "release": "R2",
       "spec": "Learning",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I16"
     },
     {
       "id": "E21.F2.S1",
@@ -2073,7 +2075,7 @@
       "release": "R2",
       "spec": "Skill library",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I16"
     },
     {
       "id": "E21.F3.S1",
@@ -2089,7 +2091,7 @@
       "release": "R2",
       "spec": "Decision model",
       "status": "todo",
-      "increment": "later-R2"
+      "increment": "I16"
     },
     {
       "id": "E21.F3.S2",
@@ -2103,8 +2105,9 @@
       ],
       "release": "R2",
       "spec": "Learning",
-      "status": "todo",
-      "increment": "later-R2"
+      "status": "done",
+      "increment": "I14",
+      "note": "Actuals keep uncalibrated estimate, factor, planned range and wave; factors no longer compound; estimate error per wave with trend."
     },
     {
       "id": "E22.F1.S1",
@@ -2150,8 +2153,9 @@
       ],
       "release": "R2",
       "spec": "Evaluation",
-      "status": "todo",
-      "increment": "later-R2"
+      "status": "done",
+      "increment": "I14",
+      "note": "GET /evaluation/calibration: ECE, Brier, reliability bins, accuracy above thresholds per source; agents give suggested_option with confidence."
     }
   ]
 }

@@ -21,6 +21,7 @@ from astra_migrate.api.errors import conflict, forbidden, invalid, not_found
 from astra_migrate.db.control import get_session
 from astra_migrate.db.models import (
     AdapterRun,
+    BandContract,
     BlueprintTemplate,
     CustomerConsent,
     FleetScan,
@@ -148,9 +149,16 @@ def setup(programme_id: uuid.UUID, body: SetupIn, principal: CurrentPrincipal, s
                              else dict(prog.band_effort_weeks))
     if any(v <= 0 or v > 104 for v in weeks.values()):
         raise invalid("band_effort_weeks", "Weeks per band are between 0 and 104.")
+    before = programme.config_of(prog)
     prog.source_adapter, prog.target_adapter, prog.blueprint_template = (body.source_adapter, body.target_adapter,
                                                                          body.blueprint_template)
-    prog.packs, prog.segments, prog.mci_config, prog.band_effort_weeks = body.packs, segs, cfg, weeks
+    if programme.config_from(cfg) != before:
+        # Every set of weights is kept: the starting one is recorded before the first change, then the new one.
+        programme.ensure_versions(s, prog, principal.user.id)
+        prog.mci_config = cfg
+        s.flush()
+        programme.record_version(s, prog, principal.user.id, "manual", "Changed by hand in the programme set-up.")
+    prog.packs, prog.segments, prog.band_effort_weeks = body.packs, segs, weeks
     s.flush()
     audit.record(s, principal.actor, "programme.setup", target_type="programme", target_id=str(prog.id),
                  details=body.model_dump())
@@ -373,11 +381,12 @@ def fleet(programme_id: uuid.UUID, principal: CurrentPrincipal, s: DB) -> dict[s
                                                             CustomerConsent.revoked_at.is_(None)).limit(1))
         rows.append({"customer_id": str(t.id), "customer": t.name, "segment": t.segment,
                      "partner_id": str(t.partner_id) if t.partner_id else None, "consent": consent is not None,
-                     "scan": _scan_out(s, sc) if sc else None})
+                     "scan": _scan_out(s, sc) if sc else None,
+                     "index": programme.band_of(s, prog, t.id, sc)})
     segs: dict[str, list[dict[str, Any]]] = {}
     for r in rows:
-        if r["scan"] and r["scan"]["mci"]:
-            segs.setdefault(r["segment"] or "(no segment)", []).append(r["scan"]["mci"])
+        if r["index"]:
+            segs.setdefault(r["segment"] or "(no segment)", []).append(r["index"])
     segments = []
     for seg, ms in sorted(segs.items()):
         mean = round(sum(m["score"] for m in ms) / len(ms), 1)
@@ -386,7 +395,96 @@ def fleet(programme_id: uuid.UUID, principal: CurrentPrincipal, s: DB) -> dict[s
                          "band": "simple" if mean < prog_band["simple"] else "medium"
                          if mean < prog_band["medium"] else "complex",
                          "bands": {b: sum(1 for m in ms if m["band"] == b) for b in ("simple", "medium", "complex")}})
-    return {"customers": rows, "segments": segments, "scope": "programme" if partners is None else "partner"}
+    return {"customers": rows, "segments": segments, "scope": "programme" if partners is None else "partner",
+            "weights_version": programme.current_version(s, prog)}
+
+
+# ------------------------------------------------------------------ index versions, recalibration, contracts
+
+def _version_out(s: Session, v: Any) -> dict[str, Any]:
+    u = s.get(User, v.created_by)
+    return {"number": v.number, "source": v.source, "after_wave": v.after_wave, "weights": v.weights,
+            "ranges": v.ranges, "bands": v.bands, "basis": v.basis, "reason": v.reason,
+            "created_by": u.display_name if u else None,
+            "created_at": v.created_at.isoformat() if v.created_at else None}
+
+
+@router.get("/programmes/{programme_id}/mci/versions")
+def mci_versions(programme_id: uuid.UUID, principal: CurrentPrincipal, s: DB) -> dict[str, Any]:
+    """Every weights version of the programme's Complexity Index, newest first, and the contracted bands the
+    caller can see. Until the first change there is no stored version: the current weights are the starting
+    assumptions."""
+    prog, partners = _prog(s, principal, programme_id, P.TENANT_READ)
+    visible = {t.id: t for t in programme.customers(s, prog.id, partners)}
+    contracts = [c for c in s.scalars(select(BandContract).where(BandContract.programme_id == prog.id)
+                                      .order_by(BandContract.contracted_at)) if c.tenant_id in visible]
+    out = []
+    for c in contracts:
+        u = s.get(User, c.contracted_by)
+        out.append({"customer_id": str(c.tenant_id), "customer": visible[c.tenant_id].name, "band": c.band,
+                    "score": float(c.score), "weights_version": c.weights_version, "reference": c.reference,
+                    "contracted_by": u.display_name if u else None,
+                    "contracted_at": c.contracted_at.isoformat() if c.contracted_at else None})
+    vs = programme.versions(s, prog)
+    if partners is not None:  # partners see weights and dates, not which customers informed a recalibration
+        hidden = ("customers_used", "band_changes", "skipped")
+        items = [{**_version_out(s, v), "basis": {k: x for k, x in (v.basis or {}).items() if k not in hidden}}
+                 for v in reversed(vs)]
+    else:
+        items = [_version_out(s, v) for v in reversed(vs)]
+    return {"versions": items, "current_version": vs[-1].number if vs else None,
+            "current": programme.config_of(prog), "contracts": out,
+            "can_manage": partners is None and _can_manage(s, principal, prog.id)}
+
+
+def _can_manage(s: Session, principal: Principal, programme_id: uuid.UUID) -> bool:
+    try:
+        return programme.visible_partners(principal, s, programme_id, P.PROGRAMME_MANAGE) is None
+    except ProgrammeError:
+        return False
+
+
+class RecalibrateIn(BaseModel):
+    after_wave: str = Field(pattern=KEY, description="Customers planned in this wave and earlier inform the fit")
+    apply: bool = Field(default=False, description="false previews the proposal; true stores it as a new version")
+    reason: str | None = Field(default=None, min_length=10, max_length=2000, description="Required to apply")
+
+
+@router.post("/programmes/{programme_id}/mci/recalibration")
+def recalibrate(programme_id: uuid.UUID, body: RecalibrateIn, principal: CurrentPrincipal, s: DB) -> dict[str, Any]:
+    """Propose (or apply) Complexity Index weights fitted to actual effort after a wave. Applying stores a new,
+    dated weights version; contracted bands never change."""
+    prog = _manage(s, principal, programme_id)
+    try:
+        if not body.apply:
+            return {"applied": False, **programme.recalibration(s, prog, body.after_wave)}
+        if not body.reason:
+            raise invalid("reason", "Give the reason for the new weights (at least 10 characters).")
+        v, proposal = programme.apply_recalibration(s, prog, body.after_wave, body.reason, principal.actor,
+                                                    principal.user.id)
+    except ProgrammeError as e:
+        raise _err(e) from e
+    return {"applied": True, "version": _version_out(s, v), **proposal}
+
+
+class ContractIn(BaseModel):
+    reference: str = Field(min_length=3, max_length=300, description="The contract or order reference")
+
+
+@router.post("/programmes/{programme_id}/customers/{tenant_id}/band-contract", status_code=201)
+def contract(programme_id: uuid.UUID, tenant_id: uuid.UUID, body: ContractIn, principal: CurrentPrincipal,
+             s: DB) -> dict[str, Any]:
+    """Fix a customer's band as contracted, from its latest scan and the current weights. It never changes after."""
+    prog = _manage(s, principal, programme_id)
+    t = s.get(Tenant, tenant_id)
+    if t is None or t.programme_id != prog.id:
+        raise not_found("Customer")
+    try:
+        c = programme.contract_band(s, prog, t, body.reference, principal.actor, principal.user.id)
+    except ProgrammeError as e:
+        raise _err(e) from e
+    return {"customer_id": str(t.id), "band": c.band, "score": float(c.score), "weights_version": c.weights_version,
+            "reference": c.reference}
 
 
 # ------------------------------------------------------------------ portfolio planner (E18.F3.S1)

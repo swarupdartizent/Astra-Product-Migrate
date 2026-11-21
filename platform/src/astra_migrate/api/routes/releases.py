@@ -3,6 +3,8 @@ the release as released, or as blocked with what fell."""
 
 from __future__ import annotations
 
+import uuid
+from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
@@ -14,7 +16,7 @@ from astra_migrate import audit
 from astra_migrate.api.errors import conflict, forbidden, invalid, not_found
 from astra_migrate.db.control import get_session
 from astra_migrate.db.models import Release, User
-from astra_migrate.evaluation import engine
+from astra_migrate.evaluation import calibration, engine
 from astra_migrate.security.principal import CurrentPrincipal, Principal
 from astra_migrate.security.rbac import P
 
@@ -106,3 +108,15 @@ def get_release(release_id: str, principal: CurrentPrincipal, s: DB) -> dict[str
     if r is None:
         raise not_found("Release")
     return _out(s, r, full=True)
+
+
+# ------------------------------------------------------------------ confidence calibration (E22.F1.S3)
+
+@router.get("/evaluation/calibration")
+def confidence_calibration(principal: CurrentPrincipal, s: DB, tenant_id: uuid.UUID | None = None,
+                           since: datetime | None = None) -> dict[str, Any]:
+    """How well each agent's and platform rule's stated confidence matches reviewers' decisions: calibration error,
+    Brier score, reliability bins and accuracy above each review threshold. Counts and rates only."""
+    if not (principal.has_platform(P.GOLDEN_RUN) or principal.has_platform(P.TENANT_READ)):
+        raise forbidden("You cannot read evaluation results.")
+    return calibration.report(s, tenant_id=tenant_id, since=since)

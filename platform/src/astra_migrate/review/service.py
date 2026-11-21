@@ -26,6 +26,7 @@ from astra_migrate.db.models import (
     BlueprintVersion,
     Project,
     ReviewApproval,
+    ReviewBulkBatch,
     ReviewItem,
     RoleAssignment,
     Tenant,
@@ -196,7 +197,7 @@ class Decided:
 
 
 def decide(s: Session, principal: Any, t: Tenant, r: ReviewItem, action: str, option: str | None, note: str,
-           changed_value: str | None) -> Decided:
+           changed_value: str | None, bulk_batch_id: uuid.UUID | None = None) -> Decided:
     ok, why = can_decide(s, principal, t, r)
     if not ok:
         raise ReviewError(409 if r.status != "open" else 403, why)
@@ -213,11 +214,13 @@ def decide(s: Session, principal: Any, t: Tenant, r: ReviewItem, action: str, op
         complete = len(prior) + 1 >= r.required_approvals
         if complete and r.compliance == "critical" and r.owner_user_id not in {a.user_id for a in prior} | {uid}:
             raise ReviewError(409, "The named reviewer must be one of the approvers of a compliance-critical item.")
-        s.add(ReviewApproval(item_id=r.id, user_id=uid, option=option, note=note))
+        s.add(ReviewApproval(item_id=r.id, user_id=uid, option=option, note=note, bulk_batch_id=bulk_batch_id))
         s.flush()
         if not complete:
             _audit(s, principal, t, r, "review.approval_recorded", {"option": option, "note": note,
-                                                                    "approvals": len(prior) + 1})
+                                                                    "approvals": len(prior) + 1,
+                                                                    "bulk_batch": str(bulk_batch_id)
+                                                                    if bulk_batch_id else None})
             return Decided("approval_recorded")
         r.status, r.outcome, r.resolution = "resolved", "approved", option
         result = Decided("approved")
@@ -242,6 +245,7 @@ def decide(s: Session, principal: Any, t: Tenant, r: ReviewItem, action: str, op
         on_review(s, t, r)
     _audit(s, principal, t, r, f"review.{result.recorded}",
            {"option": r.resolution, "note": note, "changed_value": r.changed_value, "outcome": r.outcome,
+            "bulk_batch": str(bulk_batch_id) if bulk_batch_id else None,
             "approvals": [str(a.user_id) for a in approvals(s, r)], "follow_up_run": str(r.follow_up_run_id)
             if r.follow_up_run_id else None, "follow_up_error": result.follow_up_error})
     return result
@@ -294,6 +298,95 @@ def _audit(s: Session, principal: Any, t: Tenant, r: ReviewItem, action: str, de
                  target_id=str(r.id), details={"kind": r.kind, "title": r.title, "owner_role": r.owner_role,
                                                "compliance": r.compliance, "controls": r.compliance_controls,
                                                "requested_by": r.requested_by, **details})
+
+
+# ------------------------------------------------------------------ bulk approval (E16.F1.S5)
+
+BULK_MIN, BULK_MAX = 2, 200
+
+
+def bulk_candidates(s: Session, principal: Any, t: Tenant, project_id: uuid.UUID, pattern_key: str
+                    ) -> dict[str, Any]:
+    """The open items of one evidence pattern, split into those this reviewer can approve together and those that
+    must be decided one by one, each with the reason. The options offered are those every eligible item has."""
+    rows = list(s.scalars(select(ReviewItem).where(ReviewItem.project_id == project_id,
+                                                   ReviewItem.pattern_key == pattern_key,
+                                                   ReviewItem.status == "open")))
+    rows.sort(key=lambda r: (-priority(r)[0], r.created_at))
+    eligible: list[ReviewItem] = []
+    excluded: list[tuple[ReviewItem, str]] = []
+    for r in rows:
+        why = _bulk_refusal(s, principal, t, r)
+        if why:
+            excluded.append((r, why))
+        else:
+            eligible.append(r)
+    options = [o for o in (eligible[0].options if eligible else []) if all(o in r.options for r in eligible)]
+    prior: dict[str, str] = {}
+    for r in eligible:
+        first = approvals(s, r)
+        if first:
+            prior[str(r.id)] = first[0].option
+    return {"pattern_key": pattern_key, "eligible": eligible, "excluded": excluded, "options": options,
+            "first_approver_options": prior,
+            "can_bulk": len(eligible) >= BULK_MIN and bool(options),
+            "reason": None if len(eligible) >= BULK_MIN and options else
+            ("Fewer than two items of this pattern can be approved together." if len(eligible) < BULK_MIN
+             else "The items of this pattern share no option.")}
+
+
+def _bulk_refusal(s: Session, principal: Any, t: Tenant, r: ReviewItem) -> str | None:
+    if r.compliance == "critical":
+        return "Compliance-critical: decide it on its own, with its named reviewer."
+    ok, why = can_decide(s, principal, t, r)
+    return None if ok else why
+
+
+def bulk_approve(s: Session, principal: Any, t: Tenant, project_id: uuid.UUID, pattern_key: str, option: str,
+                 note: str, item_ids: list[uuid.UUID]) -> dict[str, Any]:
+    """Approve the listed items with one option and one reason. All or nothing: if any listed item cannot be
+    approved this way (it changed since the reviewer looked), nothing is recorded and the items are named."""
+    note = note.strip()
+    _need_reason(note)
+    ids = list(dict.fromkeys(item_ids))
+    if not BULK_MIN <= len(ids) <= BULK_MAX:
+        raise ReviewError(422, f"Approve between {BULK_MIN} and {BULK_MAX} items together.", "item_ids")
+    rows = {r.id: r for r in s.scalars(select(ReviewItem).where(ReviewItem.id.in_(ids)).with_for_update())}
+    problems: list[str] = []
+    for i in ids:
+        r = rows.get(i)
+        if r is None or r.project_id != project_id:
+            problems.append(f"{i}: not an item of this project")
+            continue
+        if r.pattern_key != pattern_key:
+            problems.append(f"{r.title}: has a different evidence pattern")
+            continue
+        why = _bulk_refusal(s, principal, t, r)
+        if why:
+            problems.append(f"{r.title}: {why}")
+        elif option not in r.options:
+            problems.append(f"{r.title}: '{option}' is not one of its options")
+        else:
+            first = approvals(s, r)
+            if first and first[0].option != option:
+                problems.append(f"{r.title}: its first approver chose '{first[0].option}'")
+    if problems:
+        raise ReviewError(409, "Nothing was approved. These items cannot be approved together now: "
+                          + "; ".join(problems[:20]) + ("; ..." if len(problems) > 20 else ""))
+    batch = ReviewBulkBatch(tenant_id=t.id, project_id=project_id, pattern_key=pattern_key, option=option, note=note,
+                            item_ids=[str(i) for i in ids], decided_by=principal.user.id)
+    s.add(batch)
+    s.flush()
+    outcome: dict[str, int] = {}
+    for i in ids:
+        res = decide(s, principal, t, rows[i], "approve", option, note, None, bulk_batch_id=batch.id)
+        outcome[res.recorded] = outcome.get(res.recorded, 0) + 1
+    audit.record(s, principal.actor, "review.bulk_approved", tenant_id=t.id, project_id=project_id,
+                 target_type="review_bulk_batch", target_id=str(batch.id),
+                 details={"pattern_key": pattern_key, "option": option, "note": note, "items": len(ids),
+                          "outcome": outcome})
+    return {"batch_id": batch.id, "items": len(ids), "approved": outcome.get("approved", 0),
+            "approval_recorded": outcome.get("approval_recorded", 0)}
 
 
 # ------------------------------------------------------------------ precedents (E21.F1.S1)

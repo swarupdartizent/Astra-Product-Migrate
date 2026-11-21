@@ -219,7 +219,8 @@ def run_design(ctx: JobContext) -> dict[str, Any]:
                     question=rv["question"], options=rv["options"], owner_role=rv["owner_role"],
                     requested_by=actor_dict(audit.Actor.system("design")),
                     context={"design": {"stream": stream, "key": it.key, "run_id": str(run_id)},
-                             "proposed": it.target, "evidence": it.evidence[:10]},
+                             "proposed": it.target, "evidence": it.evidence[:10],
+                             "suggested": rv["options"][0]},
                     subject_type="mapping" if stream == "mapping" else stream,
                     stream={"mapping": "data", "configuration": "configuration", "integration": "integrations"}
                     .get(stream, "data"), segment=rv.get("segment"), risk=rv.get("risk", "medium"),

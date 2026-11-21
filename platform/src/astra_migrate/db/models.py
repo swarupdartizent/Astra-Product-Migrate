@@ -689,6 +689,24 @@ class ReviewApproval(Base):
     option: Mapped[str] = mapped_column(Text)
     note: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    bulk_batch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("review_bulk_batches.id"))
+
+
+class ReviewBulkBatch(Base):
+    """One reviewer's approval of several open items that share an evidence pattern (E16.F1.S5). Never for
+    compliance-critical items (enforced in the database)."""
+
+    __tablename__ = "review_bulk_batches"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    pattern_key: Mapped[str] = mapped_column(String(200))
+    option: Mapped[str] = mapped_column(Text)
+    note: Mapped[str] = mapped_column(Text)
+    item_ids: Mapped[list[str]] = mapped_column(JSONB)
+    decided_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class SourceConnection(Base):
@@ -1417,6 +1435,44 @@ class PortfolioPlan(Base):
     result: Mapped[dict[str, Any]] = mapped_column()
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MciWeightVersion(Base):
+    """One numbered, dated set of Complexity Index weights, ranges and band limits of a programme (E18.F2.S3).
+    Append-only: a change of weights, by hand or by recalibration from actual effort, is a new version."""
+
+    __tablename__ = "mci_weight_versions"
+    __table_args__ = (UniqueConstraint("programme_id", "number", name="uq_mci_version"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    programme_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("programmes.id", ondelete="CASCADE"))
+    number: Mapped[int] = mapped_column(Integer)
+    weights: Mapped[dict[str, Any]] = mapped_column()
+    ranges: Mapped[dict[str, Any]] = mapped_column()
+    bands: Mapped[dict[str, Any]] = mapped_column()
+    source: Mapped[str] = mapped_column(String(20))
+    after_wave: Mapped[str | None] = mapped_column(String(40))
+    basis: Mapped[dict[str, Any]] = mapped_column()
+    reason: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BandContract(Base):
+    """A customer's contracted complexity band. Once contracted, later weights versions never change it."""
+
+    __tablename__ = "band_contracts"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    programme_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("programmes.id", ondelete="CASCADE"))
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), unique=True)
+    band: Mapped[str] = mapped_column(String(20))
+    score: Mapped[float] = mapped_column(Numeric)
+    weights_version: Mapped[int] = mapped_column(Integer)
+    scan_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("fleet_scans.id"))
+    reference: Mapped[str] = mapped_column(String(300))
+    contracted_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    contracted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Release(Base):

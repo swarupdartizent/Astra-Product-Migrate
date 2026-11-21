@@ -34,11 +34,13 @@ from astra_migrate.adapters.jobs import adapter_pack, all_traps, content_of, par
 from astra_migrate.connector_secrets import SecretError
 from astra_migrate.db.control import session_scope
 from astra_migrate.db.models import (
+    BandContract,
     FleetScan,
     Gap,
     GateApproval,
     GatePass,
     LoadRun,
+    MciWeightVersion,
     Partner,
     Pod,
     PortfolioPlan,
@@ -107,7 +109,11 @@ def customers(s: Session, programme_id: uuid.UUID, partners: set[uuid.UUID] | No
 # ------------------------------------------------------------------ complexity index (E18.F2.S2)
 
 def config_of(prog: Programme) -> dict[str, Any]:
-    c = prog.mci_config or {}
+    return config_from(prog.mci_config or {})
+
+
+def config_from(c: dict[str, Any]) -> dict[str, Any]:
+    """Weights, ranges and band limits with defaults filled in."""
     weights = {k: float(c.get("weights", {}).get(k, w)) for k, _l, w, _lo, _hi in MEASURES}
     ranges = {k: tuple(c.get("ranges", {}).get(k, (lo, hi))) for k, _l, _w, lo, hi in MEASURES}
     bands = {**BANDS, **{k: float(v) for k, v in (c.get("bands") or {}).items()}}
@@ -146,6 +152,236 @@ def mci(measures: dict[str, float], prog: Programme) -> dict[str, Any]:
     band = "simple" if score < cfg["bands"]["simple"] else "medium" if score < cfg["bands"]["medium"] else "complex"
     return {"score": score, "band": band, "measures": rows, "bands": cfg["bands"],
             "formula": "100 × Σ weight × clamp((value − low) / (high − low), 0, 1)"}
+
+
+# ------------------------------------------------------------------ weights versions and recalibration (E18.F2.S3)
+
+MIN_RECALIBRATION_SAMPLES = 3
+PRIOR_STRENGTH = float(len(MEASURES))  # a fit from n customers moves the weights by n / (n + 10)
+
+
+def versions(s: Session, prog: Programme) -> list[MciWeightVersion]:
+    return list(s.scalars(select(MciWeightVersion).where(MciWeightVersion.programme_id == prog.id)
+                          .order_by(MciWeightVersion.number)))
+
+
+def current_version(s: Session, prog: Programme) -> int | None:
+    return s.scalar(select(MciWeightVersion.number).where(MciWeightVersion.programme_id == prog.id)
+                    .order_by(MciWeightVersion.number.desc()).limit(1))
+
+
+def ensure_versions(s: Session, prog: Programme, user_id: uuid.UUID) -> int:
+    """Record the starting weights as version 1 before the first change, so every version is kept."""
+    n = current_version(s, prog)
+    if n is not None:
+        return n
+    cfg = config_of(prog)
+    s.add(MciWeightVersion(programme_id=prog.id, number=1, weights=cfg["weights"],
+                           ranges={k: list(v) for k, v in cfg["ranges"].items()}, bands=cfg["bands"],
+                           source="starting", basis={}, created_by=user_id,
+                           reason="The programme's starting assumptions, recorded before the first change."))
+    s.flush()
+    return 1
+
+
+def record_version(s: Session, prog: Programme, user_id: uuid.UUID, source: str, reason: str,
+                   after_wave: str | None = None, basis: dict[str, Any] | None = None) -> MciWeightVersion:
+    number = (current_version(s, prog) or 0) + 1
+    cfg = config_of(prog)
+    v = MciWeightVersion(programme_id=prog.id, number=number, weights=cfg["weights"],
+                         ranges={k: list(r) for k, r in cfg["ranges"].items()}, bands=cfg["bands"], source=source,
+                         after_wave=after_wave, basis=basis or {}, reason=reason, created_by=user_id)
+    s.add(v)
+    s.flush()
+    return v
+
+
+def contract_of(s: Session, tenant_id: uuid.UUID) -> BandContract | None:
+    return s.scalar(select(BandContract).where(BandContract.tenant_id == tenant_id))
+
+
+def band_of(s: Session, prog: Programme, tenant_id: uuid.UUID, sc: FleetScan | None) -> dict[str, Any] | None:
+    """A customer's band: the contracted one when there is a contract (it never changes), otherwise the latest
+    scan scored with the programme's current weights."""
+    c = contract_of(s, tenant_id)
+    if c is not None:
+        return {"band": c.band, "score": float(c.score), "contracted": True, "weights_version": c.weights_version,
+                "contract_reference": c.reference,
+                "contracted_at": c.contracted_at.isoformat() if c.contracted_at else None}
+    if sc is None or not sc.measures:
+        return None
+    idx = mci(sc.measures, prog)
+    return {"band": idx["band"], "score": idx["score"], "contracted": False,
+            "weights_version": current_version(s, prog), "contract_reference": None, "contracted_at": None}
+
+
+def contract_band(s: Session, prog: Programme, t: Tenant, reference: str, actor: audit.Actor,
+                  user_id: uuid.UUID) -> BandContract:
+    if contract_of(s, t.id) is not None:
+        raise ProgrammeError(409, "This customer's band is already contracted; contracted bands do not change.")
+    sc = latest_scan(s, t.id)
+    if sc is None or not sc.measures:
+        raise ProgrammeError(409, "No complexity band yet: run a consented light scan first.")
+    version = ensure_versions(s, prog, user_id)
+    idx = mci(sc.measures, prog)
+    c = BandContract(programme_id=prog.id, tenant_id=t.id, band=idx["band"], score=idx["score"],
+                     weights_version=version, scan_id=sc.id, reference=reference.strip(), contracted_by=user_id)
+    s.add(c)
+    s.flush()
+    audit.record(s, actor, "programme.band_contracted", tenant_id=t.id, target_type="programme",
+                 target_id=str(prog.id), details={"band": c.band, "score": idx["score"], "weights_version": version,
+                                                  "scan": str(sc.id), "reference": c.reference})
+    return c
+
+
+def _normalised(measures: dict[str, Any], ranges: dict[str, tuple[Any, ...]]) -> list[float]:
+    out = []
+    for key, *_ in MEASURES:
+        lo, hi = (float(x) for x in ranges[key])
+        v = float(measures.get(key, 0) or 0)
+        out.append(min(1.0, max(0.0, (v - lo) / (hi - lo))))
+    return out
+
+
+def fit_weights(xs: list[list[float]], ys: list[float], sweeps: int = 2000) -> tuple[list[float], float]:
+    """Non-negative least squares with a free intercept, by coordinate descent: hours ≈ a + Σ c_k * n_k with every
+    c_k ≥ 0. Returns (c, a). Pure and deterministic."""
+    k, n = len(xs[0]), len(xs)
+    c = [0.0] * k
+    a = sum(ys) / n
+    for _ in range(sweeps):
+        moved = 0.0
+        a = sum(ys[i] - sum(c[j] * xs[i][j] for j in range(k)) for i in range(n)) / n
+        for j in range(k):
+            col = [xs[i][j] for i in range(n)]
+            denom = sum(v * v for v in col)
+            if denom <= 0:
+                continue
+            resid = [ys[i] - a - sum(c[m] * xs[i][m] for m in range(k)) for i in range(n)]
+            new = max(0.0, c[j] + sum(col[i] * resid[i] for i in range(n)) / denom)
+            moved = max(moved, abs(new - c[j]))
+            c[j] = new
+        if moved < 1e-10:
+            break
+    return c, a
+
+
+def _pearson(a: list[float], b: list[float]) -> float | None:
+    n = len(a)
+    if n < 2:
+        return None
+    ma, mb = sum(a) / n, sum(b) / n
+    va, vb = sum((x - ma) ** 2 for x in a), sum((y - mb) ** 2 for y in b)
+    if va <= 0 or vb <= 0:
+        return None
+    return round(sum((x - ma) * (y - mb) for x, y in zip(a, b, strict=True)) / math.sqrt(va * vb), 4)
+
+
+def recalibration(s: Session, prog: Programme, after_wave: str) -> dict[str, Any]:
+    """Propose new weights from the actual effort of customers planned in waves up to and including `after_wave`
+    (latest portfolio plan). The fitted weights are blended with the current ones in proportion to the number of
+    customers behind them. Bands already contracted are listed as kept."""
+    waves = list(s.scalars(select(ProgrammeWave).where(ProgrammeWave.programme_id == prog.id)
+                           .order_by(ProgrammeWave.start_date, ProgrammeWave.key)))
+    keys = [w.key for w in waves]
+    if after_wave not in keys:
+        raise ProgrammeError(422, "Choose one of the programme's waves.", "after_wave")
+    included = keys[:keys.index(after_wave) + 1]
+    pp = s.scalars(select(PortfolioPlan).where(PortfolioPlan.programme_id == prog.id)
+                   .order_by(PortfolioPlan.number.desc())).first()
+    wave_of = {a["customer_id"]: a["wave"] for a in (pp.result.get("assignments") or [])} if pp else {}
+    cfg = config_of(prog)
+    keys_m = [k for k, *_ in MEASURES]
+    xs: list[list[float]] = []
+    ys: list[float] = []
+    used: list[str] = []
+    skipped = {"not_in_included_waves": 0, "no_scan": 0, "no_actual_effort": 0, "unreachable": 0}
+    for t in customers(s, prog.id, None):
+        if wave_of.get(str(t.id)) not in included:
+            skipped["not_in_included_waves"] += 1
+            continue
+        sc = latest_scan(s, t.id)
+        if sc is None or not sc.measures:
+            skipped["no_scan"] += 1
+            continue
+        fig = _tenant_figures(t, [p.id for p in s.scalars(select(Project).where(Project.tenant_id == t.id))])
+        if fig.get("unavailable"):
+            skipped["unreachable"] += 1
+            continue
+        if not fig["actual_hours"]:
+            skipped["no_actual_effort"] += 1
+            continue
+        xs.append(_normalised(sc.measures, cfg["ranges"]))
+        ys.append(float(fig["actual_hours"]))
+        used.append(str(t.id))
+    base = {"after_wave": after_wave, "waves_included": included, "samples": len(used), "skipped": skipped,
+            "current_version": current_version(s, prog), "current_weights": cfg["weights"],
+            "min_samples": MIN_RECALIBRATION_SAMPLES, "plan_number": pp.number if pp else None}
+    if len(used) < MIN_RECALIBRATION_SAMPLES:
+        return {**base, "can_apply": False,
+                "reason": f"{len(used)} customer(s) in these waves have a scan and actual effort; "
+                          f"{MIN_RECALIBRATION_SAMPLES} are needed."}
+    c, intercept = fit_weights(xs, ys)
+    total = sum(c)
+    if total <= 0:
+        return {**base, "can_apply": False,
+                "reason": "Actual effort shows no positive relation to any measure yet; the weights stay as they are."}
+    fitted = {k: c[i] / total for i, k in enumerate(keys_m)}
+    lam = len(used) / (len(used) + PRIOR_STRENGTH)
+    blended = {k: (1 - lam) * cfg["weights"][k] + lam * fitted[k] for k in keys_m}
+    proposed = {k: round(v, 4) for k, v in blended.items()}
+    drift = round(1.0 - sum(proposed.values()), 4)
+    biggest = max(proposed, key=lambda k: proposed[k])
+    proposed[biggest] = round(proposed[biggest] + drift, 4)
+
+    def scores(w: dict[str, float]) -> list[float]:
+        return [100 * sum(w[k] * x[i] for i, k in enumerate(keys_m)) for x in xs]
+
+    bands = cfg["bands"]
+
+    def band(score: float) -> str:
+        return "simple" if score < bands["simple"] else "medium" if score < bands["medium"] else "complex"
+
+    changes = []
+    for t in customers(s, prog.id, None):
+        sc = latest_scan(s, t.id)
+        if sc is None or not sc.measures:
+            continue
+        now = band_of(s, prog, t.id, sc)
+        assert now is not None
+        new_score = round(100 * sum(proposed[k] * x for k, x in zip(keys_m, _normalised(sc.measures, cfg["ranges"]),
+                                                                     strict=True)), 1)
+        new_band = now["band"] if now["contracted"] else band(new_score)
+        if now["contracted"] or new_band != now["band"]:
+            changes.append({"customer_id": str(t.id), "customer": t.name, "from": now["band"], "to": new_band,
+                            "score_from": now["score"], "score_to": now["score"] if now["contracted"] else new_score,
+                            "contracted": now["contracted"]})
+    return {**base, "can_apply": True, "reason": None, "fitted_weights": {k: round(v, 4) for k, v in fitted.items()},
+            "proposed_weights": proposed, "blend": round(lam, 4), "intercept_hours": round(intercept, 1),
+            "fit": {"correlation_before": _pearson(scores(cfg["weights"]), ys),
+                    "correlation_after": _pearson(scores(proposed), ys)},
+            "band_changes": changes, "customers_used": used,
+            "method": "Non-negative least squares of actual hours on the normalised measures (free intercept), "
+                      "weights scaled to add up to 1, then blended with the current weights by n ÷ (n + 10)."}
+
+
+def apply_recalibration(s: Session, prog: Programme, after_wave: str, reason: str, actor: audit.Actor,
+                        user_id: uuid.UUID) -> tuple[MciWeightVersion, dict[str, Any]]:
+    proposal = recalibration(s, prog, after_wave)
+    if not proposal["can_apply"]:
+        raise ProgrammeError(409, str(proposal["reason"]))
+    ensure_versions(s, prog, user_id)
+    prog.mci_config = {**(prog.mci_config or {}), "weights": proposal["proposed_weights"]}
+    s.flush()
+    basis = {k: proposal[k] for k in ("waves_included", "samples", "skipped", "fitted_weights", "blend",
+                                      "intercept_hours", "fit", "customers_used", "method", "plan_number")}
+    basis["previous_weights"] = proposal["current_weights"]
+    basis["band_changes"] = [{k: v for k, v in c.items() if k != "customer"} for c in proposal["band_changes"]]
+    v = record_version(s, prog, user_id, "recalibration", reason, after_wave, basis)
+    audit.record(s, actor, "programme.mci_recalibrated", target_type="programme", target_id=str(prog.id),
+                 details={"version": v.number, "after_wave": after_wave, "samples": proposal["samples"],
+                          "weights": proposal["proposed_weights"], "reason": reason})
+    return v, proposal
 
 
 # ------------------------------------------------------------------ fleet scan (E18.F2.S1)
@@ -263,16 +499,16 @@ def plan(s: Session, prog: Programme) -> dict[str, Any]:
     conflicts: list[dict[str, Any]] = []
     eligible: list[tuple[Tenant, str, float]] = []
     for t in customers(s, prog.id, None):
-        sc = latest_scan(s, t.id)
+        b = band_of(s, prog, t.id, latest_scan(s, t.id))
         if t.partner_id is None:
             conflicts.append({"customer_id": str(t.id), "customer": t.name, "reason": "No partner is assigned."})
         elif not pods.get(t.partner_id):
             conflicts.append({"customer_id": str(t.id), "customer": t.name, "reason": "The partner has no pods."})
-        elif sc is None or not sc.mci:
+        elif b is None:
             conflicts.append({"customer_id": str(t.id), "customer": t.name,
                               "reason": "No complexity band yet: run a consented light scan first."})
         else:
-            band = str(sc.mci["band"])
+            band = str(b["band"])
             eligible.append((t, band, weeks.get(band, 26.0)))
     if not waves:
         return {"assignments": [], "conflicts": [*conflicts, {"customer_id": None, "customer": None,
@@ -359,6 +595,7 @@ def view(s: Session, prog: Programme, partners: set[uuid.UUID] | None) -> dict[s
             gates.append({"project": p.name, "project_id": str(p.id), "passed": len(done), "of": len(GATE_KEYS),
                           "next_gate": nxt})
         sc = latest_scan(s, t.id)
+        b = band_of(s, prog, t.id, sc)
         gaps = s.scalar(select(Gap.id).where(Gap.tenant_id == t.id).limit(1))
         open_gaps = len(list(s.scalars(select(Gap.id).where(Gap.tenant_id == t.id, Gap.status == "open",
                                                             Gap.route == "vendor_product_change"))))
@@ -368,8 +605,8 @@ def view(s: Session, prog: Programme, partners: set[uuid.UUID] | None) -> dict[s
                               .order_by(LoadRun.created_at.desc())).first()
         rows.append({"customer_id": str(t.id), "customer": t.name, "partner_id": str(t.partner_id)
                      if t.partner_id else None, "partner": names.get(t.partner_id) if t.partner_id else None,
-                     "segment": t.segment, "band": sc.mci["band"] if sc and sc.mci else None,
-                     "score": sc.mci["score"] if sc and sc.mci else None,
+                     "segment": t.segment, "band": b["band"] if b else None,
+                     "score": b["score"] if b else None, "band_contracted": bool(b and b["contracted"]),
                      "scanned_at": sc.finished_at.isoformat() if sc and sc.finished_at else None,
                      "gates": gates, "open_vendor_gaps": open_gaps, "has_gaps": gaps is not None,
                      "open_breaks": breaks,
@@ -396,7 +633,7 @@ def metering(s: Session, prog: Programme, partners: set[uuid.UUID] | None) -> di
     for t in customers(s, prog.id, partners):
         projects = list(s.scalars(select(Project).where(Project.tenant_id == t.id)))
         pids = [p.id for p in projects]
-        sc = latest_scan(s, t.id)
+        b = band_of(s, prog, t.id, latest_scan(s, t.id))
         fig = _tenant_figures(t, pids)
         passes = list(s.scalars(select(GatePass).where(GatePass.project_id.in_(pids)).order_by(GatePass.created_at)))
         for gp in passes:
@@ -409,14 +646,15 @@ def metering(s: Session, prog: Programme, partners: set[uuid.UUID] | None) -> di
                              "passed_at": gp.created_at.isoformat() if gp.created_at else None,
                              "approvers": "; ".join(f"{_who(s, a.user_id)} ({a.role})" for a in appr),
                              "checklist_digest": gp.checklist_digest,
-                             "band": sc.mci["band"] if sc and sc.mci else None})
+                             "band": b["band"] if b else None})
         start = min((p.created_at for p in projects if p.created_at), default=None)
         end = max((gp.created_at for gp in passes if gp.created_at), default=None)
         elapsed = ((end or datetime.now(UTC)) - start).days if start else None
         rows.append({"customer_id": str(t.id), "customer": t.name, "segment": t.segment,
                      "partner_id": str(t.partner_id) if t.partner_id else None,
-                     "band": sc.mci["band"] if sc and sc.mci else None, "score": sc.mci["score"] if sc and sc.mci
-                     else None, "gates_passed": len(passes), "effort_hours": fig.get("actual_hours", 0.0),
+                     "band": b["band"] if b else None, "score": b["score"] if b else None,
+                     "band_contracted": bool(b and b["contracted"]), "gates_passed": len(passes),
+                     "effort_hours": fig.get("actual_hours", 0.0),
                      "elapsed_days": elapsed, "wave": wave_of.get(str(t.id))})
     groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for r in rows:
